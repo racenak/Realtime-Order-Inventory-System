@@ -1,0 +1,60 @@
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: order-service-route
+  namespace: default
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: PathPrefix(`/api/orders`)
+      kind: Rule
+      services:
+        - name: order-service
+          port: 9001
+      middlewares:
+        - name: rate-limit
+        - name: jwt-auth
+        - name: cors
+  tls:
+    certResolver: letsencrypt
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: inventory-service-route
+  namespace: default
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: PathPrefix(`/api/inventory`)
+      kind: Rule
+      services:
+        - name: inventory-service
+          port: 9002
+      middlewares:
+        - name: rate-limit
+        - name: jwt-auth
+        - name: cors
+  tls:
+    certResolver: letsencrypt
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: websocket-route
+  namespace: default
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: PathPrefix(`/ws`)
+      kind: Rule
+      services:
+        - name: websocket-service
+          port: 8081
+      middlewares:
+        - name: cors
+  tls:
+    certResolver: letsencrypt

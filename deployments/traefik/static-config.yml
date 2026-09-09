@@ -1,0 +1,41 @@
+apiVersion: traefik.io/v1alpha1
+kind: StaticConfiguration
+metadata:
+  name: traefik-config
+  namespace: default
+spec:
+  entryPoints:
+    web:
+      address: ":80"
+      http:
+        redirections:
+          entryPoint:
+            to: websecure
+            scheme: https
+    websecure:
+      address: ":443"
+      http:
+        tls:
+          certResolver: letsencrypt
+    traefik:
+      address: ":8082"
+  certificatesResolvers:
+    letsencrypt:
+      acme:
+        email: admin@yourdomain.com
+        storage: /data/acme.json
+        httpChallenge:
+          entryPoint: web
+  providers:
+    kubernetesIngress:
+      ingressClass: traefik
+    kubernetesCRD:
+      allowCrossNamespace: true
+  log:
+    level: INFO
+  accessLog: {}
+  metrics:
+    prometheus:
+      entryPoint: traefik
+      addEntryPointsLabels: true
+      addServicesLabels: true

@@ -1,5 +1,5 @@
-CREATE TABLE order_status_history (
-    id UUID PRIMARY KEY,
+CREATE TABLE IF NOT EXISTS order_status_history (
+    id UUID PRIMARY KEY DEFAULT uuidv7(),
 
     order_id UUID NOT NULL,
 
@@ -8,7 +8,7 @@ CREATE TABLE order_status_history (
 
     reason VARCHAR(255),
 
-    created_at TIMESTAMP NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-    FOREIGN KEY (order_id) REFERENCES orders(id)
+    FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
 );

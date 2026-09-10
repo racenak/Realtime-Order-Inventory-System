@@ -1,5 +1,5 @@
-CREATE TABLE inventory (
-    id UUID PRIMARY KEY,
+CREATE TABLE IF NOT EXISTS inventory (
+    id UUID PRIMARY KEY DEFAULT uuidv7(),
 
     product_id UUID NOT NULL,
     sku VARCHAR(100) NOT NULL,
@@ -11,10 +11,9 @@ CREATE TABLE inventory (
 
     version BIGINT NOT NULL DEFAULT 0,
 
-    updated_at TIMESTAMP NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     UNIQUE(product_id, warehouse_id),
 
-    FOREIGN KEY (warehouse_id)
-        REFERENCES warehouses(id)
+    FOREIGN KEY (warehouse_id) REFERENCES warehouses(id)
 );

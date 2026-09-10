@@ -20,16 +20,17 @@ func NewOrderRepository(db *sqlx.DB) domain.OrderRepository {
 }
 
 type orderRow struct {
-	ID              string  `db:"id"`
-	CustomerID      string  `db:"customer_id"`
-	Status          string  `db:"status"`
-	Currency        string  `db:"currency"`
-	Subtotal        float64 `db:"subtotal"`
-	DiscountAmount  float64 `db:"discount_amount"`
-	ShippingFee     float64 `db:"shipping_fee"`
-	TaxAmount       float64 `db:"tax_amount"`
-	TotalAmount     float64 `db:"total_amount"`
-	ShippingAddress string  `db:"shipping_address"`
+	ID              string    `db:"id"`
+	CustomerID      string    `db:"customer_id"`
+	Status          string    `db:"status"`
+	Currency        string    `db:"currency"`
+	Subtotal        float64   `db:"subtotal"`
+	DiscountAmount  float64   `db:"discount_amount"`
+	ShippingFee     float64   `db:"shipping_fee"`
+	TaxAmount       float64   `db:"tax_amount"`
+	TotalAmount     float64   `db:"total_amount"`
+	ShippingAddress string    `db:"shipping_address"`
+	IdempotencyKey  *string   `db:"idempotency_key"`
 	CreatedAt       time.Time `db:"created_at"`
 	UpdatedAt       time.Time `db:"updated_at"`
 }
@@ -134,6 +135,19 @@ func NewOrderItemRepository(db *sqlx.DB) domain.OrderItemRepository {
 	return &orderItemRepository{db: db}
 }
 
+type orderItemRow struct {
+	ID             string    `db:"id"`
+	OrderID        string    `db:"order_id"`
+	ProductID      string    `db:"product_id"`
+	SKU            string    `db:"sku"`
+	ProductName    string    `db:"product_name"`
+	Quantity       int       `db:"quantity"`
+	UnitPrice      float64   `db:"unit_price"`
+	DiscountAmount float64   `db:"discount_amount"`
+	TotalAmount    float64   `db:"total_amount"`
+	CreatedAt      time.Time `db:"created_at"`
+}
+
 func (r *orderItemRepository) Create(ctx context.Context, items []domain.OrderItem) error {
 	query := `
 		INSERT INTO order_items (id, order_id, product_id, sku, product_name, quantity, unit_price, discount_amount, total_amount, created_at)
@@ -161,10 +175,39 @@ func (r *orderItemRepository) Create(ctx context.Context, items []domain.OrderIt
 }
 
 func (r *orderItemRepository) GetByOrderID(ctx context.Context, orderID string) ([]domain.OrderItem, error) {
-	var items []domain.OrderItem
+	var rows []orderItemRow
 	query := `SELECT * FROM order_items WHERE order_id = $1`
-	err := r.db.SelectContext(ctx, &items, query, orderID)
-	return items, err
+	err := r.db.SelectContext(ctx, &rows, query, orderID)
+	if err != nil {
+		return nil, err
+	}
+
+	items := make([]domain.OrderItem, len(rows))
+	for i, row := range rows {
+		items[i] = domain.OrderItem{
+			ID:          row.ID,
+			OrderID:     row.OrderID,
+			ProductID:   row.ProductID,
+			SKU:         row.SKU,
+			ProductName: row.ProductName,
+			Quantity:    row.Quantity,
+			UnitPrice:   row.UnitPrice,
+			TotalPrice:  row.TotalAmount,
+		}
+	}
+
+	return items, nil
+}
+
+type outboxEventRow struct {
+	ID            string         `db:"id"`
+	AggregateType string         `db:"aggregate_type"`
+	AggregateID   string         `db:"aggregate_id"`
+	EventType     string         `db:"event_type"`
+	Payload       string         `db:"payload"`
+	Status        string         `db:"status"`
+	CreatedAt     string         `db:"created_at"`
+	PublishedAt   sql.NullString `db:"published_at"`
 }
 
 type outboxRepository struct {
@@ -194,14 +237,31 @@ func (r *outboxRepository) Create(ctx context.Context, event domain.OutboxEvent)
 }
 
 func (r *outboxRepository) GetPending(ctx context.Context, limit int) ([]domain.OutboxEvent, error) {
-	var events []domain.OutboxEvent
+	var rows []outboxEventRow
 	query := `SELECT * FROM outbox_events WHERE status = 'PENDING' ORDER BY created_at ASC LIMIT $1`
-	err := r.db.SelectContext(ctx, &events, query, limit)
-	return events, err
+	err := r.db.SelectContext(ctx, &rows, query, limit)
+	if err != nil {
+		return nil, err
+	}
+
+	events := make([]domain.OutboxEvent, len(rows))
+	for i, row := range rows {
+		events[i] = domain.OutboxEvent{
+			ID:            row.ID,
+			AggregateType: row.AggregateType,
+			AggregateID:   row.AggregateID,
+			EventType:     row.EventType,
+			Payload:       row.Payload,
+			Status:        row.Status,
+			CreatedAt:     row.CreatedAt,
+		}
+	}
+
+	return events, nil
 }
 
 func (r *outboxRepository) MarkPublished(ctx context.Context, id string) error {
 	query := `UPDATE outbox_events SET status = 'PUBLISHED', published_at = $1 WHERE id = $2`
-	_, err := r.db.ExecContext(ctx, query, time.Now(), id)
+	_, err := r.db.ExecContext(ctx, query, time.Now().Format(time.RFC3339), id)
 	return err
 }

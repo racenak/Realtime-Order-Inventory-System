@@ -8,6 +8,8 @@ type InventoryRepository interface {
 	GetByProductAndWarehouse(ctx context.Context, productID, warehouseID string) (*Inventory, error)
 	GetByProductID(ctx context.Context, productID string) ([]*Inventory, error)
 	UpdateStock(ctx context.Context, productID, warehouseID string, quantityChange int, expectedVersion int64) error
+	ReserveQuantity(ctx context.Context, productID, warehouseID string, quantity int, expectedVersion int64) error
+	ReleaseQuantity(ctx context.Context, productID, warehouseID string, quantity int) error
 }
 
 type ReservationRepository interface {

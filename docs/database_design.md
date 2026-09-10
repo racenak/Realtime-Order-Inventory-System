@@ -2,19 +2,19 @@
 
 ## Overview
 
-| Property | Value |
-|----------|-------|
-| Database | PostgreSQL 16 |
-| Architecture | Database per Service |
-| ID Strategy | UUID v7 (time-sortable) |
-| Consistency | Strong (ACID) |
+| Property     | Value                   |
+| ------------ | ----------------------- |
+| Database     | PostgreSQL 16           |
+| Architecture | Database per Service    |
+| ID Strategy  | UUID v7 (time-sortable) |
+| Consistency  | Strong (ACID)           |
 
 ## Databases
 
-| Database | Service | Purpose |
-|----------|---------|---------|
-| `order_db` | Order Service | Orders, payments, order events |
-| `inventory_db` | Inventory Service | Stock, warehouses, movements |
+| Database         | Service           | Purpose                        |
+| ---------------- | ----------------- | ------------------------------ |
+| `order_db`     | Order Service     | Orders, payments, order events |
+| `inventory_db` | Inventory Service | Stock, warehouses, movements   |
 
 ---
 
@@ -55,21 +55,21 @@
 
 Main table storing order records.
 
-| Column | Type | Nullable | Description |
-|--------|------|----------|-------------|
-| `id` | UUID | NO | Primary key (UUID v7) |
-| `customer_id` | UUID | NO | Reference to user service |
-| `status` | VARCHAR(30) | NO | Order status |
-| `currency` | CHAR(3) | NO | ISO 4217 currency code |
-| `subtotal` | DECIMAL(18,2) | NO | Sum of item totals |
-| `discount_amount` | DECIMAL(18,2) | NO | Total discount applied |
-| `shipping_fee` | DECIMAL(18,2) | NO | Shipping cost |
-| `tax_amount` | DECIMAL(18,2) | NO | Tax amount |
-| `total_amount` | DECIMAL(18,2) | NO | Final amount |
-| `shipping_address` | JSONB | NO | Delivery address |
-| `idempotency_key` | VARCHAR(100) | YES | Prevent duplicate orders |
-| `created_at` | TIMESTAMP | NO | Creation timestamp |
-| `updated_at` | TIMESTAMP | NO | Last update timestamp |
+| Column               | Type          | Nullable | Description               |
+| -------------------- | ------------- | -------- | ------------------------- |
+| `id`               | UUID          | NO       | Primary key (UUID v7)     |
+| `customer_id`      | UUID          | NO       | Reference to user service |
+| `status`           | VARCHAR(30)   | NO       | Order status              |
+| `currency`         | CHAR(3)       | NO       | ISO 4217 currency code    |
+| `subtotal`         | DECIMAL(18,2) | NO       | Sum of item totals        |
+| `discount_amount`  | DECIMAL(18,2) | NO       | Total discount applied    |
+| `shipping_fee`     | DECIMAL(18,2) | NO       | Shipping cost             |
+| `tax_amount`       | DECIMAL(18,2) | NO       | Tax amount                |
+| `total_amount`     | DECIMAL(18,2) | NO       | Final amount              |
+| `shipping_address` | JSONB         | NO       | Delivery address          |
+| `idempotency_key`  | VARCHAR(100)  | YES      | Prevent duplicate orders  |
+| `created_at`       | TIMESTAMP     | NO       | Creation timestamp        |
+| `updated_at`       | TIMESTAMP     | NO       | Last update timestamp     |
 
 **Status Values:**
 
@@ -97,18 +97,18 @@ pending_payment → paid → processing → shipped → delivered
 
 Line items belonging to an order.
 
-| Column | Type | Nullable | Description |
-|--------|------|----------|-------------|
-| `id` | UUID | NO | Primary key |
-| `order_id` | UUID | NO | FK → orders.id |
-| `product_id` | UUID | NO | Reference to product |
-| `sku` | VARCHAR(100) | NO | Product SKU |
-| `product_name` | VARCHAR(255) | NO | Snapshot of product name |
-| `quantity` | INT | NO | Ordered quantity |
-| `unit_price` | DECIMAL(18,2) | NO | Price at time of order |
-| `discount_amount` | DECIMAL(18,2) | NO | Item discount |
-| `total_amount` | DECIMAL(18,2) | NO | quantity × unit_price - discount |
-| `created_at` | TIMESTAMP | NO | Creation timestamp |
+| Column              | Type          | Nullable | Description                       |
+| ------------------- | ------------- | -------- | --------------------------------- |
+| `id`              | UUID          | NO       | Primary key                       |
+| `order_id`        | UUID          | NO       | FK → orders.id                   |
+| `product_id`      | UUID          | NO       | Reference to product              |
+| `sku`             | VARCHAR(100)  | NO       | Product SKU                       |
+| `product_name`    | VARCHAR(255)  | NO       | Snapshot of product name          |
+| `quantity`        | INT           | NO       | Ordered quantity                  |
+| `unit_price`      | DECIMAL(18,2) | NO       | Price at time of order            |
+| `discount_amount` | DECIMAL(18,2) | NO       | Item discount                     |
+| `total_amount`    | DECIMAL(18,2) | NO       | quantity × unit_price - discount |
+| `created_at`      | TIMESTAMP     | NO       | Creation timestamp                |
 
 ---
 
@@ -116,14 +116,14 @@ Line items belonging to an order.
 
 Audit trail of order status changes.
 
-| Column | Type | Nullable | Description |
-|--------|------|----------|-------------|
-| `id` | UUID | NO | Primary key |
-| `order_id` | UUID | NO | FK → orders.id |
-| `old_status` | VARCHAR(30) | YES | Previous status (NULL for first) |
-| `new_status` | VARCHAR(30) | NO | New status |
-| `reason` | VARCHAR(255) | YES | Reason for change |
-| `created_at` | TIMESTAMP | NO | When change occurred |
+| Column         | Type         | Nullable | Description                      |
+| -------------- | ------------ | -------- | -------------------------------- |
+| `id`         | UUID         | NO       | Primary key                      |
+| `order_id`   | UUID         | NO       | FK → orders.id                  |
+| `old_status` | VARCHAR(30)  | YES      | Previous status (NULL for first) |
+| `new_status` | VARCHAR(30)  | NO       | New status                       |
+| `reason`     | VARCHAR(255) | YES      | Reason for change                |
+| `created_at` | TIMESTAMP    | NO       | When change occurred             |
 
 ---
 
@@ -131,16 +131,16 @@ Audit trail of order status changes.
 
 Events pending publication to Kafka (Outbox Pattern).
 
-| Column | Type | Nullable | Description |
-|--------|------|----------|-------------|
-| `id` | UUID | NO | Primary key |
-| `aggregate_type` | VARCHAR(50) | NO | e.g., "order", "inventory" |
-| `aggregate_id` | UUID | NO | ID of the aggregate |
-| `event_type` | VARCHAR(100) | NO | e.g., "order.created" |
-| `payload` | JSONB | NO | Full event payload |
-| `status` | VARCHAR(20) | NO | PENDING / PUBLISHED / FAILED |
-| `created_at` | TIMESTAMP | NO | When event was created |
-| `published_at` | TIMESTAMP | YES | When event was published |
+| Column             | Type         | Nullable | Description                  |
+| ------------------ | ------------ | -------- | ---------------------------- |
+| `id`             | UUID         | NO       | Primary key                  |
+| `aggregate_type` | VARCHAR(50)  | NO       | e.g., "order", "inventory"   |
+| `aggregate_id`   | UUID         | NO       | ID of the aggregate          |
+| `event_type`     | VARCHAR(100) | NO       | e.g., "order.created"        |
+| `payload`        | JSONB        | NO       | Full event payload           |
+| `status`         | VARCHAR(20)  | NO       | PENDING / PUBLISHED / FAILED |
+| `created_at`     | TIMESTAMP    | NO       | When event was created       |
+| `published_at`   | TIMESTAMP    | YES      | When event was published     |
 
 **Event Types:**
 
@@ -161,13 +161,13 @@ order.delivered
 
 Warehouse locations.
 
-| Column | Type | Nullable | Description |
-|--------|------|----------|-------------|
-| `id` | UUID | NO | Primary key |
-| `code` | VARCHAR(50) | NO | Unique warehouse code |
-| `name` | VARCHAR(255) | NO | Warehouse name |
-| `status` | VARCHAR(20) | NO | active / inactive |
-| `created_at` | TIMESTAMP | NO | Creation timestamp |
+| Column         | Type         | Nullable | Description           |
+| -------------- | ------------ | -------- | --------------------- |
+| `id`         | UUID         | NO       | Primary key           |
+| `code`       | VARCHAR(50)  | NO       | Unique warehouse code |
+| `name`       | VARCHAR(255) | NO       | Warehouse name        |
+| `status`     | VARCHAR(20)  | NO       | active / inactive     |
+| `created_at` | TIMESTAMP    | NO       | Creation timestamp    |
 
 ---
 
@@ -175,18 +175,19 @@ Warehouse locations.
 
 Current stock levels per product per warehouse.
 
-| Column | Type | Nullable | Description |
-|--------|------|----------|-------------|
-| `id` | UUID | NO | Primary key |
-| `product_id` | UUID | NO | Reference to product |
-| `sku` | VARCHAR(100) | NO | Product SKU |
-| `warehouse_id` | UUID | NO | FK → warehouses.id |
-| `quantity_on_hand` | INT | NO | Physical stock count |
-| `quantity_reserved` | INT | NO | Reserved for pending orders |
-| `version` | BIGINT | NO | Optimistic locking version |
-| `updated_at` | TIMESTAMP | NO | Last update timestamp |
+| Column                | Type         | Nullable | Description                 |
+| --------------------- | ------------ | -------- | --------------------------- |
+| `id`                | UUID         | NO       | Primary key                 |
+| `product_id`        | UUID         | NO       | Reference to product        |
+| `sku`               | VARCHAR(100) | NO       | Product SKU                 |
+| `warehouse_id`      | UUID         | NO       | FK → warehouses.id         |
+| `quantity_on_hand`  | INT          | NO       | Physical stock count        |
+| `quantity_reserved` | INT          | NO       | Reserved for pending orders |
+| `version`           | BIGINT       | NO       | Optimistic locking version  |
+| `updated_at`        | TIMESTAMP    | NO       | Last update timestamp       |
 
 **Constraints:**
+
 - UNIQUE(product_id, warehouse_id)
 - quantity_on_hand >= 0
 - quantity_reserved >= 0
@@ -204,19 +205,19 @@ available = quantity_on_hand - quantity_reserved
 
 Tracks reserved stock for pending orders.
 
-| Column | Type | Nullable | Description |
-|--------|------|----------|-------------|
-| `id` | UUID | NO | Primary key |
-| `order_id` | UUID | NO | Reference to order |
-| `order_item_id` | UUID | NO | Reference to order item |
-| `product_id` | UUID | NO | Reference to product |
-| `sku` | VARCHAR(100) | NO | Product SKU |
-| `warehouse_id` | UUID | NO | FK → warehouses.id |
-| `quantity` | INT | NO | Reserved quantity |
-| `status` | VARCHAR(30) | NO | Reservation status |
-| `expires_at` | TIMESTAMP | YES | Reservation expiration |
-| `created_at` | TIMESTAMP | NO | Creation timestamp |
-| `updated_at` | TIMESTAMP | NO | Last update timestamp |
+| Column            | Type         | Nullable | Description             |
+| ----------------- | ------------ | -------- | ----------------------- |
+| `id`            | UUID         | NO       | Primary key             |
+| `order_id`      | UUID         | NO       | Reference to order      |
+| `order_item_id` | UUID         | NO       | Reference to order item |
+| `product_id`    | UUID         | NO       | Reference to product    |
+| `sku`           | VARCHAR(100) | NO       | Product SKU             |
+| `warehouse_id`  | UUID         | NO       | FK → warehouses.id     |
+| `quantity`      | INT          | NO       | Reserved quantity       |
+| `status`        | VARCHAR(30)  | NO       | Reservation status      |
+| `expires_at`    | TIMESTAMP    | YES      | Reservation expiration  |
+| `created_at`    | TIMESTAMP    | NO       | Creation timestamp      |
+| `updated_at`    | TIMESTAMP    | NO       | Last update timestamp   |
 
 **Status Values:**
 
@@ -232,29 +233,29 @@ reserved → confirmed → fulfilled
 
 Audit trail of all inventory changes.
 
-| Column | Type | Nullable | Description |
-|--------|------|----------|-------------|
-| `id` | UUID | NO | Primary key |
-| `product_id` | UUID | NO | Reference to product |
-| `sku` | VARCHAR(100) | NO | Product SKU |
-| `warehouse_id` | UUID | NO | FK → warehouses.id |
-| `movement_type` | VARCHAR(30) | NO | Type of movement |
-| `quantity` | INT | NO | Quantity changed (+/-) |
-| `reference_type` | VARCHAR(50) | YES | e.g., "order", "transfer" |
-| `reference_id` | UUID | YES | ID of related entity |
-| `created_at` | TIMESTAMP | NO | When movement occurred |
+| Column             | Type         | Nullable | Description               |
+| ------------------ | ------------ | -------- | ------------------------- |
+| `id`             | UUID         | NO       | Primary key               |
+| `product_id`     | UUID         | NO       | Reference to product      |
+| `sku`            | VARCHAR(100) | NO       | Product SKU               |
+| `warehouse_id`   | UUID         | NO       | FK → warehouses.id       |
+| `movement_type`  | VARCHAR(30)  | NO       | Type of movement          |
+| `quantity`       | INT          | NO       | Quantity changed (+/-)    |
+| `reference_type` | VARCHAR(50)  | YES      | e.g., "order", "transfer" |
+| `reference_id`   | UUID         | YES      | ID of related entity      |
+| `created_at`     | TIMESTAMP    | NO       | When movement occurred    |
 
 **Movement Types:**
 
-| Type | Quantity | Description |
-|------|----------|-------------|
-| `in` | + | Stock received |
-| `out` | - | Stock shipped |
-| `reserve` | - | Reserved for order |
-| `release` | + | Reservation released |
-| `adjustment` | +/- | Manual adjustment |
-| `transfer_in` | + | Received from another warehouse |
-| `transfer_out` | - | Sent to another warehouse |
+| Type             | Quantity | Description                     |
+| ---------------- | -------- | ------------------------------- |
+| `in`           | +        | Stock received                  |
+| `out`          | -        | Stock shipped                   |
+| `reserve`      | -        | Reserved for order              |
+| `release`      | +        | Reservation released            |
+| `adjustment`   | +/-      | Manual adjustment               |
+| `transfer_in`  | +        | Received from another warehouse |
+| `transfer_out` | -        | Sent to another warehouse       |
 
 ---
 
@@ -505,10 +506,10 @@ $$;
 
 ## Migration Strategy
 
-| Tool | Purpose |
-|------|---------|
+| Tool           | Purpose           |
+| -------------- | ----------------- |
 | golang-migrate | Schema versioning |
-| SQL files | Migration scripts |
+| SQL files      | Migration scripts |
 
 **Directory Structure:**
 
@@ -537,25 +538,25 @@ migrate -path migrations/inventory -database "postgres://user:pass@localhost:543
 
 ## Data Types Reference
 
-| Type | Size | Range | Use Case |
-|------|------|-------|----------|
-| UUID | 16 bytes | - | Primary keys |
-| VARCHAR(100) | - | - | SKU, codes |
-| VARCHAR(255) | - | - | Names |
-| VARCHAR(30) | - | - | Status fields |
-| INT | 4 bytes | ±2.1B | Quantities |
-| BIGINT | 8 bytes | ±9.2E18 | Version counters |
-| DECIMAL(18,2) | - | - | Money amounts |
-| TIMESTAMP | 8 bytes | - | Dates/times |
-| JSONB | - | - | Flexible structures |
+| Type          | Size     | Range    | Use Case            |
+| ------------- | -------- | -------- | ------------------- |
+| UUID          | 16 bytes | -        | Primary keys        |
+| VARCHAR(100)  | -        | -        | SKU, codes          |
+| VARCHAR(255)  | -        | -        | Names               |
+| VARCHAR(30)   | -        | -        | Status fields       |
+| INT           | 4 bytes  | ±2.1B   | Quantities          |
+| BIGINT        | 8 bytes  | ±9.2E18 | Version counters    |
+| DECIMAL(18,2) | -        | -        | Money amounts       |
+| TIMESTAMP     | 8 bytes  | -        | Dates/times         |
+| JSONB         | -        | -        | Flexible structures |
 
 ---
 
 ## Backup Strategy
 
-| Database | Frequency | Retention | Method |
-|----------|-----------|-----------|--------|
-| order_db | Daily | 30 days | pg_dump + WAL archiving |
-| inventory_db | Daily | 30 days | pg_dump + WAL archiving |
+| Database     | Frequency | Retention | Method                  |
+| ------------ | --------- | --------- | ----------------------- |
+| order_db     | Daily     | 30 days   | pg_dump + WAL archiving |
+| inventory_db | Daily     | 30 days   | pg_dump + WAL archiving |
 
 **Point-in-time Recovery:** Enabled via WAL streaming.

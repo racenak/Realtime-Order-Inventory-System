@@ -78,10 +78,10 @@ func (uc *createOrderUseCase) CreateOrder(ctx context.Context, req CreateOrderRe
 	}
 
 	eventPayload, _ := json.Marshal(map[string]interface{}{
-		"order_id":   order.ID,
+		"order_id":    order.ID,
 		"customer_id": order.CustomerID,
-		"total":      order.TotalAmount,
-		"items":      len(order.Items),
+		"total":       order.TotalAmount,
+		"items":       len(order.Items),
 	})
 
 	outboxEvent := domain.OutboxEvent{
@@ -124,10 +124,10 @@ func (uc *createOrderUseCase) CancelOrder(ctx context.Context, id string, reason
 	}
 
 	eventPayload, _ := json.Marshal(map[string]interface{}{
-		"order_id":  order.ID,
+		"order_id":   order.ID,
 		"old_status": order.Status,
 		"new_status": domain.StatusCancelled,
-		"reason":    reason,
+		"reason":     reason,
 	})
 
 	outboxEvent := domain.OutboxEvent{

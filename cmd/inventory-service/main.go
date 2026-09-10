@@ -13,6 +13,7 @@ import (
 	"github.com/racenak/Realtime-Order-Inventory-System/pkg/config"
 	"github.com/racenak/Realtime-Order-Inventory-System/pkg/database"
 	"github.com/racenak/Realtime-Order-Inventory-System/pkg/logger"
+	"go.uber.org/zap"
 )
 
 func main() {
@@ -43,7 +44,7 @@ func main() {
 	router.Use(middleware.Recoverer)
 	router.Use(middleware.RequestID)
 
-	router.Route("/api/inventory", inventoryHandler.Routes)
+	router.Mount("/api/inventory", inventoryHandler.Routes())
 
 	router.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -51,7 +52,7 @@ func main() {
 	})
 
 	addr := fmt.Sprintf(":%s", cfg.Server.HTTPPort)
-	logger.Info("Starting inventory service", "addr", addr)
+	logger.Info("Starting inventory service", zap.String("addr", addr))
 
 	if err := http.ListenAndServe(addr, router); err != nil {
 		log.Fatalf("Failed to start server: %v", err)

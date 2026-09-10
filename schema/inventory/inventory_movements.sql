@@ -1,8 +1,8 @@
-CREATE TABLE inventory_movements (
-    id UUID PRIMARY KEY,
+CREATE TABLE IF NOT EXISTS inventory_movements (
+    id UUID PRIMARY KEY DEFAULT uuidv7(),
 
     product_id UUID NOT NULL,
-    sku VARCHAR(100) NOT NULL,
+    sku VARCHAR(100) NOT NULL DEFAULT '',
 
     warehouse_id UUID NOT NULL,
 
@@ -13,5 +13,5 @@ CREATE TABLE inventory_movements (
     reference_type VARCHAR(50),
     reference_id UUID,
 
-    created_at TIMESTAMP NOT NULL
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

@@ -14,15 +14,15 @@ type InventoryUseCase interface {
 }
 
 type StockResponse struct {
-	ProductID   string              `json:"product_id"`
-	Warehouses  []WarehouseStock    `json:"warehouses"`
+	ProductID  string           `json:"product_id"`
+	Warehouses []WarehouseStock `json:"warehouses"`
 }
 
 type WarehouseStock struct {
-	WarehouseID   string `json:"warehouse_id"`
-	Quantity      int    `json:"quantity"`
-	Reserved      int    `json:"reserved"`
-	Available     int    `json:"available"`
+	WarehouseID string `json:"warehouse_id"`
+	Quantity    int    `json:"quantity"`
+	Reserved    int    `json:"reserved"`
+	Available   int    `json:"available"`
 }
 
 type ReserveStockRequest struct {

@@ -1,5 +1,5 @@
-CREATE TABLE outbox_events (
-    id UUID PRIMARY KEY,
+CREATE TABLE IF NOT EXISTS outbox_events (
+    id UUID PRIMARY KEY DEFAULT uuidv7(),
 
     aggregate_type VARCHAR(50) NOT NULL,
     aggregate_id UUID NOT NULL,
@@ -10,6 +10,6 @@ CREATE TABLE outbox_events (
 
     status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
 
-    created_at TIMESTAMP NOT NULL,
-    published_at TIMESTAMP
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    published_at TIMESTAMPTZ
 );

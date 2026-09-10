@@ -1,10 +1,10 @@
-CREATE TABLE warehouses (
-    id UUID PRIMARY KEY,
+CREATE TABLE IF NOT EXISTS warehouses (
+    id UUID PRIMARY KEY DEFAULT uuidv7(),
 
     code VARCHAR(50) UNIQUE NOT NULL,
     name VARCHAR(255) NOT NULL,
 
-    status VARCHAR(20) NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'active',
 
-    created_at TIMESTAMP NOT NULL
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

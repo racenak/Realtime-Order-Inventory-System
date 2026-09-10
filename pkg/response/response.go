@@ -25,10 +25,10 @@ type PaginatedResponse struct {
 }
 
 type Meta struct {
-	Total       int `json:"total"`
-	Limit       int `json:"limit"`
-	Offset      int `json:"offset"`
-	TotalPages  int `json:"total_pages"`
+	Total      int `json:"total"`
+	Limit      int `json:"limit"`
+	Offset     int `json:"offset"`
+	TotalPages int `json:"total_pages"`
 }
 
 func JSON(w http.ResponseWriter, r *http.Request, status int, data interface{}) {

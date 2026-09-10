@@ -14,8 +14,8 @@ type OrderUseCase interface {
 }
 
 type CreateOrderRequest struct {
-	CustomerID      string              `json:"customer_id"`
-	Items           []OrderItemRequest  `json:"items"`
+	CustomerID      string                 `json:"customer_id"`
+	Items           []OrderItemRequest     `json:"items"`
 	ShippingAddress ShippingAddressRequest `json:"shipping_address"`
 }
 

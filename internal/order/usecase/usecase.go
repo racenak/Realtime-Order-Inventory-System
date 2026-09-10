@@ -11,6 +11,7 @@ type OrderUseCase interface {
 	GetOrder(ctx context.Context, id string) (*domain.Order, error)
 	ListOrders(ctx context.Context, customerID string, limit, offset int) ([]*domain.Order, int, error)
 	CancelOrder(ctx context.Context, id string, reason string) error
+	ConfirmOrder(ctx context.Context, id string) error
 }
 
 type CreateOrderRequest struct {

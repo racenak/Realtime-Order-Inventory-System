@@ -20,25 +20,21 @@
 | B-14 | Integration tests — Order (repo + usecase + handler) | Done | 22 tests |
 | B-15 | Integration tests — Inventory (repo + usecase + handler) | Done | 19 tests |
 | B-16 | Test helpers (`tests/helpers/testdb.go`) | Done | Auto table creation, cleanup, seed functions |
+| B-17 | Kafka producer (`pkg/kafka/producer.go`) | Done | segmentio/kafka-go |
+| B-18 | Kafka consumer (`pkg/kafka/consumer.go`) | Done | MessageHandler callback |
+| B-19 | Outbox polling publisher (`internal/order/adapter/kafka/outbox_publisher.go`) | Done | Polls outbox, publishes to Kafka topics |
+| B-20 | Order event handler — Inventory Service | Done | Handles `order.created`, `order.cancelled` |
+| B-21 | Inventory event handler — Order Service | Done | Handles `inventory.reserved`, `inventory.reservation_failed` |
+| B-22 | ConfirmOrder usecase method | Done | Updates status to processing, creates outbox event |
+| B-23 | Kafka topics in docker-compose | Done | 13 topics with auto-creation init container |
 
 ## In Progress
 
 | ID | Task | Status | Notes |
 |----|------|--------|-------|
-| B-17 | Outbox pattern implementation | Partial | Outbox repo exists, needs polling publisher + Kafka producer |
+| — | — | — | — |
 
 ## Backlogs
-
-### Kafka Integration
-
-| ID | Task | Priority | Depends On |
-|----|------|----------|------------|
-| B-18 | Kafka producer (order events) | High | B-17 |
-| B-19 | Kafka consumer — Inventory Service (consume `order.created`, `order.cancelled`) | High | B-18 |
-| B-20 | Kafka consumer — Order Service (consume `inventory.reserved`, `inventory.released`) | High | B-18 |
-| B-21 | Outbox polling publisher (background goroutine) | High | B-17 |
-| B-22 | Dead letter queue handling | Medium | B-18 |
-| B-23 | Kafka topic configuration (docker-compose) | Medium | — |
 
 ### WebSocket Service
 
@@ -46,8 +42,8 @@
 |----|------|----------|------------|
 | B-24 | WebSocket service skeleton (`cmd/websocket-service/main.go`) | High | — |
 | B-25 | WebSocket connection manager (hub pattern) | High | B-24 |
-| B-26 | Redis Pub/Sub subscriber for order status events | High | B-24, B-23 |
-| B-27 | Redis Pub/Sub subscriber for inventory update events | High | B-24, B-23 |
+| B-26 | Redis Pub/Sub subscriber for order status events | High | B-24 |
+| B-27 | Redis Pub/Sub subscriber for inventory update events | High | B-24 |
 | B-28 | Client subscription management (by order_id, product_id) | Medium | B-25 |
 | B-29 | WebSocket heartbeat / reconnection handling | Medium | B-25 |
 
@@ -119,14 +115,14 @@
 
 | Category | Completed | In Progress | Backlog |
 |----------|-----------|-------------|---------|
-| Core Domain & Usecase | 6 | 0 | 0 |
+| Core Domain & Usecase | 8 | 0 | 0 |
 | Adapters (HTTP + DB) | 4 | 0 | 0 |
 | Tests | 4 | 0 | 5 |
-| Kafka | 0 | 1 | 5 |
+| Kafka | 7 | 0 | 0 |
 | WebSocket | 0 | 0 | 6 |
 | Redis | 0 | 0 | 4 |
 | Traefik | 0 | 0 | 7 |
-| Infrastructure | 0 | 0 | 7 |
+| Infrastructure | 1 | 0 | 6 |
 | Security | 0 | 0 | 4 |
 | Observability | 0 | 0 | 4 |
-| **Total** | **14** | **1** | **42** |
+| **Total** | **24** | **0** | **36** |

@@ -146,3 +146,40 @@ func (uc *createOrderUseCase) CancelOrder(ctx context.Context, id string, reason
 
 	return nil
 }
+
+func (uc *createOrderUseCase) ConfirmOrder(ctx context.Context, id string) error {
+	order, err := uc.orderRepo.GetByID(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	if order.Status != domain.StatusPendingPayment {
+		return nil
+	}
+
+	if err := uc.orderRepo.UpdateStatus(ctx, id, domain.StatusProcessing); err != nil {
+		return fmt.Errorf("failed to confirm order: %w", err)
+	}
+
+	eventPayload, _ := json.Marshal(map[string]interface{}{
+		"order_id":   order.ID,
+		"old_status": order.Status,
+		"new_status": domain.StatusProcessing,
+	})
+
+	outboxEvent := domain.OutboxEvent{
+		ID:            uuid.New().String(),
+		AggregateType: "order",
+		AggregateID:   order.ID,
+		EventType:     "order.confirmed",
+		Payload:       string(eventPayload),
+		Status:        "PENDING",
+		CreatedAt:     time.Now().Format(time.RFC3339),
+	}
+
+	if err := uc.outboxRepo.Create(ctx, outboxEvent); err != nil {
+		return fmt.Errorf("failed to create outbox event: %w", err)
+	}
+
+	return nil
+}

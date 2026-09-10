@@ -1,19 +1,29 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/segmentio/kafka-go"
+	"go.uber.org/zap"
+
+	kafkakit "github.com/racenak/Realtime-Order-Inventory-System/pkg/kafka"
+
 	"github.com/racenak/Realtime-Order-Inventory-System/internal/order/adapter/httpd"
+	orderkafka "github.com/racenak/Realtime-Order-Inventory-System/internal/order/adapter/kafka"
 	"github.com/racenak/Realtime-Order-Inventory-System/internal/order/adapter/postgres"
 	"github.com/racenak/Realtime-Order-Inventory-System/internal/order/usecase"
 	"github.com/racenak/Realtime-Order-Inventory-System/pkg/config"
 	"github.com/racenak/Realtime-Order-Inventory-System/pkg/database"
 	"github.com/racenak/Realtime-Order-Inventory-System/pkg/logger"
-	"go.uber.org/zap"
 )
 
 func main() {
@@ -39,6 +49,29 @@ func main() {
 
 	orderHandler := httpd.NewOrderHandler(orderUC)
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	outboxPublisher := orderkafka.NewOutboxPublisher(outboxRepo, cfg.Kafka.Brokers, logger)
+	go outboxPublisher.Start(ctx, 5*time.Second, 10)
+
+	inventoryConsumer := kafkakit.NewConsumer(
+		kafkakit.ConsumerConfig{
+			Brokers:  cfg.Kafka.Brokers,
+			Topic:    "inventory.reserved",
+			GroupID:  "order-service-inventory",
+			MinBytes: 1,
+			MaxBytes: 10e6,
+		},
+		orderkafka.NewInventoryEventHandler(orderUC, &kafka.Writer{}, logger).Handle,
+		logger,
+	)
+	go func() {
+		if err := inventoryConsumer.Start(ctx); err != nil && err != context.Canceled {
+			logger.Error("inventory consumer error", zap.Error(err))
+		}
+	}()
+
 	router := chi.NewRouter()
 	router.Use(middleware.Logger)
 	router.Use(middleware.Recoverer)
@@ -54,7 +87,25 @@ func main() {
 	addr := fmt.Sprintf(":%s", cfg.Server.HTTPPort)
 	logger.Info("Starting order service", zap.String("addr", addr))
 
-	if err := http.ListenAndServe(addr, router); err != nil {
-		log.Fatalf("Failed to start server: %v", err)
+	go func() {
+		if err := http.ListenAndServe(addr, router); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("Failed to start server: %v", err)
+		}
+	}()
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+
+	logger.Info("Shutting down order service...")
+	cancel()
+
+	if err := outboxPublisher.Close(); err != nil {
+		logger.Error("failed to close outbox publisher", zap.Error(err))
 	}
+	if err := inventoryConsumer.Close(); err != nil {
+		logger.Error("failed to close inventory consumer", zap.Error(err))
+	}
+
+	logger.Info("Order service stopped")
 }

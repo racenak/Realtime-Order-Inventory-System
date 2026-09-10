@@ -1,20 +1,47 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/segmentio/kafka-go"
+	"go.uber.org/zap"
+
+	kafkakit "github.com/racenak/Realtime-Order-Inventory-System/pkg/kafka"
+
 	"github.com/racenak/Realtime-Order-Inventory-System/internal/inventory/adapter/httpd"
+	inventorykafka "github.com/racenak/Realtime-Order-Inventory-System/internal/inventory/adapter/kafka"
 	"github.com/racenak/Realtime-Order-Inventory-System/internal/inventory/adapter/postgres"
 	"github.com/racenak/Realtime-Order-Inventory-System/internal/inventory/usecase"
 	"github.com/racenak/Realtime-Order-Inventory-System/pkg/config"
 	"github.com/racenak/Realtime-Order-Inventory-System/pkg/database"
 	"github.com/racenak/Realtime-Order-Inventory-System/pkg/logger"
-	"go.uber.org/zap"
 )
+
+type inventoryUseCaseAdapter struct {
+	uc usecase.InventoryUseCase
+}
+
+func (a *inventoryUseCaseAdapter) ReserveStock(ctx context.Context, req inventorykafka.ReserveStockRequest) error {
+	_, err := a.uc.ReserveStock(ctx, usecase.ReserveStockRequest{
+		OrderID:     req.OrderID,
+		ProductID:   req.ProductID,
+		WarehouseID: req.WarehouseID,
+		Quantity:    req.Quantity,
+	})
+	return err
+}
+
+func (a *inventoryUseCaseAdapter) ReleaseReservation(ctx context.Context, orderID string) error {
+	return a.uc.ReleaseReservation(ctx, orderID)
+}
 
 func main() {
 	cfg := config.Load()
@@ -39,6 +66,27 @@ func main() {
 
 	inventoryHandler := httpd.NewInventoryHandler(inventoryUC)
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	adapter := &inventoryUseCaseAdapter{uc: inventoryUC}
+	orderConsumer := kafkakit.NewConsumer(
+		kafkakit.ConsumerConfig{
+			Brokers:  cfg.Kafka.Brokers,
+			Topic:    "order.created",
+			GroupID:  "inventory-service-orders",
+			MinBytes: 1,
+			MaxBytes: 10e6,
+		},
+		inventorykafka.NewOrderEventHandler(adapter, &kafka.Writer{}, logger).Handle,
+		logger,
+	)
+	go func() {
+		if err := orderConsumer.Start(ctx); err != nil && err != context.Canceled {
+			logger.Error("order consumer error", zap.Error(err))
+		}
+	}()
+
 	router := chi.NewRouter()
 	router.Use(middleware.Logger)
 	router.Use(middleware.Recoverer)
@@ -54,7 +102,22 @@ func main() {
 	addr := fmt.Sprintf(":%s", cfg.Server.HTTPPort)
 	logger.Info("Starting inventory service", zap.String("addr", addr))
 
-	if err := http.ListenAndServe(addr, router); err != nil {
-		log.Fatalf("Failed to start server: %v", err)
+	go func() {
+		if err := http.ListenAndServe(addr, router); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("Failed to start server: %v", err)
+		}
+	}()
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+
+	logger.Info("Shutting down inventory service...")
+	cancel()
+
+	if err := orderConsumer.Close(); err != nil {
+		logger.Error("failed to close order consumer", zap.Error(err))
 	}
+
+	logger.Info("Inventory service stopped")
 }

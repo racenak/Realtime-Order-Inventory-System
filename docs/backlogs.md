@@ -27,6 +27,11 @@
 | B-21 | Inventory event handler — Order Service | Done | Handles `inventory.reserved`, `inventory.reservation_failed` |
 | B-22 | ConfirmOrder usecase method | Done | Updates status to processing, creates outbox event |
 | B-23 | Kafka topics in docker-compose | Done | 13 topics with auto-creation init container |
+| B-24 | WebSocket service skeleton (`cmd/websocket-service/main.go`) | Done | gorilla/websocket |
+| B-25 | WebSocket connection manager (hub pattern) | Done | `pkg/websocket/hub.go` |
+| B-26 | Redis Pub/Sub subscriber | Done | `internal/websocket/subscriber.go` |
+| B-27 | Client subscription management | Done | Channels: order_id, product_id, customer_id |
+| B-28 | WebSocket heartbeat / ping-pong | Done | 60s pong wait, 54s ping interval |
 
 ## In Progress
 
@@ -35,17 +40,6 @@
 | — | — | — | — |
 
 ## Backlogs
-
-### WebSocket Service
-
-| ID | Task | Priority | Depends On |
-|----|------|----------|------------|
-| B-24 | WebSocket service skeleton (`cmd/websocket-service/main.go`) | High | — |
-| B-25 | WebSocket connection manager (hub pattern) | High | B-24 |
-| B-26 | Redis Pub/Sub subscriber for order status events | High | B-24 |
-| B-27 | Redis Pub/Sub subscriber for inventory update events | High | B-24 |
-| B-28 | Client subscription management (by order_id, product_id) | Medium | B-25 |
-| B-29 | WebSocket heartbeat / reconnection handling | Medium | B-25 |
 
 ### Redis Caching
 
@@ -119,10 +113,10 @@
 | Adapters (HTTP + DB) | 4 | 0 | 0 |
 | Tests | 4 | 0 | 5 |
 | Kafka | 7 | 0 | 0 |
-| WebSocket | 0 | 0 | 6 |
+| WebSocket | 5 | 0 | 1 |
 | Redis | 0 | 0 | 4 |
 | Traefik | 0 | 0 | 7 |
 | Infrastructure | 1 | 0 | 6 |
 | Security | 0 | 0 | 4 |
 | Observability | 0 | 0 | 4 |
-| **Total** | **24** | **0** | **36** |
+| **Total** | **29** | **0** | **31** |

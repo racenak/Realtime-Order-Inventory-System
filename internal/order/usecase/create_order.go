@@ -39,11 +39,16 @@ func (uc *createOrderUseCase) CreateOrder(ctx context.Context, req CreateOrderRe
 		}
 	}
 
+	currency := req.Currency
+	if currency == "" {
+		currency = "USD"
+	}
+
 	order := &domain.Order{
 		ID:         uuid.New().String(),
 		CustomerID: req.CustomerID,
 		Status:     domain.StatusPendingPayment,
-		Currency:   "USD",
+		Currency:   currency,
 		ShippingAddress: domain.Address{
 			Street:  req.ShippingAddress.Street,
 			City:    req.ShippingAddress.City,
@@ -58,10 +63,14 @@ func (uc *createOrderUseCase) CreateOrder(ctx context.Context, req CreateOrderRe
 	var orderItems []domain.OrderItem
 	for _, item := range req.Items {
 		orderItem := domain.OrderItem{
-			ID:        uuid.New().String(),
-			OrderID:   order.ID,
-			ProductID: item.ProductID,
-			Quantity:  item.Quantity,
+			ID:          uuid.New().String(),
+			OrderID:     order.ID,
+			ProductID:   item.ProductID,
+			SKU:         item.SKU,
+			ProductName: item.ProductName,
+			Quantity:    item.Quantity,
+			UnitPrice:   item.UnitPrice,
+			TotalPrice:  float64(item.Quantity) * item.UnitPrice,
 		}
 		orderItems = append(orderItems, orderItem)
 	}
@@ -102,7 +111,18 @@ func (uc *createOrderUseCase) CreateOrder(ctx context.Context, req CreateOrderRe
 }
 
 func (uc *createOrderUseCase) GetOrder(ctx context.Context, id string) (*domain.Order, error) {
-	return uc.orderRepo.GetByID(ctx, id)
+	order, err := uc.orderRepo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	items, err := uc.orderItemRepo.GetByOrderID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	order.Items = items
+
+	return order, nil
 }
 
 func (uc *createOrderUseCase) ListOrders(ctx context.Context, customerID string, limit, offset int) ([]*domain.Order, int, error) {

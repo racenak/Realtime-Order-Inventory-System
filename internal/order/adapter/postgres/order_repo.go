@@ -80,15 +80,35 @@ func (r *orderRepository) GetByID(ctx context.Context, id string) (*domain.Order
 
 func (r *orderRepository) List(ctx context.Context, customerID string, limit, offset int) ([]*domain.Order, int, error) {
 	var count int
-	countQuery := `SELECT COUNT(*) FROM orders WHERE customer_id = $1`
-	err := r.db.GetContext(ctx, &count, countQuery, customerID)
+	var countQuery string
+	var countArgs []interface{}
+
+	if customerID != "" {
+		countQuery = `SELECT COUNT(*) FROM orders WHERE customer_id = $1`
+		countArgs = []interface{}{customerID}
+	} else {
+		countQuery = `SELECT COUNT(*) FROM orders`
+		countArgs = nil
+	}
+
+	err := r.db.GetContext(ctx, &count, countQuery, countArgs...)
 	if err != nil {
 		return nil, 0, err
 	}
 
 	var rows []orderRow
-	query := `SELECT * FROM orders WHERE customer_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3`
-	err = r.db.SelectContext(ctx, &rows, query, customerID, limit, offset)
+	var query string
+	var args []interface{}
+
+	if customerID != "" {
+		query = `SELECT * FROM orders WHERE customer_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3`
+		args = []interface{}{customerID, limit, offset}
+	} else {
+		query = `SELECT * FROM orders ORDER BY created_at DESC LIMIT $1 OFFSET $2`
+		args = []interface{}{limit, offset}
+	}
+
+	err = r.db.SelectContext(ctx, &rows, query, args...)
 	if err != nil {
 		return nil, 0, err
 	}

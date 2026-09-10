@@ -54,7 +54,16 @@ func (uc *inventoryUseCase) ReserveStock(ctx context.Context, req ReserveStockRe
 		return nil, domain.ErrInvalidQuantity
 	}
 
-	inv, err := uc.inventoryRepo.GetByProductAndWarehouse(ctx, req.ProductID, req.WarehouseID)
+	warehouseID := req.WarehouseID
+	if warehouseID == "" && req.WarehouseCode != "" {
+		wh, err := uc.inventoryRepo.GetWarehouseByCode(ctx, req.WarehouseCode)
+		if err != nil {
+			return nil, err
+		}
+		warehouseID = wh.ID
+	}
+
+	inv, err := uc.inventoryRepo.GetByProductAndWarehouse(ctx, req.ProductID, warehouseID)
 	if err != nil {
 		return nil, err
 	}
@@ -63,7 +72,7 @@ func (uc *inventoryUseCase) ReserveStock(ctx context.Context, req ReserveStockRe
 		return nil, domain.ErrInsufficientStock
 	}
 
-	err = uc.inventoryRepo.ReserveQuantity(ctx, req.ProductID, req.WarehouseID, req.Quantity, inv.Version)
+	err = uc.inventoryRepo.ReserveQuantity(ctx, req.ProductID, warehouseID, req.Quantity, inv.Version)
 	if err == domain.ErrConcurrentModification {
 		return nil, domain.ErrConcurrentModification
 	}
@@ -75,7 +84,8 @@ func (uc *inventoryUseCase) ReserveStock(ctx context.Context, req ReserveStockRe
 		ID:          uuid.New().String(),
 		OrderID:     req.OrderID,
 		ProductID:   req.ProductID,
-		WarehouseID: req.WarehouseID,
+		SKU:         req.SKU,
+		WarehouseID: warehouseID,
 		Quantity:    req.Quantity,
 		Status:      "reserved",
 		CreatedAt:   time.Now(),
@@ -89,7 +99,8 @@ func (uc *inventoryUseCase) ReserveStock(ctx context.Context, req ReserveStockRe
 	movement := &domain.InventoryMovement{
 		ID:            uuid.New().String(),
 		ProductID:     req.ProductID,
-		WarehouseID:   req.WarehouseID,
+		SKU:           req.SKU,
+		WarehouseID:   warehouseID,
 		MovementType:  domain.MovementReserve,
 		Quantity:      -req.Quantity,
 		ReferenceType: "order",
@@ -139,12 +150,49 @@ func (uc *inventoryUseCase) ReleaseReservation(ctx context.Context, reservationI
 }
 
 func (uc *inventoryUseCase) UpdateStock(ctx context.Context, req UpdateStockRequest) error {
-	inv, err := uc.inventoryRepo.GetByProductAndWarehouse(ctx, req.ProductID, req.WarehouseID)
+	warehouseID := req.WarehouseID
+	if warehouseID == "" && req.WarehouseCode != "" {
+		wh, err := uc.inventoryRepo.GetWarehouseByCode(ctx, req.WarehouseCode)
+		if err != nil {
+			return err
+		}
+		warehouseID = wh.ID
+	}
+
+	inv, err := uc.inventoryRepo.GetByProductAndWarehouse(ctx, req.ProductID, warehouseID)
+	if err != nil && err.Error() == "inventory not found" {
+		inv = &domain.Inventory{
+			ID:               uuid.New().String(),
+			ProductID:        req.ProductID,
+			SKU:              req.SKU,
+			WarehouseID:      warehouseID,
+			QuantityOnHand:   req.Quantity,
+			QuantityReserved: 0,
+			Version:          0,
+			UpdatedAt:        time.Now(),
+		}
+		if createErr := uc.inventoryRepo.Create(ctx, inv); createErr != nil {
+			return createErr
+		}
+
+		movement := &domain.InventoryMovement{
+			ID:            uuid.New().String(),
+			ProductID:     req.ProductID,
+			SKU:           req.SKU,
+			WarehouseID:   warehouseID,
+			MovementType:  domain.MovementIn,
+			Quantity:      req.Quantity,
+			ReferenceType: "manual",
+			CreatedAt:     time.Now(),
+		}
+		_ = uc.movementRepo.Create(ctx, movement)
+		return nil
+	}
 	if err != nil {
 		return err
 	}
 
-	err = uc.inventoryRepo.UpdateStock(ctx, req.ProductID, req.WarehouseID, req.Quantity, inv.Version)
+	err = uc.inventoryRepo.UpdateStock(ctx, req.ProductID, warehouseID, req.Quantity, inv.Version)
 	if err != nil {
 		return err
 	}
@@ -157,7 +205,8 @@ func (uc *inventoryUseCase) UpdateStock(ctx context.Context, req UpdateStockRequ
 	movement := &domain.InventoryMovement{
 		ID:            uuid.New().String(),
 		ProductID:     req.ProductID,
-		WarehouseID:   req.WarehouseID,
+		SKU:           req.SKU,
+		WarehouseID:   warehouseID,
 		MovementType:  movementType,
 		Quantity:      req.Quantity,
 		ReferenceType: "manual",

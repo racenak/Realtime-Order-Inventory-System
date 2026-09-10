@@ -17,6 +17,25 @@ func NewInventoryRepository(db *sqlx.DB) domain.InventoryRepository {
 	return &inventoryRepository{db: db}
 }
 
+func (r *inventoryRepository) Create(ctx context.Context, inventory *domain.Inventory) error {
+	query := `
+		INSERT INTO inventory (id, product_id, sku, warehouse_id, quantity_on_hand, quantity_reserved, version, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
+
+	_, err := r.db.ExecContext(ctx, query,
+		inventory.ID,
+		inventory.ProductID,
+		inventory.SKU,
+		inventory.WarehouseID,
+		inventory.QuantityOnHand,
+		inventory.QuantityReserved,
+		inventory.Version,
+		inventory.UpdatedAt,
+	)
+
+	return err
+}
+
 func (r *inventoryRepository) GetByProductAndWarehouse(ctx context.Context, productID, warehouseID string) (*domain.Inventory, error) {
 	var inv domain.Inventory
 	query := `SELECT * FROM inventory WHERE product_id = $1 AND warehouse_id = $2`
@@ -103,6 +122,21 @@ func (r *inventoryRepository) ReleaseQuantity(ctx context.Context, productID, wa
 
 	_, err := r.db.ExecContext(ctx, query, quantity, time.Now(), productID, warehouseID)
 	return err
+}
+
+func (r *inventoryRepository) GetWarehouseByCode(ctx context.Context, code string) (*domain.Warehouse, error) {
+	var wh domain.Warehouse
+	query := `SELECT * FROM warehouses WHERE code = $1`
+
+	err := r.db.GetContext(ctx, &wh, query, code)
+	if err == sql.ErrNoRows {
+		return nil, domain.ErrInventoryNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	return &wh, nil
 }
 
 type reservationRow struct {

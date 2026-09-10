@@ -26,14 +26,18 @@ type WarehouseStock struct {
 }
 
 type ReserveStockRequest struct {
-	OrderID     string `json:"order_id"`
-	ProductID   string `json:"product_id"`
-	WarehouseID string `json:"warehouse_id"`
-	Quantity    int    `json:"quantity"`
+	OrderID       string `json:"order_id"`
+	ProductID     string `json:"product_id"`
+	WarehouseID   string `json:"warehouse_id"`
+	WarehouseCode string `json:"warehouse_code"`
+	SKU           string `json:"sku"`
+	Quantity      int    `json:"quantity"`
 }
 
 type UpdateStockRequest struct {
-	ProductID   string `json:"product_id"`
-	WarehouseID string `json:"warehouse_id"`
-	Quantity    int    `json:"quantity"`
+	ProductID     string `json:"product_id"`
+	WarehouseID   string `json:"warehouse_id"`
+	WarehouseCode string `json:"warehouse_code"`
+	SKU           string `json:"sku"`
+	Quantity      int    `json:"quantity"`
 }

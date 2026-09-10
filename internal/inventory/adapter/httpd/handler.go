@@ -38,20 +38,58 @@ func (h *InventoryHandler) GetStock(w http.ResponseWriter, r *http.Request) {
 	response.JSON(w, r, http.StatusOK, stock)
 }
 
+type reserveStockHTTPItem struct {
+	ProductID     string `json:"product_id"`
+	SKU           string `json:"sku"`
+	Quantity      int    `json:"quantity"`
+	WarehouseCode string `json:"warehouse_code"`
+}
+
+type reserveStockHTTPRequest struct {
+	OrderID string                 `json:"order_id"`
+	Items   []reserveStockHTTPItem `json:"items"`
+}
+
 func (h *InventoryHandler) ReserveStock(w http.ResponseWriter, r *http.Request) {
-	var req usecase.ReserveStockRequest
+	var req reserveStockHTTPRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		response.Error(w, r, http.StatusBadRequest, "INVALID_REQUEST", "Invalid request body")
 		return
 	}
 
-	reservation, err := h.uc.ReserveStock(r.Context(), req)
-	if err != nil {
-		handleError(w, r, err)
+	type reservationResult struct {
+		Reservation interface{}          `json:"reservation"`
+		Item        reserveStockHTTPItem `json:"item"`
+	}
+	var results []reservationResult
+	var lastErr error
+
+	for _, item := range req.Items {
+		reservation, err := h.uc.ReserveStock(r.Context(), usecase.ReserveStockRequest{
+			OrderID:       req.OrderID,
+			ProductID:     item.ProductID,
+			WarehouseCode: item.WarehouseCode,
+			SKU:           item.SKU,
+			Quantity:      item.Quantity,
+		})
+		if err != nil {
+			lastErr = err
+			continue
+		}
+		results = append(results, reservationResult{
+			Reservation: reservation,
+			Item:        item,
+		})
+	}
+
+	if len(results) == 0 && lastErr != nil {
+		handleError(w, r, lastErr)
 		return
 	}
 
-	response.JSON(w, r, http.StatusCreated, reservation)
+	response.JSON(w, r, http.StatusCreated, map[string]interface{}{
+		"reservations": results,
+	})
 }
 
 func (h *InventoryHandler) ReleaseReservation(w http.ResponseWriter, r *http.Request) {

@@ -16,13 +16,17 @@ type OrderUseCase interface {
 
 type CreateOrderRequest struct {
 	CustomerID      string                 `json:"customer_id"`
+	Currency        string                 `json:"currency"`
 	Items           []OrderItemRequest     `json:"items"`
 	ShippingAddress ShippingAddressRequest `json:"shipping_address"`
 }
 
 type OrderItemRequest struct {
-	ProductID string `json:"product_id"`
-	Quantity  int    `json:"quantity"`
+	ProductID   string  `json:"product_id"`
+	SKU         string  `json:"sku"`
+	ProductName string  `json:"product_name"`
+	Quantity    int     `json:"quantity"`
+	UnitPrice   float64 `json:"unit_price"`
 }
 
 type ShippingAddressRequest struct {

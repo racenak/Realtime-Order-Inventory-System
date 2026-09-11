@@ -128,6 +128,8 @@ services:
         condition: service_started
       websocket-service:
         condition: service_started
+      auth-service:
+        condition: service_started
 
   # ========== Services ==========
   order-service:
@@ -194,6 +196,19 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+
+  auth-service:
+    build:
+      context: .
+      dockerfile: cmd/auth-service/Dockerfile
+    container_name: auth-service
+    ports:
+      - "8083:8083"
+    environment:
+      - JWT_SECRET=${JWT_SECRET:-changeme}
+      - JWT_ISSUER=${JWT_ISSUER:-order-inventory-system}
+      - JWT_AUDIENCE=${JWT_AUDIENCE:-order-inventory-api}
+      - HTTP_PORT=8083
 
 volumes:
   order_db_data:

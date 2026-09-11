@@ -1,25 +1,82 @@
 http:
+  middlewares:
+    # ========== Rate Limiting ==========
+    rate-limit:
+      rateLimit:
+        average: 100
+        burst: 50
+        period: 1s
+        sourceCriterion:
+          ipStrategy:
+            depth: 1
+
+    # ========== Security Headers ==========
+    security-headers:
+      headers:
+        stsSeconds: 31536000
+        stsIncludeSubdomains: true
+        contentTypeNosniff: true
+        frameDeny: true
+        referrerPolicy: "strict-origin-when-cross-origin"
+        permissionsPolicy: "camera=(), microphone=(), geolocation=()"
+
+    # ========== JWT ForwardAuth ==========
+    jwt-auth:
+      forwardAuth:
+        address: "http://auth-service:8083/verify"
+        trustForwardHeader: true
+        authResponseHeaders:
+          - X-User-Id
+          - X-User-Role
+
+    # ========== Chains ==========
+    public-chain:
+      chain:
+        middlewares:
+          - rate-limit
+          - security-headers
+
+    protected-chain:
+      chain:
+        middlewares:
+          - jwt-auth
+          - rate-limit
+          - security-headers
+
   routers:
-    orders:
-      rule: "PathPrefix(`/api/orders`)"
-      entryPoints:
-        - web
-      service: order-service
-    inventory:
-      rule: "PathPrefix(`/api/inventory`)"
-      entryPoints:
-        - web
-      service: inventory-service
-    websocket:
-      rule: "PathPrefix(`/ws`)"
-      entryPoints:
-        - web
-      service: websocket-service
+    # ========== Public Routers (no auth) ==========
     health:
       rule: "Path(`/health`)"
       entryPoints:
         - web
       service: order-service
+      middlewares:
+        - public-chain
+
+    # ========== Protected Routers (JWT required) ==========
+    orders:
+      rule: "PathPrefix(`/api/orders`)"
+      entryPoints:
+        - web
+      service: order-service
+      middlewares:
+        - protected-chain
+
+    inventory:
+      rule: "PathPrefix(`/api/inventory`)"
+      entryPoints:
+        - web
+      service: inventory-service
+      middlewares:
+        - protected-chain
+
+    websocket:
+      rule: "PathPrefix(`/ws`)"
+      entryPoints:
+        - web
+      service: websocket-service
+      middlewares:
+        - protected-chain
 
   services:
     order-service:
@@ -34,3 +91,14 @@ http:
       loadBalancer:
         servers:
           - url: "http://websocket-service:8082"
+
+# TLS options (enable when using HTTPS entrypoint with domain)
+# tls:
+#   options:
+#     default:
+#       minVersion: VersionTLS12
+#       cipherSuites:
+#         - TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+#         - TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+#         - TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256
+#         - TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384

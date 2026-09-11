@@ -70,6 +70,7 @@
 | B-54 | TLS termination (Let's Encrypt ACME) | Done | Traefik config ready, commented TLS options |
 | B-55 | Rate limiting middleware | Done | 100 req/s, 50 burst, per-IP via Traefik |
 | B-56 | JWT ForwardAuth middleware | Done | auth-service validates JWT, X-User-Id/Role headers |
+| B-80 | Auth Service docs (architecture, deployment, API spec) | Done | Added Auth Service to 3 docs, fixed WebSocket port |
 
 ## In Progress
 
@@ -133,4 +134,4 @@
 | API Gateway (Traefik) | 8 | 0 | 0 |
 | Security | 10 | 0 | 0 |
 | Observability | 2 | 0 | 2 |
-| **Total** | **65** | **0** | **3** |
+| **Total** | **66** | **0** | **3** |

@@ -49,6 +49,11 @@
 | B-43 | Redis caching — Cache helper | Done | `pkg/cache/cache.go` (JSON serialize, TTL, prefix keys) |
 | B-44 | Redis caching — Order cache decorator | Done | `order:{id}` 5min, `order:items:{id}` 5min, invalidates on write |
 | B-45 | Redis caching — Inventory cache decorator | Done | `stock:{product_id}` 30s, `warehouse:code:{code}` 10min, invalidates on write |
+| B-50 | Traefik API gateway | Done | v2.11.57, file provider, custom Dockerfile |
+| B-51 | Routing: `/api/orders` → Order Service | Done | PathPrefix match via file provider |
+| B-52 | Routing: `/api/inventory` → Inventory Service | Done | PathPrefix match via file provider |
+| B-53 | Routing: `/ws` → WebSocket Service | Done | PathPrefix match via file provider |
+| B-72 | File provider (Podman compat) | Done | Baked config in custom Dockerfile, watch=false |
 
 ## In Progress
 
@@ -69,6 +74,7 @@
 | B-54 | TLS termination (Let's Encrypt ACME) | Low | B-50 |
 | B-55 | Rate limiting middleware | Low | B-50 |
 | B-56 | JWT ForwardAuth middleware | Low | B-50 |
+| B-72 | File provider (Podman compat — no Docker socket) | Medium | B-50 |
 
 ### Infrastructure
 
@@ -118,7 +124,7 @@
 | WebSocket | 5 | 0 | 0 |
 | Redis | 4 | 0 | 0 |
 | Infrastructure (Docker/CI) | 8 | 0 | 1 |
-| API Gateway (Traefik) | 0 | 0 | 7 |
+| API Gateway (Traefik) | 5 | 0 | 3 |
 | Security | 0 | 0 | 4 |
 | Observability | 0 | 0 | 4 |
-| **Total** | **45** | **0** | **22** |
+| **Total** | **50** | **0** | **18** |

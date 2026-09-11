@@ -84,9 +84,7 @@
 
 | ID | Task | Priority | Depends On |
 |----|------|----------|------------|
-| B-54 | TLS termination (Let's Encrypt ACME) | Low | B-50 |
-| B-55 | Rate limiting middleware | Low | B-50 |
-| B-56 | JWT ForwardAuth middleware | Low | B-50 |
+| — | All Traefik tasks completed (B-50–B-56, B-72) | — | — |
 
 ### Infrastructure
 

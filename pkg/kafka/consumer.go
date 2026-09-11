@@ -2,6 +2,7 @@ package kafka
 
 import (
 	"context"
+	"time"
 
 	"github.com/segmentio/kafka-go"
 	"go.uber.org/zap"
@@ -11,8 +12,10 @@ type MessageHandler func(ctx context.Context, msg kafka.Message) error
 
 type Consumer struct {
 	reader  *kafka.Reader
+	writer  *kafka.Writer
 	handler MessageHandler
 	logger  *zap.Logger
+	config  ConsumerConfig
 }
 
 type ConsumerConfig struct {
@@ -22,22 +25,44 @@ type ConsumerConfig struct {
 	MinBytes    int
 	MaxBytes    int
 	StartOffset int64
+	MaxRetries  int
+	RetryDelay  time.Duration
+	DLQTopic    string
 }
 
 func NewConsumer(cfg ConsumerConfig, handler MessageHandler, logger *zap.Logger) *Consumer {
 	r := kafka.NewReader(kafka.ReaderConfig{
-		Brokers:     cfg.Brokers,
-		Topic:       cfg.Topic,
-		GroupID:     cfg.GroupID,
-		MinBytes:    cfg.MinBytes,
-		MaxBytes:    cfg.MaxBytes,
-		StartOffset: cfg.StartOffset,
+		Brokers:  cfg.Brokers,
+		Topic:    cfg.Topic,
+		GroupID:  cfg.GroupID,
+		MinBytes: cfg.MinBytes,
+		MaxBytes: cfg.MaxBytes,
+		// Disable auto-commit — we commit manually after successful processing
+		CommitInterval: 0,
 	})
+
+	var w *kafka.Writer
+	if cfg.DLQTopic != "" {
+		w = &kafka.Writer{
+			Addr:         kafka.TCP(cfg.Brokers...),
+			Balancer:     &kafka.LeastBytes{},
+			BatchTimeout: 10 * time.Millisecond,
+		}
+	}
+
+	if cfg.MaxRetries <= 0 {
+		cfg.MaxRetries = 3
+	}
+	if cfg.RetryDelay <= 0 {
+		cfg.RetryDelay = time.Second
+	}
 
 	return &Consumer{
 		reader:  r,
+		writer:  w,
 		handler: handler,
 		logger:  logger,
+		config:  cfg,
 	}
 }
 
@@ -45,6 +70,8 @@ func (c *Consumer) Start(ctx context.Context) error {
 	c.logger.Info("kafka consumer started",
 		zap.String("topic", c.reader.Config().Topic),
 		zap.String("group_id", c.reader.Config().GroupID),
+		zap.Int("max_retries", c.config.MaxRetries),
+		zap.String("dlq_topic", c.config.DLQTopic),
 	)
 
 	for {
@@ -57,13 +84,25 @@ func (c *Consumer) Start(ctx context.Context) error {
 			continue
 		}
 
-		if err := c.handler(ctx, msg); err != nil {
-			c.logger.Error("failed to handle message",
+		if err := c.handleWithRetry(ctx, msg); err != nil {
+			c.logger.Error("message failed after all retries, sending to DLQ",
 				zap.Error(err),
 				zap.Int64("offset", msg.Offset),
 				zap.String("topic", msg.Topic),
 			)
-			continue
+			if dlqErr := c.sendToDLQ(ctx, msg, err); dlqErr != nil {
+				c.logger.Error("failed to send to DLQ",
+					zap.Error(dlqErr),
+					zap.Int64("offset", msg.Offset),
+				)
+			}
+		}
+
+		if err := c.reader.CommitMessages(ctx, msg); err != nil {
+			c.logger.Error("failed to commit offset",
+				zap.Error(err),
+				zap.Int64("offset", msg.Offset),
+			)
 		}
 
 		c.logger.Debug("message processed",
@@ -73,6 +112,60 @@ func (c *Consumer) Start(ctx context.Context) error {
 	}
 }
 
+func (c *Consumer) handleWithRetry(ctx context.Context, msg kafka.Message) error {
+	var lastErr error
+
+	for attempt := 0; attempt <= c.config.MaxRetries; attempt++ {
+		if attempt > 0 {
+			c.logger.Warn("retrying message",
+				zap.Int("attempt", attempt),
+				zap.Int64("offset", msg.Offset),
+				zap.Duration("delay", c.config.RetryDelay),
+			)
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-time.After(c.config.RetryDelay):
+			}
+		}
+
+		if err := c.handler(ctx, msg); err != nil {
+			lastErr = err
+			c.logger.Error("handler error",
+				zap.Error(err),
+				zap.Int("attempt", attempt+1),
+				zap.Int64("offset", msg.Offset),
+			)
+			continue
+		}
+
+		return nil
+	}
+
+	return lastErr
+}
+
+func (c *Consumer) sendToDLQ(ctx context.Context, originalMsg kafka.Message, handlerErr error) error {
+	if c.writer == nil || c.config.DLQTopic == "" {
+		return nil
+	}
+
+	dlqMsg := kafka.Message{
+		Key:   originalMsg.Key,
+		Value: originalMsg.Value,
+		Headers: append(originalMsg.Headers,
+			kafka.Header{Key: "dlq_original_topic", Value: []byte(originalMsg.Topic)},
+			kafka.Header{Key: "dlq_error", Value: []byte(handlerErr.Error())},
+			kafka.Header{Key: "dlq_timestamp", Value: []byte(time.Now().UTC().Format(time.RFC3339))},
+		),
+	}
+
+	return c.writer.WriteMessages(ctx, dlqMsg)
+}
+
 func (c *Consumer) Close() error {
+	if c.writer != nil {
+		c.writer.Close()
+	}
 	return c.reader.Close()
 }

@@ -9,6 +9,7 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	"github.com/racenak/Realtime-Order-Inventory-System/internal/order/domain"
+	"github.com/racenak/Realtime-Order-Inventory-System/pkg/database"
 )
 
 type orderRepository struct {
@@ -17,6 +18,10 @@ type orderRepository struct {
 
 func NewOrderRepository(db *sqlx.DB) domain.OrderRepository {
 	return &orderRepository{db: db}
+}
+
+func (r *orderRepository) DB() *sqlx.DB {
+	return r.db
 }
 
 type orderRow struct {
@@ -36,6 +41,10 @@ type orderRow struct {
 }
 
 func (r *orderRepository) Create(ctx context.Context, order *domain.Order) error {
+	return r.CreateInTx(ctx, nil, order)
+}
+
+func (r *orderRepository) CreateInTx(ctx context.Context, tx *sqlx.Tx, order *domain.Order) error {
 	shippingAddrJSON, err := json.Marshal(order.ShippingAddress)
 	if err != nil {
 		return fmt.Errorf("failed to marshal shipping address: %w", err)
@@ -45,7 +54,12 @@ func (r *orderRepository) Create(ctx context.Context, order *domain.Order) error
 		INSERT INTO orders (id, customer_id, status, currency, subtotal, discount_amount, shipping_fee, tax_amount, total_amount, shipping_address, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`
 
-	_, err = r.db.ExecContext(ctx, query,
+	var executor database.DBExecutor = r.db
+	if tx != nil {
+		executor = tx
+	}
+
+	_, err = executor.ExecContext(ctx, query,
 		order.ID,
 		order.CustomerID,
 		order.Status,
@@ -122,8 +136,18 @@ func (r *orderRepository) List(ctx context.Context, customerID string, limit, of
 }
 
 func (r *orderRepository) UpdateStatus(ctx context.Context, id string, status domain.OrderStatus) error {
+	return r.UpdateStatusInTx(ctx, nil, id, status)
+}
+
+func (r *orderRepository) UpdateStatusInTx(ctx context.Context, tx *sqlx.Tx, id string, status domain.OrderStatus) error {
 	query := `UPDATE orders SET status = $1, updated_at = $2 WHERE id = $3`
-	_, err := r.db.ExecContext(ctx, query, status, time.Now(), id)
+
+	var executor database.DBExecutor = r.db
+	if tx != nil {
+		executor = tx
+	}
+
+	_, err := executor.ExecContext(ctx, query, status, time.Now(), id)
 	return err
 }
 
@@ -169,12 +193,21 @@ type orderItemRow struct {
 }
 
 func (r *orderItemRepository) Create(ctx context.Context, items []domain.OrderItem) error {
+	return r.CreateInTx(ctx, nil, items)
+}
+
+func (r *orderItemRepository) CreateInTx(ctx context.Context, tx *sqlx.Tx, items []domain.OrderItem) error {
 	query := `
 		INSERT INTO order_items (id, order_id, product_id, sku, product_name, quantity, unit_price, discount_amount, total_amount, created_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
 
+	var executor database.DBExecutor = r.db
+	if tx != nil {
+		executor = tx
+	}
+
 	for _, item := range items {
-		_, err := r.db.ExecContext(ctx, query,
+		_, err := executor.ExecContext(ctx, query,
 			item.ID,
 			item.OrderID,
 			item.ProductID,
@@ -239,11 +272,20 @@ func NewOutboxRepository(db *sqlx.DB) domain.OutboxRepository {
 }
 
 func (r *outboxRepository) Create(ctx context.Context, event domain.OutboxEvent) error {
+	return r.CreateInTx(ctx, nil, event)
+}
+
+func (r *outboxRepository) CreateInTx(ctx context.Context, tx *sqlx.Tx, event domain.OutboxEvent) error {
 	query := `
 		INSERT INTO outbox_events (id, aggregate_type, aggregate_id, event_type, payload, status, created_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7)`
 
-	_, err := r.db.ExecContext(ctx, query,
+	var executor database.DBExecutor = r.db
+	if tx != nil {
+		executor = tx
+	}
+
+	_, err := executor.ExecContext(ctx, query,
 		event.ID,
 		event.AggregateType,
 		event.AggregateID,
@@ -280,8 +322,68 @@ func (r *outboxRepository) GetPending(ctx context.Context, limit int) ([]domain.
 	return events, nil
 }
 
+func (r *outboxRepository) ClaimBatch(ctx context.Context, limit int) ([]domain.OutboxEvent, error) {
+	tx, err := r.db.BeginTxx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	query := `
+		SELECT id, aggregate_type, aggregate_id, event_type, payload, status, created_at::text
+		FROM outbox_events
+		WHERE status = 'PENDING'
+		ORDER BY created_at ASC
+		LIMIT $1
+		FOR UPDATE SKIP LOCKED`
+
+	var rows []outboxEventRow
+	if err := tx.SelectContext(ctx, &rows, query, limit); err != nil {
+		return nil, fmt.Errorf("failed to claim pending events: %w", err)
+	}
+
+	if len(rows) == 0 {
+		return nil, nil
+	}
+
+	ids := make([]string, len(rows))
+	for i, row := range rows {
+		ids[i] = row.ID
+	}
+
+	updateQuery := `UPDATE outbox_events SET status = 'CLAIMED' WHERE id = ANY($1)`
+	if _, err := tx.ExecContext(ctx, updateQuery, ids); err != nil {
+		return nil, fmt.Errorf("failed to mark events as claimed: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("failed to commit claim transaction: %w", err)
+	}
+
+	events := make([]domain.OutboxEvent, len(rows))
+	for i, row := range rows {
+		events[i] = domain.OutboxEvent{
+			ID:            row.ID,
+			AggregateType: row.AggregateType,
+			AggregateID:   row.AggregateID,
+			EventType:     row.EventType,
+			Payload:       row.Payload,
+			Status:        row.Status,
+			CreatedAt:     row.CreatedAt,
+		}
+	}
+
+	return events, nil
+}
+
 func (r *outboxRepository) MarkPublished(ctx context.Context, id string) error {
 	query := `UPDATE outbox_events SET status = 'PUBLISHED', published_at = $1 WHERE id = $2`
+	_, err := r.db.ExecContext(ctx, query, time.Now().Format(time.RFC3339), id)
+	return err
+}
+
+func (r *outboxRepository) MarkFailed(ctx context.Context, id string) error {
+	query := `UPDATE outbox_events SET status = 'FAILED', published_at = $1 WHERE id = $2`
 	_, err := r.db.ExecContext(ctx, query, time.Now().Format(time.RFC3339), id)
 	return err
 }

@@ -1,6 +1,8 @@
 package database
 
 import (
+	"context"
+	"database/sql"
 	"fmt"
 	"time"
 
@@ -8,6 +10,13 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/racenak/Realtime-Order-Inventory-System/pkg/config"
 )
+
+// DBExecutor is an interface that both *sqlx.DB and *sqlx.Tx implement
+type DBExecutor interface {
+	ExecContext(ctx context.Context, query string, args ...interface{}) (sql.Result, error)
+	SelectContext(ctx context.Context, dest interface{}, query string, args ...interface{}) error
+	GetContext(ctx context.Context, dest interface{}, query string, args ...interface{}) error
+}
 
 func NewPostgresConnection(cfg config.DatabaseConfig) (*sqlx.DB, error) {
 	dsn := fmt.Sprintf(

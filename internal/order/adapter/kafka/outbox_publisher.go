@@ -13,8 +13,9 @@ import (
 )
 
 type OutboxRepository interface {
-	GetPending(ctx context.Context, limit int) ([]domain.OutboxEvent, error)
+	ClaimBatch(ctx context.Context, limit int) ([]domain.OutboxEvent, error)
 	MarkPublished(ctx context.Context, id string) error
+	MarkFailed(ctx context.Context, id string) error
 }
 
 type OutboxPublisher struct {
@@ -62,7 +63,7 @@ func (p *OutboxPublisher) Start(ctx context.Context, interval time.Duration, bat
 }
 
 func (p *OutboxPublisher) publishBatch(ctx context.Context, batchSize int) error {
-	events, err := p.repo.GetPending(ctx, batchSize)
+	events, err := p.repo.ClaimBatch(ctx, batchSize)
 	if err != nil {
 		return err
 	}
@@ -75,10 +76,16 @@ func (p *OutboxPublisher) publishBatch(ctx context.Context, batchSize int) error
 
 	for _, event := range events {
 		if err := p.publishEvent(ctx, event); err != nil {
-			p.logger.Error("failed to publish event",
+			p.logger.Error("failed to publish event, marking as failed",
 				zap.String("event_id", event.ID),
 				zap.Error(err),
 			)
+			if markErr := p.repo.MarkFailed(ctx, event.ID); markErr != nil {
+				p.logger.Error("failed to mark event as failed",
+					zap.String("event_id", event.ID),
+					zap.Error(markErr),
+				)
+			}
 			continue
 		}
 

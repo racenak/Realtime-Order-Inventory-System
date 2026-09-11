@@ -15,14 +15,15 @@ import (
 	"github.com/segmentio/kafka-go"
 	"go.uber.org/zap"
 
-	kafkakit "github.com/racenak/Realtime-Order-Inventory-System/pkg/kafka"
-
+	"github.com/racenak/Realtime-Order-Inventory-System/internal/order/adapter/cache"
 	"github.com/racenak/Realtime-Order-Inventory-System/internal/order/adapter/httpd"
 	orderkafka "github.com/racenak/Realtime-Order-Inventory-System/internal/order/adapter/kafka"
 	"github.com/racenak/Realtime-Order-Inventory-System/internal/order/adapter/postgres"
 	"github.com/racenak/Realtime-Order-Inventory-System/internal/order/usecase"
+	pkgcache "github.com/racenak/Realtime-Order-Inventory-System/pkg/cache"
 	"github.com/racenak/Realtime-Order-Inventory-System/pkg/config"
 	"github.com/racenak/Realtime-Order-Inventory-System/pkg/database"
+	kafkakit "github.com/racenak/Realtime-Order-Inventory-System/pkg/kafka"
 	"github.com/racenak/Realtime-Order-Inventory-System/pkg/logger"
 )
 
@@ -41,11 +42,24 @@ func main() {
 	}
 	defer db.Close()
 
+	rdb, err := pkgcache.NewRedisClient(cfg.Redis)
+	if err != nil {
+		log.Fatalf("Failed to connect to Redis: %v", err)
+	}
+	defer rdb.Close()
+
 	orderRepo := postgres.NewOrderRepository(db)
 	orderItemRepo := postgres.NewOrderItemRepository(db)
 	outboxRepo := postgres.NewOutboxRepository(db)
 
-	orderUC := usecase.NewCreateOrderUseCase(orderRepo, orderItemRepo, outboxRepo)
+	orderCache := pkgcache.New(rdb, "order", 5*time.Minute, logger)
+	orderItemCache := pkgcache.New(rdb, "order", 5*time.Minute, logger)
+
+	cachedOrderRepo := cache.NewOrderCache(orderRepo, orderCache)
+	cachedOrderItemRepo := cache.NewOrderItemCache(orderItemRepo, orderItemCache)
+	cachedOutboxRepo := cache.NewOutboxCache(outboxRepo)
+
+	orderUC := usecase.NewCreateOrderUseCase(cachedOrderRepo, cachedOrderItemRepo, cachedOutboxRepo)
 
 	orderHandler := httpd.NewOrderHandler(orderUC)
 

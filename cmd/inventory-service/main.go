@@ -8,20 +8,22 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/segmentio/kafka-go"
 	"go.uber.org/zap"
 
-	kafkakit "github.com/racenak/Realtime-Order-Inventory-System/pkg/kafka"
-
+	"github.com/racenak/Realtime-Order-Inventory-System/internal/inventory/adapter/cache"
 	"github.com/racenak/Realtime-Order-Inventory-System/internal/inventory/adapter/httpd"
 	inventorykafka "github.com/racenak/Realtime-Order-Inventory-System/internal/inventory/adapter/kafka"
 	"github.com/racenak/Realtime-Order-Inventory-System/internal/inventory/adapter/postgres"
 	"github.com/racenak/Realtime-Order-Inventory-System/internal/inventory/usecase"
+	pkgcache "github.com/racenak/Realtime-Order-Inventory-System/pkg/cache"
 	"github.com/racenak/Realtime-Order-Inventory-System/pkg/config"
 	"github.com/racenak/Realtime-Order-Inventory-System/pkg/database"
+	kafkakit "github.com/racenak/Realtime-Order-Inventory-System/pkg/kafka"
 	"github.com/racenak/Realtime-Order-Inventory-System/pkg/logger"
 )
 
@@ -58,11 +60,22 @@ func main() {
 	}
 	defer db.Close()
 
+	rdb, err := pkgcache.NewRedisClient(cfg.Redis)
+	if err != nil {
+		log.Fatalf("Failed to connect to Redis: %v", err)
+	}
+	defer rdb.Close()
+
 	inventoryRepo := postgres.NewInventoryRepository(db)
 	reservationRepo := postgres.NewReservationRepository(db)
 	movementRepo := postgres.NewMovementRepository(db)
 
-	inventoryUC := usecase.NewInventoryUseCase(inventoryRepo, reservationRepo, movementRepo)
+	invCache := pkgcache.New(rdb, "inventory", 30*time.Second, logger)
+	whCache := pkgcache.New(rdb, "inventory", 10*time.Minute, logger)
+
+	cachedInventoryRepo := cache.NewInventoryCache(inventoryRepo, invCache, whCache)
+
+	inventoryUC := usecase.NewInventoryUseCase(cachedInventoryRepo, reservationRepo, movementRepo)
 
 	inventoryHandler := httpd.NewInventoryHandler(inventoryUC)
 

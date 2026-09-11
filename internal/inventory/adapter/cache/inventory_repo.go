@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/jmoiron/sqlx"
 	"github.com/racenak/Realtime-Order-Inventory-System/internal/inventory/domain"
 	pkgcache "github.com/racenak/Realtime-Order-Inventory-System/pkg/cache"
 )
@@ -27,6 +28,10 @@ func (c *InventoryCache) Create(ctx context.Context, inventory *domain.Inventory
 		)
 	}
 	return err
+}
+
+func (c *InventoryCache) CreateInTx(ctx context.Context, tx *sqlx.Tx, inventory *domain.Inventory) error {
+	return c.inner.CreateInTx(ctx, tx, inventory)
 }
 
 func (c *InventoryCache) GetByProductAndWarehouse(ctx context.Context, productID, warehouseID string) (*domain.Inventory, error) {
@@ -108,6 +113,10 @@ func (c *InventoryCache) GetWarehouseByCode(ctx context.Context, code string) (*
 
 	c.warehouseCache.Set(ctx, key, whPtr)
 	return whPtr, nil
+}
+
+func (c *InventoryCache) DB() *sqlx.DB {
+	return c.inner.DB()
 }
 
 func inventoryByProductWarehouseKey(productID, warehouseID string) string {

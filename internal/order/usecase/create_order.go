@@ -78,14 +78,6 @@ func (uc *createOrderUseCase) CreateOrder(ctx context.Context, req CreateOrderRe
 	order.Items = orderItems
 	order.CalculateTotal()
 
-	if err := uc.orderRepo.Create(ctx, order); err != nil {
-		return nil, fmt.Errorf("failed to create order: %w", err)
-	}
-
-	if err := uc.orderItemRepo.Create(ctx, orderItems); err != nil {
-		return nil, fmt.Errorf("failed to create order items: %w", err)
-	}
-
 	eventPayload, _ := json.Marshal(map[string]interface{}{
 		"order_id":    order.ID,
 		"customer_id": order.CustomerID,
@@ -103,8 +95,27 @@ func (uc *createOrderUseCase) CreateOrder(ctx context.Context, req CreateOrderRe
 		CreatedAt:     time.Now().Format(time.RFC3339),
 	}
 
-	if err := uc.outboxRepo.Create(ctx, outboxEvent); err != nil {
+	db := uc.orderRepo.DB()
+	tx, err := db.BeginTxx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	if err := uc.orderRepo.CreateInTx(ctx, tx, order); err != nil {
+		return nil, fmt.Errorf("failed to create order: %w", err)
+	}
+
+	if err := uc.orderItemRepo.CreateInTx(ctx, tx, orderItems); err != nil {
+		return nil, fmt.Errorf("failed to create order items: %w", err)
+	}
+
+	if err := uc.outboxRepo.CreateInTx(ctx, tx, outboxEvent); err != nil {
 		return nil, fmt.Errorf("failed to create outbox event: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
 	return order, nil
@@ -139,10 +150,6 @@ func (uc *createOrderUseCase) CancelOrder(ctx context.Context, id string, reason
 		return domain.ErrOrderNotCancellable
 	}
 
-	if err := uc.orderRepo.UpdateStatus(ctx, id, domain.StatusCancelled); err != nil {
-		return fmt.Errorf("failed to cancel order: %w", err)
-	}
-
 	eventPayload, _ := json.Marshal(map[string]interface{}{
 		"order_id":   order.ID,
 		"old_status": order.Status,
@@ -160,8 +167,23 @@ func (uc *createOrderUseCase) CancelOrder(ctx context.Context, id string, reason
 		CreatedAt:     time.Now().Format(time.RFC3339),
 	}
 
-	if err := uc.outboxRepo.Create(ctx, outboxEvent); err != nil {
+	db := uc.orderRepo.DB()
+	tx, err := db.BeginTxx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	if err := uc.orderRepo.UpdateStatusInTx(ctx, tx, id, domain.StatusCancelled); err != nil {
+		return fmt.Errorf("failed to cancel order: %w", err)
+	}
+
+	if err := uc.outboxRepo.CreateInTx(ctx, tx, outboxEvent); err != nil {
 		return fmt.Errorf("failed to create outbox event: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
 	return nil
@@ -175,10 +197,6 @@ func (uc *createOrderUseCase) ConfirmOrder(ctx context.Context, id string) error
 
 	if order.Status != domain.StatusPendingPayment {
 		return nil
-	}
-
-	if err := uc.orderRepo.UpdateStatus(ctx, id, domain.StatusProcessing); err != nil {
-		return fmt.Errorf("failed to confirm order: %w", err)
 	}
 
 	eventPayload, _ := json.Marshal(map[string]interface{}{
@@ -197,8 +215,23 @@ func (uc *createOrderUseCase) ConfirmOrder(ctx context.Context, id string) error
 		CreatedAt:     time.Now().Format(time.RFC3339),
 	}
 
-	if err := uc.outboxRepo.Create(ctx, outboxEvent); err != nil {
+	db := uc.orderRepo.DB()
+	tx, err := db.BeginTxx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	if err := uc.orderRepo.UpdateStatusInTx(ctx, tx, id, domain.StatusProcessing); err != nil {
+		return fmt.Errorf("failed to confirm order: %w", err)
+	}
+
+	if err := uc.outboxRepo.CreateInTx(ctx, tx, outboxEvent); err != nil {
 		return fmt.Errorf("failed to create outbox event: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
 	return nil

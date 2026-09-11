@@ -72,6 +72,13 @@ func (uc *inventoryUseCase) ReserveStock(ctx context.Context, req ReserveStockRe
 		return nil, domain.ErrInsufficientStock
 	}
 
+	db := uc.inventoryRepo.DB()
+	tx, err := db.BeginTxx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
 	err = uc.inventoryRepo.ReserveQuantity(ctx, req.ProductID, warehouseID, req.Quantity, inv.Version)
 	if err == domain.ErrConcurrentModification {
 		return nil, domain.ErrConcurrentModification
@@ -92,7 +99,7 @@ func (uc *inventoryUseCase) ReserveStock(ctx context.Context, req ReserveStockRe
 		UpdatedAt:   time.Now(),
 	}
 
-	if err := uc.reservationRepo.Create(ctx, reservation); err != nil {
+	if err := uc.reservationRepo.CreateInTx(ctx, tx, reservation); err != nil {
 		return nil, err
 	}
 
@@ -108,7 +115,11 @@ func (uc *inventoryUseCase) ReserveStock(ctx context.Context, req ReserveStockRe
 		CreatedAt:     time.Now(),
 	}
 
-	_ = uc.movementRepo.Create(ctx, movement)
+	_ = uc.movementRepo.CreateInTx(ctx, tx, movement)
+
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("failed to commit transaction: %w", err)
+	}
 
 	return reservation, nil
 }
@@ -122,6 +133,13 @@ func (uc *inventoryUseCase) ReleaseReservation(ctx context.Context, reservationI
 	if reservation.Status != "reserved" {
 		return nil
 	}
+
+	db := uc.inventoryRepo.DB()
+	tx, err := db.BeginTxx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
 
 	err = uc.reservationRepo.UpdateStatus(ctx, reservationID, "released")
 	if err != nil {
@@ -144,7 +162,11 @@ func (uc *inventoryUseCase) ReleaseReservation(ctx context.Context, reservationI
 		CreatedAt:     time.Now(),
 	}
 
-	_ = uc.movementRepo.Create(ctx, movement)
+	_ = uc.movementRepo.CreateInTx(ctx, tx, movement)
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
 
 	return nil
 }

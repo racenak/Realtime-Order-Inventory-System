@@ -7,6 +7,7 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	"github.com/racenak/Realtime-Order-Inventory-System/internal/inventory/domain"
+	"github.com/racenak/Realtime-Order-Inventory-System/pkg/database"
 )
 
 type inventoryRepository struct {
@@ -17,12 +18,25 @@ func NewInventoryRepository(db *sqlx.DB) domain.InventoryRepository {
 	return &inventoryRepository{db: db}
 }
 
+func (r *inventoryRepository) DB() *sqlx.DB {
+	return r.db
+}
+
 func (r *inventoryRepository) Create(ctx context.Context, inventory *domain.Inventory) error {
+	return r.CreateInTx(ctx, nil, inventory)
+}
+
+func (r *inventoryRepository) CreateInTx(ctx context.Context, tx *sqlx.Tx, inventory *domain.Inventory) error {
 	query := `
 		INSERT INTO inventory (id, product_id, sku, warehouse_id, quantity_on_hand, quantity_reserved, version, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
 
-	_, err := r.db.ExecContext(ctx, query,
+	var executor database.DBExecutor = r.db
+	if tx != nil {
+		executor = tx
+	}
+
+	_, err := executor.ExecContext(ctx, query,
 		inventory.ID,
 		inventory.ProductID,
 		inventory.SKU,
@@ -162,6 +176,10 @@ func NewReservationRepository(db *sqlx.DB) domain.ReservationRepository {
 }
 
 func (r *reservationRepository) Create(ctx context.Context, reservation *domain.Reservation) error {
+	return r.CreateInTx(ctx, nil, reservation)
+}
+
+func (r *reservationRepository) CreateInTx(ctx context.Context, tx *sqlx.Tx, reservation *domain.Reservation) error {
 	query := `
 		INSERT INTO inventory_reservations (id, order_id, order_item_id, product_id, sku, warehouse_id, quantity, status, expires_at, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`
@@ -171,7 +189,12 @@ func (r *reservationRepository) Create(ctx context.Context, reservation *domain.
 		orderItemID = sql.NullString{String: reservation.OrderItemID, Valid: true}
 	}
 
-	_, err := r.db.ExecContext(ctx, query,
+	var executor database.DBExecutor = r.db
+	if tx != nil {
+		executor = tx
+	}
+
+	_, err := executor.ExecContext(ctx, query,
 		reservation.ID,
 		reservation.OrderID,
 		orderItemID,
@@ -268,6 +291,10 @@ func NewMovementRepository(db *sqlx.DB) domain.MovementRepository {
 }
 
 func (r *movementRepository) Create(ctx context.Context, movement *domain.InventoryMovement) error {
+	return r.CreateInTx(ctx, nil, movement)
+}
+
+func (r *movementRepository) CreateInTx(ctx context.Context, tx *sqlx.Tx, movement *domain.InventoryMovement) error {
 	query := `
 		INSERT INTO inventory_movements (id, product_id, sku, warehouse_id, movement_type, quantity, reference_type, reference_id, created_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
@@ -281,7 +308,12 @@ func (r *movementRepository) Create(ctx context.Context, movement *domain.Invent
 		referenceID = sql.NullString{String: movement.ReferenceID, Valid: true}
 	}
 
-	_, err := r.db.ExecContext(ctx, query,
+	var executor database.DBExecutor = r.db
+	if tx != nil {
+		executor = tx
+	}
+
+	_, err := executor.ExecContext(ctx, query,
 		movement.ID,
 		movement.ProductID,
 		movement.SKU,

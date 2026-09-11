@@ -60,16 +60,27 @@ func (h *Hub) Run() {
 			)
 
 		case message := <-h.broadcast:
+			var toUnregister []*Client
+
 			h.mu.RLock()
 			for client := range h.clients {
 				select {
 				case client.send <- message:
 				default:
-					close(client.send)
-					delete(h.clients, client)
+					toUnregister = append(toUnregister, client)
 				}
 			}
 			h.mu.RUnlock()
+
+			for _, client := range toUnregister {
+				h.mu.Lock()
+				if _, ok := h.clients[client]; ok {
+					close(client.send)
+					delete(h.clients, client)
+				}
+				h.mu.Unlock()
+				metrics.WSConnectionsActive.WithLabelValues("websocket-service").Dec()
+			}
 		}
 	}
 }
@@ -98,19 +109,23 @@ func (h *Hub) BroadcastToChannel(channel string, msg Message) {
 		return
 	}
 
-	h.mu.RLock()
-	defer h.mu.RUnlock()
+	var toUnregister []*Client
 
+	h.mu.RLock()
 	for client := range h.clients {
 		if client.HasChannel(channel) {
 			select {
 			case client.send <- data:
 				metrics.WSMessagesSentTotal.WithLabelValues("websocket-service", channel).Inc()
 			default:
-				close(client.send)
-				delete(h.clients, client)
+				toUnregister = append(toUnregister, client)
 			}
 		}
+	}
+	h.mu.RUnlock()
+
+	for _, client := range toUnregister {
+		h.unregister <- client
 	}
 }
 

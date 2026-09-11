@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/jmoiron/sqlx"
 	"github.com/racenak/Realtime-Order-Inventory-System/internal/order/domain"
 	pkgcache "github.com/racenak/Realtime-Order-Inventory-System/pkg/cache"
 )
@@ -19,6 +20,10 @@ func NewOrderCache(inner domain.OrderRepository, cache *pkgcache.Cache) *OrderCa
 
 func (c *OrderCache) Create(ctx context.Context, order *domain.Order) error {
 	return c.inner.Create(ctx, order)
+}
+
+func (c *OrderCache) CreateInTx(ctx context.Context, tx *sqlx.Tx, order *domain.Order) error {
+	return c.inner.CreateInTx(ctx, tx, order)
 }
 
 func (c *OrderCache) GetByID(ctx context.Context, id string) (*domain.Order, error) {
@@ -48,6 +53,14 @@ func (c *OrderCache) UpdateStatus(ctx context.Context, id string, status domain.
 	return err
 }
 
+func (c *OrderCache) UpdateStatusInTx(ctx context.Context, tx *sqlx.Tx, id string, status domain.OrderStatus) error {
+	return c.inner.UpdateStatusInTx(ctx, tx, id, status)
+}
+
+func (c *OrderCache) DB() *sqlx.DB {
+	return c.inner.DB()
+}
+
 func orderKey(id string) string {
 	return id
 }
@@ -75,6 +88,10 @@ func (c *OrderItemCache) Create(ctx context.Context, items []domain.OrderItem) e
 		c.cache.Delete(ctx, keys...)
 	}
 	return err
+}
+
+func (c *OrderItemCache) CreateInTx(ctx context.Context, tx *sqlx.Tx, items []domain.OrderItem) error {
+	return c.inner.CreateInTx(ctx, tx, items)
 }
 
 func (c *OrderItemCache) GetByOrderID(ctx context.Context, orderID string) ([]domain.OrderItem, error) {
@@ -108,12 +125,24 @@ func (c *OutboxCache) Create(ctx context.Context, event domain.OutboxEvent) erro
 	return c.inner.Create(ctx, event)
 }
 
+func (c *OutboxCache) CreateInTx(ctx context.Context, tx *sqlx.Tx, event domain.OutboxEvent) error {
+	return c.inner.CreateInTx(ctx, tx, event)
+}
+
 func (c *OutboxCache) GetPending(ctx context.Context, limit int) ([]domain.OutboxEvent, error) {
 	return c.inner.GetPending(ctx, limit)
 }
 
+func (c *OutboxCache) ClaimBatch(ctx context.Context, limit int) ([]domain.OutboxEvent, error) {
+	return c.inner.ClaimBatch(ctx, limit)
+}
+
 func (c *OutboxCache) MarkPublished(ctx context.Context, id string) error {
 	return c.inner.MarkPublished(ctx, id)
+}
+
+func (c *OutboxCache) MarkFailed(ctx context.Context, id string) error {
+	return c.inner.MarkFailed(ctx, id)
 }
 
 var _ domain.OrderRepository = (*OrderCache)(nil)

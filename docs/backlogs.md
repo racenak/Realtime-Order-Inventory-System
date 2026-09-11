@@ -65,6 +65,8 @@
 | B-77 | Idempotency schema spec | Done | DDL, uniqueness constraint, request hash |
 | B-78 | Traefik gateway security spec | Done | Middleware chain, gateway vs service responsibilities |
 | B-79 | Resource-level authorization spec | Done | Order ownership, inventory invariants |
+| B-68 | Structured logging across all services | Done | zap logger in all services + shared `pkg/logger` |
+| B-71 | Health check endpoints (liveness + readiness) | Done | `/health` via Traefik and direct |
 
 ## In Progress
 
@@ -78,14 +80,9 @@
 
 | ID | Task | Priority | Depends On |
 |----|------|----------|------------|
-| B-50 | Traefik static/dynamic config | Medium | — |
-| B-51 | Routing: `/api/orders` → Order Service | Medium | B-50 |
-| B-52 | Routing: `/api/inventory` → Inventory Service | Medium | B-50 |
-| B-53 | Routing: `/ws` → WebSocket Service | Medium | B-50 |
 | B-54 | TLS termination (Let's Encrypt ACME) | Low | B-50 |
 | B-55 | Rate limiting middleware | Low | B-50 |
 | B-56 | JWT ForwardAuth middleware | Low | B-50 |
-| B-72 | File provider (Podman compat — no Docker socket) | Medium | B-50 |
 
 ### Infrastructure
 
@@ -114,10 +111,8 @@
 
 | ID | Task | Priority | Depends On |
 |----|------|----------|------------|
-| B-68 | Structured logging across all services | Low | — |
 | B-69 | Prometheus metrics endpoint | Low | — |
 | B-70 | OpenTelemetry tracing setup | Low | — |
-| B-71 | Health check endpoints (liveness + readiness) | Low | — |
 
 ---
 
@@ -134,5 +129,5 @@
 | Infrastructure (Docker/CI) | 8 | 0 | 1 |
 | API Gateway (Traefik) | 5 | 0 | 3 |
 | Security | 10 | 0 | 0 |
-| Observability | 0 | 0 | 4 |
-| **Total** | **60** | **0** | **8** |
+| Observability | 2 | 0 | 2 |
+| **Total** | **62** | **0** | **6** |

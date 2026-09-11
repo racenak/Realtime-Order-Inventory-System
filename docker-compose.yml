@@ -105,6 +105,30 @@ services:
       echo 'Kafka topics created successfully!'
       "
 
+  # ========== API Gateway ==========
+  traefik:
+    build:
+      context: .
+      dockerfile: cmd/traefik/Dockerfile
+    container_name: traefik
+    command:
+      - "--api.dashboard=true"
+      - "--api.insecure=true"
+      - "--providers.file.filename=/etc/traefik/traefik-dynamic.yml"
+      - "--providers.file.watch=false"
+      - "--entrypoints.web.address=:8088"
+      - "--log.level=INFO"
+    ports:
+      - "8088:8088"
+      - "8090:8080"
+    depends_on:
+      order-service:
+        condition: service_started
+      inventory-service:
+        condition: service_started
+      websocket-service:
+        condition: service_started
+
   # ========== Services ==========
   order-service:
     build:

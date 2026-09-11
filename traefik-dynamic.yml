@@ -1,0 +1,36 @@
+http:
+  routers:
+    orders:
+      rule: "PathPrefix(`/api/orders`)"
+      entryPoints:
+        - web
+      service: order-service
+    inventory:
+      rule: "PathPrefix(`/api/inventory`)"
+      entryPoints:
+        - web
+      service: inventory-service
+    websocket:
+      rule: "PathPrefix(`/ws`)"
+      entryPoints:
+        - web
+      service: websocket-service
+    health:
+      rule: "Path(`/health`)"
+      entryPoints:
+        - web
+      service: order-service
+
+  services:
+    order-service:
+      loadBalancer:
+        servers:
+          - url: "http://order-service:8080"
+    inventory-service:
+      loadBalancer:
+        servers:
+          - url: "http://inventory-service:8081"
+    websocket-service:
+      loadBalancer:
+        servers:
+          - url: "http://websocket-service:8082"

@@ -32,6 +32,23 @@
 | B-26 | Redis Pub/Sub subscriber | Done | `internal/websocket/subscriber.go` |
 | B-27 | Client subscription management | Done | Channels: order_id, product_id, customer_id |
 | B-28 | WebSocket heartbeat / ping-pong | Done | 60s pong wait, 54s ping interval |
+| B-29 | Dockerfile — Order Service | Done | Multi-stage: golang:1.22-alpine → alpine:3.19 |
+| B-30 | Dockerfile — Inventory Service | Done | Multi-stage build |
+| B-31 | Dockerfile — WebSocket Service | Done | Multi-stage build |
+| B-32 | docker-compose.yml — Full stack (8 containers) | Done | 2 Postgres, Redis, Kafka, kafka-init, 3 services |
+| B-33 | docker-compose.yml — DB init via Dockerfile | Done | Dedicated DB Dockerfiles with schema SQL baked in |
+| B-34 | Kafka healthcheck fix | Done | `nc -z` instead of bash `/dev/tcp`; advertised `kafka:9092` for inter-container |
+| B-35 | SQL init scripts — fix `#` comments | Done | Changed to `--` for psql compatibility |
+| B-36 | GitHub Actions CI/CD workflow | Done | Test (2 Postgres services), build, push to GHCR |
+| B-37 | API bug fixes — ListOrders | Done | Handle empty customer_id to show all orders |
+| B-38 | API bug fixes — CreateOrder items | Done | Populate SKU, product_name, unit_price from request |
+| B-39 | API bug fixes — GetOrder | Done | Load order items from DB when fetching single order |
+| B-40 | API bug fixes — ReserveStock | Done | Resolve warehouse_code to warehouse_id via GetWarehouseByCode |
+| B-41 | API bug fixes — UpdateStock | Done | Upsert: create inventory if not exists |
+| B-42 | Redis caching — Shared client factory | Done | `pkg/cache/redis.go` (go-redis/v9) |
+| B-43 | Redis caching — Cache helper | Done | `pkg/cache/cache.go` (JSON serialize, TTL, prefix keys) |
+| B-44 | Redis caching — Order cache decorator | Done | `order:{id}` 5min, `order:items:{id}` 5min, invalidates on write |
+| B-45 | Redis caching — Inventory cache decorator | Done | `stock:{product_id}` 30s, `warehouse:code:{code}` 10min, invalidates on write |
 
 ## In Progress
 
@@ -41,67 +58,52 @@
 
 ## Backlogs
 
-### Redis Caching
-
-| ID | Task | Priority | Depends On |
-|----|------|----------|------------|
-| B-30 | Redis client setup (`pkg/cache/redis.go`) | Medium | — |
-| B-31 | Cache inventory stock (`inventory:{product_id}`, TTL 30s) | Medium | B-30 |
-| B-32 | Cache order details (`order:{order_id}`, TTL 60s) | Medium | B-30 |
-| B-33 | Cache invalidation on event consumption | Medium | B-31, B-32 |
-
 ### API Gateway (Traefik)
 
 | ID | Task | Priority | Depends On |
 |----|------|----------|------------|
-| B-34 | Traefik static/dynamic config | Medium | — |
-| B-35 | Routing: `/api/orders` → Order Service | Medium | B-34 |
-| B-36 | Routing: `/api/inventory` → Inventory Service | Medium | B-34 |
-| B-37 | Routing: `/ws` → WebSocket Service | Medium | B-34 |
-| B-38 | TLS termination (Let's Encrypt ACME) | Low | B-34 |
-| B-39 | Rate limiting middleware | Low | B-34 |
-| B-40 | JWT ForwardAuth middleware | Low | B-34 |
+| B-50 | Traefik static/dynamic config | Medium | — |
+| B-51 | Routing: `/api/orders` → Order Service | Medium | B-50 |
+| B-52 | Routing: `/api/inventory` → Inventory Service | Medium | B-50 |
+| B-53 | Routing: `/ws` → WebSocket Service | Medium | B-50 |
+| B-54 | TLS termination (Let's Encrypt ACME) | Low | B-50 |
+| B-55 | Rate limiting middleware | Low | B-50 |
+| B-56 | JWT ForwardAuth middleware | Low | B-50 |
 
 ### Infrastructure
 
 | ID | Task | Priority | Depends On |
 |----|------|----------|------------|
-| B-41 | `docker-compose.yml` — Kafka + Zookeeper services | High | — |
-| B-42 | `docker-compose.yml` — Redis service | Medium | — |
-| B-43 | `docker-compose.yml` — Traefik service | Medium | B-34 |
-| B-44 | `Dockerfile` — Order Service | Medium | — |
-| B-45 | `Dockerfile` — Inventory Service | Medium | — |
-| B-46 | `Dockerfile` — WebSocket Service | Medium | B-24 |
-| B-47 | Kubernetes manifests (Deployment, Service, Ingress) | Low | B-44, B-45, B-46 |
+| B-57 | Kubernetes manifests (Deployment, Service, Ingress) | Low | — |
 
 ### Testing & Quality
 
 | ID | Task | Priority | Depends On |
 |----|------|----------|------------|
-| B-48 | Unit tests — Order domain/usecase | Medium | — |
-| B-49 | Unit tests — Inventory domain/usecase | Medium | — |
-| B-50 | Integration tests — Kafka producer/consumer | Medium | B-18, B-19 |
-| B-51 | Integration tests — WebSocket service | Medium | B-24 |
-| B-52 | E2E tests (full order lifecycle) | Low | B-18, B-19, B-20, B-24 |
-| B-53 | `go test -p 1` → full parallel test support | Low | — |
+| B-58 | Unit tests — Order domain/usecase | Medium | — |
+| B-59 | Unit tests — Inventory domain/usecase | Medium | — |
+| B-60 | Integration tests — Kafka producer/consumer | Medium | B-18, B-19 |
+| B-61 | Integration tests — WebSocket service | Medium | B-24 |
+| B-62 | E2E tests (full order lifecycle) | Low | B-18, B-19, B-20, B-24 |
+| B-63 | `go test -p 1` → full parallel test support | Low | — |
 
 ### Security
 
 | ID | Task | Priority | Depends On |
 |----|------|----------|------------|
-| B-54 | Request validation middleware (input sanitization) | Medium | — |
-| B-55 | CORS configuration | Medium | — |
-| B-56 | SQL injection prevention audit | Medium | — |
-| B-57 | Secrets management (env-based, no hardcoded) | Medium | — |
+| B-64 | Request validation middleware (input sanitization) | Medium | — |
+| B-65 | CORS configuration | Medium | — |
+| B-66 | SQL injection prevention audit | Medium | — |
+| B-67 | Secrets management (env-based, no hardcoded) | Medium | — |
 
 ### Observability
 
 | ID | Task | Priority | Depends On |
 |----|------|----------|------------|
-| B-58 | Structured logging across all services | Low | — |
-| B-59 | Prometheus metrics endpoint | Low | — |
-| B-60 | OpenTelemetry tracing setup | Low | — |
-| B-61 | Health check endpoints (liveness + readiness) | Low | — |
+| B-68 | Structured logging across all services | Low | — |
+| B-69 | Prometheus metrics endpoint | Low | — |
+| B-70 | OpenTelemetry tracing setup | Low | — |
+| B-71 | Health check endpoints (liveness + readiness) | Low | — |
 
 ---
 
@@ -111,12 +113,12 @@
 |----------|-----------|-------------|---------|
 | Core Domain & Usecase | 8 | 0 | 0 |
 | Adapters (HTTP + DB) | 4 | 0 | 0 |
-| Tests | 4 | 0 | 5 |
+| Tests | 4 | 0 | 6 |
 | Kafka | 7 | 0 | 0 |
-| WebSocket | 5 | 0 | 1 |
-| Redis | 0 | 0 | 4 |
-| Traefik | 0 | 0 | 7 |
-| Infrastructure | 1 | 0 | 6 |
+| WebSocket | 5 | 0 | 0 |
+| Redis | 4 | 0 | 0 |
+| Infrastructure (Docker/CI) | 8 | 0 | 1 |
+| API Gateway (Traefik) | 0 | 0 | 7 |
 | Security | 0 | 0 | 4 |
 | Observability | 0 | 0 | 4 |
-| **Total** | **29** | **0** | **31** |
+| **Total** | **45** | **0** | **22** |

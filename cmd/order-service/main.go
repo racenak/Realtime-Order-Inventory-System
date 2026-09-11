@@ -12,7 +12,9 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/segmentio/kafka-go"
+	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 
 	"github.com/racenak/Realtime-Order-Inventory-System/internal/order/adapter/cache"
@@ -25,6 +27,8 @@ import (
 	"github.com/racenak/Realtime-Order-Inventory-System/pkg/database"
 	kafkakit "github.com/racenak/Realtime-Order-Inventory-System/pkg/kafka"
 	"github.com/racenak/Realtime-Order-Inventory-System/pkg/logger"
+	"github.com/racenak/Realtime-Order-Inventory-System/pkg/metrics"
+	"github.com/racenak/Realtime-Order-Inventory-System/pkg/tracing"
 )
 
 func main() {
@@ -35,6 +39,18 @@ func main() {
 		log.Fatalf("Failed to initialize logger: %v", err)
 	}
 	defer logger.Sync()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	shutdownTracer, err := tracing.InitTracer(ctx, "order-service", "otel-collector:4317")
+	if err != nil {
+		logger.Warn("Failed to initialize tracer", zap.Error(err))
+	} else {
+		defer shutdownTracer(context.Background())
+	}
+
+	_ = otel.Tracer("order-service")
 
 	db, err := database.NewPostgresConnection(cfg.Database)
 	if err != nil {
@@ -63,9 +79,6 @@ func main() {
 
 	orderHandler := httpd.NewOrderHandler(orderUC)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
 	outboxPublisher := orderkafka.NewOutboxPublisher(outboxRepo, cfg.Kafka.Brokers, logger)
 	go outboxPublisher.Start(ctx, 5*time.Second, 10)
 
@@ -90,6 +103,7 @@ func main() {
 	router.Use(middleware.Logger)
 	router.Use(middleware.Recoverer)
 	router.Use(middleware.RequestID)
+	router.Use(metrics.Middleware("order-service"))
 
 	router.Mount("/api/orders", orderHandler.Routes())
 
@@ -97,6 +111,8 @@ func main() {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(`{"status":"ok"}`))
 	})
+
+	router.Handle("/metrics", promhttp.Handler())
 
 	addr := fmt.Sprintf(":%s", cfg.Server.HTTPPort)
 	logger.Info("Starting order service", zap.String("addr", addr))

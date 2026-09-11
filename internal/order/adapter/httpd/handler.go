@@ -7,6 +7,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/racenak/Realtime-Order-Inventory-System/internal/order/usecase"
+	"github.com/racenak/Realtime-Order-Inventory-System/pkg/metrics"
 	"github.com/racenak/Realtime-Order-Inventory-System/pkg/response"
 )
 
@@ -36,10 +37,12 @@ func (h *OrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 
 	order, err := h.uc.CreateOrder(r.Context(), req)
 	if err != nil {
+		metrics.OrdersFailedTotal.WithLabelValues("order-service", err.Error()).Inc()
 		handleError(w, r, err)
 		return
 	}
 
+	metrics.OrdersCreatedTotal.WithLabelValues("order-service").Inc()
 	response.JSON(w, r, http.StatusCreated, order)
 }
 
@@ -85,10 +88,12 @@ func (h *OrderHandler) CancelOrder(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.uc.CancelOrder(r.Context(), id, req.Reason); err != nil {
+		metrics.OrdersFailedTotal.WithLabelValues("order-service", err.Error()).Inc()
 		handleError(w, r, err)
 		return
 	}
 
+	metrics.OrdersCancelledTotal.WithLabelValues("order-service").Inc()
 	response.JSON(w, r, http.StatusOK, map[string]string{"status": "cancelled"})
 }
 

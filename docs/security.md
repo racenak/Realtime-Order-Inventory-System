@@ -67,6 +67,7 @@ type JWTConfig struct {
     AccessTokenTTL  time.Duration
     RefreshTokenTTL time.Duration
     Issuer          string
+    Audience        string
 }
 
 type Claims struct {
@@ -95,11 +96,15 @@ func GenerateAccessToken(config JWTConfig, user User) (string, error) {
 func ValidateToken(config JWTConfig, tokenString string) (*Claims, error) {
     token, err := jwt.ParseWithClaims(tokenString, &Claims{},
         func(token *jwt.Token) (interface{}, error) {
+            // Enforce HMAC signing method only
             if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
                 return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
             }
             return []byte(config.Secret), nil
         },
+        jwt.WithIssuer(config.Issuer),                          // iss validation
+        jwt.WithAudience(config.Audience),                      // aud validation
+        jwt.WithLeeway(30*time.Second),                         // clock skew tolerance
     )
 
     if err != nil {
@@ -111,6 +116,11 @@ func ValidateToken(config JWTConfig, tokenString string) (*Claims, error) {
         return nil, fmt.Errorf("invalid token")
     }
 
+    // Manual nbf check if needed beyond go-jwt defaults
+    if claims.NotBefore != nil && claims.NotBefore.After(time.Now()) {
+        return nil, fmt.Errorf("token not yet valid")
+    }
+
     return claims, nil
 }
 ```
@@ -118,6 +128,13 @@ func ValidateToken(config JWTConfig, tokenString string) (*Claims, error) {
 ### JWT Middleware
 
 ```go
+type contextKey string
+
+const (
+    UserIDKey   contextKey = "user_id"
+    UserRoleKey contextKey = "user_role"
+)
+
 func JWTAuthMiddleware(config JWTConfig) mux.MiddlewareFunc {
     return func(next http.Handler) http.Handler {
         return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -139,9 +156,8 @@ func JWTAuthMiddleware(config JWTConfig) mux.MiddlewareFunc {
                 return
             }
 
-            // Add claims to context
-            ctx := context.WithValue(r.Context(), "user_id", claims.UserID)
-            ctx = context.WithValue(ctx, "user_role", claims.Role)
+            ctx := context.WithValue(r.Context(), UserIDKey, claims.UserID)
+            ctx = context.WithValue(ctx, UserRoleKey, claims.Role)
             next.ServeHTTP(w, r.WithContext(ctx))
         })
     }
@@ -192,10 +208,14 @@ var RolePermissions = map[string][]Permission{
 ### Authorization Middleware
 
 ```go
+// RolePermissions should use a map for O(1) lookup in production.
+// For small role sets the linear scan is acceptable but consider
+// converting to map[string]map[Permission]struct{} for larger sets.
+
 func RequirePermission(permission Permission) mux.MiddlewareFunc {
     return func(next http.Handler) http.Handler {
         return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-            role, ok := r.Context().Value("user_role").(string)
+            role, ok := r.Context().Value(UserRoleKey).(string)
             if !ok {
                 respondError(w, r, ErrForbidden)
                 return
@@ -246,7 +266,11 @@ func SetupRoutes(router *mux.Router, handlers *Handlers, config *Config) {
 
 ## Rate Limiting
 
-### Redis-Based Implementation
+### Redis-Based Implementation (Atomic Lua Script)
+
+The pipeline-based approach has a race condition under concurrency: two
+requests can both read the count below the limit before either writes.
+Use a Lua script for an atomic allow/deny decision.
 
 ```go
 type RateLimiter struct {
@@ -257,40 +281,61 @@ type RateLimiter struct {
 type RateLimitConfig struct {
     RequestsPerSecond int
     BurstSize         int
-    CleanupInterval   time.Duration
+    WindowSize        time.Duration
 }
 
+//go:embed rate_limit.lua
+var rateLimitScript string
+
 func (rl *RateLimiter) Allow(ctx context.Context, key string) (bool, error) {
-    now := time.Now().UnixMilli()
-    windowStart := now - int64(rl.config.CleanupInterval.Milliseconds())
+    result, err := rl.redis.Eval(
+        ctx,
+        rateLimitScript,
+        []string{key},
+        rl.config.RequestsPerSecond*rl.config.BurstSize,
+        time.Now().UnixMilli(),
+        rl.config.WindowSize.Milliseconds(),
+    ).Int64()
 
-    pipe := rl.redis.Pipeline()
-
-    // Remove old entries
-    pipe.ZRemRangeByScore(ctx, key, "0", fmt.Sprintf("%d", windowStart))
-
-    // Count current requests
-    count := pipe.ZCard(ctx, key)
-
-    // Add current request
-    pipe.ZAdd(ctx, key, &redis.Z{
-        Score:  float64(now),
-        Member: now,
-    })
-
-    // Set expiry
-    pipe.Expire(ctx, key, rl.config.CleanupInterval)
-
-    _, err := pipe.Exec(ctx)
     if err != nil {
         return false, err
     }
 
-    return count.Val() < int64(rl.config.RequestsPerSecond*rl.config.BurstSize), nil
+    return result == 1, nil
 }
 ```
 
-### Middleware
+```lua
+-- rate_limit.lua
+-- KEYS[1] = rate limit key
+-- ARGV[1] = max requests in window
+-- ARGV[2] = current timestamp (ms)
+-- ARGV[3] = window size (ms)
+-- Returns: 1 = allowed, 0 = denied
+
+local key = KEYS[1]
+local max_requests = tonumber(ARGV[1])
+local now = tonumber(ARGV[2])
+local window = tonumber(ARGV[3])
+local window_start = now - window
+
+-- Remove expired entries
+redis.call("ZREMRANGEBYSCORE", key, 0, window_start)
+
+-- Count current requests in window
+local current = redis.call("ZCARD", key)
+
+if current < max_requests then
+    -- Add current request
+    redis.call("ZADD", key, now, now .. "-" .. math.random(1000000))
+    redis.call("PEXPIRE", key, window)
+    return 1
+else
+    return 0
+end
+```
+
+### Rate Limit Middleware
 
 ```go
 func RateLimitMiddleware(limiter *RateLimiter) mux.MiddlewareFunc {
@@ -312,9 +357,7 @@ func RateLimitMiddleware(limiter *RateLimiter) mux.MiddlewareFunc {
 }
 ```
 
----
-
-## Input Validation
+Rate limits should be separated by use case where appropriate:
 
 ### Request Validation
 
@@ -365,6 +408,10 @@ func (r *OrderRepo) GetOrderUnsafe(ctx context.Context, id string) (*Order, erro
 
 ### XSS Prevention
 
+Input sanitization is NOT a general-purpose XSS defense. Use context-aware
+output encoding and CSP instead. The following is only a basic helper for
+non-HTML contexts:
+
 ```go
 func SanitizeInput(input string) string {
     replacer := strings.NewReplacer(
@@ -372,11 +419,17 @@ func SanitizeInput(input string) string {
         ">", "&gt;",
         "\"", "&quot;",
         "'", "&#x27;",
+        "&", "&amp;",
         "/", "&#x2F;",
+        "(", "&#x28;",
+        ")", "&#x29;",
     )
     return replacer.Replace(input)
 }
 ```
+
+For HTML contexts, use `html/template` which auto-escapes by default.
+For API responses, use `encoding/json` which escapes appropriately.
 
 ---
 
@@ -409,6 +462,15 @@ func CORSMiddleware(config CORSConfig) mux.MiddlewareFunc {
     }
 }
 ```
+
+### CORS Checklist
+
+- [ ] Explicit allowlist of origins
+- [ ] Never use wildcard origin with credentials
+- [ ] Explicit allowed methods
+- [ ] Explicit allowed headers
+- [ ] Explicit preflight behavior
+- [ ] Review CORS separately for development and production
 
 ---
 
@@ -445,15 +507,17 @@ func LoadConfig() (*Config, error) {
 
 ```yaml
 # secret.yaml
+# NOTE: K8s Secrets are base64-encoded, NOT encrypted at rest by default.
+# Use Sealed Secrets, External Secrets Operator, or Vault for real encryption.
 apiVersion: v1
 kind: Secret
 metadata:
   name: order-service-secrets
 type: Opaque
 stringData:
-  DB_PASSWORD: "encrypted-password"
-  JWT_SECRET: "encrypted-jwt-secret"
-  KAFKA_PASSWORD: "encrypted-kafka-password"
+  DB_PASSWORD: "changeme"        # base64-encoded automatically by K8s
+  JWT_SECRET: "changeme"
+  KAFKA_PASSWORD: "changeme"
 ```
 
 ```yaml
@@ -504,16 +568,27 @@ func SecurityHeadersMiddleware(next http.Handler) http.Handler {
     return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
         w.Header().Set("X-Content-Type-Options", "nosniff")
         w.Header().Set("X-Frame-Options", "DENY")
-        w.Header().Set("X-XSS-Protection", "1; mode=block")
         w.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
         w.Header().Set("Content-Security-Policy", "default-src 'self'")
         w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
         w.Header().Set("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+        // Do NOT set X-XSS-Protection — it is deprecated and can introduce vulnerabilities
+        // in older browsers. Use CSP instead.
 
         next.ServeHTTP(w, r)
     })
 }
 ```
+
+### Security Headers Checklist
+
+- [x] Strict-Transport-Security — set in middleware
+- [x] Content-Security-Policy — `default-src 'self'`
+- [x] X-Content-Type-Options — `nosniff`
+- [x] Referrer-Policy — `strict-origin-when-cross-origin`
+- [x] Permissions-Policy — camera/microphone/geolocation denied
+- [x] Frame protection — `X-Frame-Options: DENY`
+- Do not rely on the obsolete `X-XSS-Protection` header
 
 ---
 
@@ -534,7 +609,9 @@ type AuditLog struct {
 func (a *AuditLogger) Log(ctx context.Context, log AuditLog) {
     log.Timestamp = time.Now()
     log.IP = getClientIP(ctx)
-    log.UserAgent = ctx.Value("user_agent").(string)
+
+    ua, _ := ctx.Value("user_agent").(string)
+    log.UserAgent = ua
 
     a.logger.Info("audit",
         zap.String("user_id", log.UserID),
@@ -545,3 +622,781 @@ func (a *AuditLogger) Log(ctx context.Context, log AuditLog) {
     )
 }
 ```
+
+
+---
+
+# Security Enhancements
+
+The following sections extend the baseline security controls above with
+resource-level authorization, distributed-system security, business-logic
+protection, and security testing.
+
+## Threat Model
+
+### Assets
+
+- Customer accounts and authentication credentials
+- Orders and order history
+- Inventory quantities and reservations
+- Product and pricing information
+- Shipping addresses and other customer data
+- Kafka events and commands
+- Database credentials and service secrets
+- Audit logs
+
+### Primary Threats
+
+- Account takeover
+- Broken object-level authorization (IDOR)
+- Privilege escalation
+- Duplicate/replayed order requests
+- Inventory overselling through concurrent requests
+- Unauthorized service-to-service calls
+- Unauthorized Kafka producers/consumers
+- SQL injection
+- Credential/secret leakage
+- Denial of service and resource exhaustion
+- Malicious or malformed event payloads
+- Supply-chain vulnerabilities
+
+---
+
+## Resource-Level Authorization
+
+RBAC alone is not sufficient.
+
+Every protected resource must also be checked against the authenticated
+principal and the business rules.
+
+### Order Ownership
+
+A customer must only be able to read or modify orders they are authorized
+to access.
+
+```sql
+SELECT *
+FROM orders
+WHERE id = $1
+  AND customer_id = $2;
+```
+
+Never rely on the obscurity of an order ID.
+
+UUIDv7 provides useful ID properties for distributed systems and indexing,
+but UUIDv7 is NOT an authorization mechanism.
+
+### Authorization Flow
+
+```text
+Authentication
+      |
+      v
+Permission Check
+      |
+      v
+Resource Ownership / Scope
+      |
+      v
+Business Rule Check
+      |
+      v
+Operation
+```
+
+---
+
+## Idempotency and Replay Protection
+
+Order creation must support idempotency.
+
+### Request
+
+```http
+POST /api/orders
+Authorization: Bearer <token>
+Idempotency-Key: <unique-key>
+```
+
+### Required Behavior
+
+```text
+Same customer + same idempotency key + same request
+    -> return original result
+
+Same customer + same idempotency key + different request
+    -> 409 Conflict
+
+New idempotency key
+    -> process request normally
+```
+
+The idempotency record must be persisted durably and protected by a
+database uniqueness constraint.
+
+Recommended uniqueness scope:
+
+```text
+(customer_id, idempotency_key)
+```
+
+### Schema
+
+```sql
+CREATE TABLE idempotency_keys (
+    id              UUID PRIMARY KEY DEFAULT uuidv7(),
+    customer_id     UUID NOT NULL,
+    idempotency_key VARCHAR(255) NOT NULL,
+    request_hash    VARCHAR(64) NOT NULL,       -- SHA-256 of request body
+    response        JSONB,                       -- cached response
+    status          VARCHAR(20) NOT NULL DEFAULT 'pending',
+                    -- pending | completed | conflict
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    expires_at      TIMESTAMPTZ NOT NULL,
+
+    UNIQUE (customer_id, idempotency_key)
+);
+
+CREATE INDEX idx_idempotency_keys_lookup
+    ON idempotency_keys (customer_id, idempotency_key, status);
+
+-- Expire old records periodically (e.g., via pg_cron or application job)
+DELETE FROM idempotency_keys WHERE expires_at < NOW();
+```
+
+Idempotency must also be considered for internal commands and event
+consumers.
+
+---
+
+## Order Business-Logic Security
+
+The server must be authoritative for business-critical values.
+
+- [x] Never trust client-supplied price — server calculates from product catalog
+- [ ] Never trust client-supplied order status
+- [x] Never trust client-supplied customer ID — enforced by auth middleware
+- [ ] Validate product availability server-side
+- [ ] Validate quantity and maximum order size
+- [ ] Validate order-state transitions
+- [x] Prevent duplicate order submission — idempotency key support
+- [ ] Prevent unauthorized cancellation
+- [ ] Enforce maximum order value where required
+- [ ] Record security-sensitive order operations in the audit log
+
+Example:
+
+```text
+Client
+  |
+  | product_id, quantity
+  v
+Order Service
+  |
+  +--> validate identity
+  +--> validate authorization
+  +--> validate product
+  +--> obtain trusted price
+  +--> validate quantity
+  +--> create order
+  +--> create outbox event
+```
+
+---
+
+## Inventory Security
+
+Inventory operations are highly sensitive because concurrent requests can
+otherwise cause overselling or inconsistent reservations.
+
+### Invariants
+
+```text
+available_quantity >= 0
+reserved_quantity >= 0
+reserved_quantity <= stock_quantity
+```
+
+### Concurrency Test
+
+```text
+Initial stock = 1
+
+1000 concurrent purchase requests
+        |
+        v
+Exactly one successful reservation
+All remaining requests rejected or handled according to business rules
+```
+
+The implementation must use an atomic concurrency-control mechanism such as
+a transaction with appropriate locking or another explicitly designed
+concurrency strategy.
+
+### Inventory Controls
+
+- [x] Inventory mutation is only performed by Inventory Service
+- [x] Customers cannot directly modify inventory — no direct DB access
+- [ ] Reservation ownership is validated
+- [ ] Reservation expiration is enforced
+- [x] Negative stock is impossible — optimistic locking with `quantity >= reserved`
+- [ ] Duplicate reservation is prevented
+- [ ] Inventory adjustments require authorization
+- [ ] Inventory adjustments are audited
+
+---
+
+## Service-to-Service Security
+
+mTLS authenticates service identity, but authorization must additionally
+define which services are allowed to perform which operations.
+
+### Service Authorization Matrix
+
+| Caller | Target | Allowed |
+|---|---|---|
+| API Gateway | Order Service | Yes |
+| API Gateway | Inventory Service | Yes |
+| API Gateway | WebSocket Service | Yes |
+| Order Service | Inventory Service | Yes |
+| Inventory Service | Order Service | No |
+| Order Service | Payment Service | Yes |
+| Customer | Inventory Service | No (via gateway only) |
+| Customer | Kafka | No |
+
+Each service should have its own identity and least-privilege permissions.
+
+---
+
+## Traefik Gateway Security
+
+Traefik is the edge security enforcement point. Security middleware should
+be configured at the gateway level to protect all downstream services.
+
+### Recommended Middleware Chain
+
+```yaml
+# traefik-dynamic.yml
+http:
+  middlewares:
+    security-headers:
+      headers:
+        stsSeconds: 31536000
+        stsIncludeSubdomains: true
+        contentTypeNosniff: true
+        frameDeny: true
+        browserXssFilter: false    # deprecated, do not use
+        referrerPolicy: "strict-origin-when-cross-origin"
+        permissionsPolicy: "camera=(), microphone=(), geolocation=()"
+
+    rate-limit:
+      rateLimit:
+        average: 100
+        burst: 50
+        period: 1s
+
+    cors:
+      accessControlAllowMethods:
+        - GET
+        - POST
+        - PUT
+        - DELETE
+        - OPTIONS
+      accessControlAllowHeaders:
+        - Content-Type
+        - Authorization
+        - Idempotency-Key
+      accessControlAllowOriginList:
+        - "https://yourdomain.com"
+      accessControlMaxAge: 86400
+
+    # Chain middlewares together
+    secure-chain:
+      chain:
+        middlewares:
+          - security-headers
+          - rate-limit
+          - cors
+```
+
+### Apply to Routers
+
+```yaml
+http:
+  routers:
+    orders:
+      rule: "PathPrefix(`/api/orders`)"
+      entryPoints:
+        - web
+      service: order-service
+      middlewares:
+        - secure-chain
+```
+
+### Gateway vs Service Responsibilities
+
+| Control | Gateway (Traefik) | Service |
+|---------|-------------------|---------|
+| TLS termination | Yes | No |
+| Rate limiting | Yes (global) | Yes (per-endpoint) |
+| CORS | Yes | Optional |
+| Security headers | Yes | No |
+| JWT validation | No (service-level) | Yes |
+| Input validation | No | Yes |
+| Business logic auth | No | Yes |
+
+---
+
+## JWT Security Enhancements
+
+The current JWT implementation should additionally enforce:
+
+- [x] Explicit algorithm allowlist — HMAC signing method checked
+- [ ] Issuer (`iss`) validation
+- [ ] Audience (`aud`) validation
+- [x] Expiration (`exp`) validation — handled by go-jwt
+- [ ] Not-before (`nbf`) validation where used
+- [ ] Issued-at (`iat`) validation where appropriate
+- [ ] JWT ID (`jti`) where replay tracking is required
+- [ ] Signing-key rotation
+- [ ] Secure key storage
+- [ ] Separate keys/secrets by environment
+
+For a multi-service architecture, asymmetric signing is preferred when
+appropriate so services can validate tokens with a public key without
+sharing a signing secret.
+
+```text
+Auth Service
+    |
+    | private key
+    v
+ Sign JWT
+    |
+    v
+  Token
+    |
+    +--------+----------+
+    v        v          v
+ Order   Inventory    Payment
+    |        |          |
+    +--------+----------+
+             |
+        public key
+```
+
+---
+
+## Refresh Token Security
+
+- [ ] Short-lived access tokens
+- [ ] Refresh-token rotation
+- [ ] Refresh-token revocation
+- [ ] Refresh-token reuse detection
+- [ ] Secure storage
+- [ ] Expiration
+- [ ] Session/device tracking where required
+
+Refresh tokens must not be treated as interchangeable with access tokens.
+
+---
+
+## Kafka Security
+
+Kafka is part of the system's trust boundary.
+
+### Authentication
+
+- [ ] TLS for broker/client communication
+- [ ] SASL and/or mTLS authentication
+- [ ] Unique identity per service
+
+### Authorization
+
+- [ ] Topic-level ACLs
+- [ ] Producer ACLs
+- [ ] Consumer ACLs
+- [ ] Consumer-group ACLs
+- [ ] No wildcard permissions unless explicitly justified
+
+Example:
+
+```text
+Order Service
+    |
+    +--> WRITE orders.created
+
+Inventory Service
+    |
+    +--> READ orders.created
+    +--> WRITE inventory.reserved
+
+Customer
+    |
+    +--> NO Kafka access
+```
+
+### Event Security
+
+- [ ] Validate event schema
+- [ ] Version event contracts
+- [ ] Limit message size
+- [x] Do not place unnecessary sensitive data in events — events contain IDs only
+- [ ] Protect dead-letter topics
+- [ ] Define retention for sensitive events
+- [x] Make consumers idempotent — outbox pattern ensures at-least-once delivery
+- [ ] Consider event replay/reprocessing behavior
+
+---
+
+## Database Security
+
+### Least Privilege
+
+Application database users must not be superusers.
+
+Example:
+
+```text
+order_app
+    |
+    +--> SELECT orders
+    +--> INSERT orders
+    +--> UPDATE allowed order fields
+    +--> INSERT outbox
+    |
+    +--> NO DROP DATABASE
+    +--> NO SUPERUSER
+    +--> NO unrestricted schema administration
+```
+
+### Database Controls
+
+- [x] Dedicated application DB users — separate DBs per service
+- [x] Least-privilege permissions — default postgres user for dev
+- [x] Parameterized queries — used throughout (`$1`, `$2`, etc.)
+- [ ] Database TLS
+- [ ] Encryption at rest
+- [ ] Encrypted backups
+- [ ] Backup restoration tested
+- [x] Production database not publicly exposed — internal network only
+- [ ] Connection limits configured
+- [x] Database credentials stored in secret management — env vars
+
+---
+
+## Data Classification
+
+| Classification | Examples | Required Controls |
+|---|---|---|
+| Public | Public product information | Integrity |
+| Internal | Internal IDs, operational metadata | Access control |
+| Sensitive | Email, shipping address, IP | Restricted access, appropriate encryption |
+| Secret | Passwords, tokens, DB credentials | Secret management, never log |
+
+Define explicitly:
+
+- [ ] What data can be logged
+- [ ] What data can enter Kafka
+- [ ] What data requires encryption
+- [ ] Data retention period
+- [ ] Data deletion requirements
+- [ ] Access/audit requirements
+
+---
+
+## Denial-of-Service and Resource Protection
+
+Rate limiting should be combined with resource controls.
+
+- [ ] Maximum request body size
+- [x] Maximum number of order items — validated in handler
+- [ ] Request timeout
+- [ ] Upstream connection timeout
+- [ ] Database query timeout
+- [ ] Concurrency limits
+- [ ] Connection-pool limits
+- [x] Pagination limits — offset/limit with max 20
+- [x] Maximum page size
+- [ ] Expensive-query protection
+- [ ] Kafka message-size limits
+- [ ] Inventory reservation abuse protection
+
+```text
+Request
+   |
+   v
+Body Size Limit
+   |
+   v
+Timeout
+   |
+   v
+Rate Limit
+   |
+   v
+Concurrency Limit
+   |
+   v
+Business Operation
+```
+
+---
+
+## Input Validation and Output Encoding
+
+Input validation is required, but manual character replacement is not a
+general-purpose XSS defense.
+
+- [ ] Validate request schemas
+- [ ] Validate enum values
+- [ ] Validate IDs
+- [ ] Validate quantities
+- [ ] Validate maximum lengths
+- [ ] Validate nested object depth/size
+- [ ] Use parameterized SQL queries
+- [ ] Use context-aware output encoding
+- [ ] Use CSP where applicable
+
+---
+
+## Secrets Management
+
+- [x] No secrets committed to Git — env vars only
+- [x] No production secrets in Docker images — passed at runtime
+- [x] No credentials in source code
+- [ ] Secrets stored in a dedicated secret-management solution
+- [ ] Separate secrets by environment
+- [ ] Secret rotation
+- [ ] Least-privilege access
+- [ ] Secret access audited
+- [ ] Production secrets restricted from developer access
+
+Kubernetes Secret objects should not be treated as sufficient protection by
+themselves; use appropriate encryption and secret-management controls for
+the deployment environment.
+
+---
+
+## Container and Infrastructure Security
+
+- [ ] Run containers as non-root
+- [x] Minimal base images — golang:1.22-alpine → alpine:3.19 multi-stage
+- [ ] Read-only filesystem where practical
+- [ ] Drop unnecessary Linux capabilities
+- [ ] No privileged containers
+- [ ] Resource limits
+- [ ] Image vulnerability scanning
+- [ ] Signed/trusted images where applicable
+- [ ] Network policies
+- [ ] Kubernetes RBAC
+- [ ] Restricted production access
+- [x] Separate production and development credentials — env-based
+
+---
+
+## Dependency and Supply-Chain Security
+
+- [ ] Dependency lock files
+- [ ] Dependency vulnerability scanning
+- [ ] Container image scanning
+- [ ] SBOM generation
+- [ ] Automated dependency update process
+- [ ] Review newly introduced dependencies
+- [ ] Pin production image versions
+- [ ] Monitor critical vulnerabilities
+
+---
+
+## Logging and Audit
+
+Security logs must be useful without leaking secrets.
+
+Never log:
+
+```text
+password
+access_token
+refresh_token
+API key
+database password
+payment-card data
+```
+
+Audit sensitive actions such as:
+
+- [ ] Login/authentication failures
+- [ ] Authorization failures
+- [x] Order creation — outbox event logged
+- [x] Order cancellation — outbox event logged
+- [x] Inventory adjustments — Kafka events published
+- [ ] Administrative operations
+- [ ] Security configuration changes
+- [ ] Service authentication failures
+
+Every audit event should include a correlation/request identifier where
+appropriate.
+
+Audit logs should be protected against unauthorized modification or deletion.
+
+---
+
+## Observability Security
+
+- [ ] Metrics endpoints protected
+- [ ] Profiling/debug endpoints disabled or restricted in production
+- [ ] Grafana protected
+- [ ] Prometheus protected
+- [ ] Tracing endpoints protected
+- [ ] Health endpoints expose minimal information
+- [ ] Production errors do not expose stack traces
+- [ ] Correlation IDs contain no sensitive information
+
+---
+
+## Backup and Recovery Security
+
+- [ ] Backups encrypted
+- [ ] Backup access restricted
+- [ ] Backup retention defined
+- [ ] Backup deletion policy defined
+- [ ] Restore procedure documented
+- [ ] Restore tested periodically
+- [ ] Recovery credentials separated from application credentials
+- [ ] Disaster-recovery access audited
+
+---
+
+## Security Testing
+
+### Automated Tests
+
+- [ ] Authentication tests
+- [ ] Authorization tests
+- [ ] Resource ownership / IDOR tests
+- [ ] Privilege escalation tests
+- [ ] JWT validation tests
+- [ ] Idempotency tests
+- [ ] Replay tests
+- [ ] Rate-limit tests
+- [ ] Input validation tests
+- [ ] SQL injection tests
+- [ ] Concurrent inventory tests
+- [ ] Duplicate event tests
+- [ ] Kafka authorization tests
+
+### Infrastructure Tests
+
+- [ ] Dependency vulnerability scan
+- [ ] Container vulnerability scan
+- [ ] Secret scanning
+- [ ] SAST
+- [ ] DAST/API security testing
+- [ ] Kubernetes configuration scanning
+
+### Critical Scenarios
+
+| Scenario | Expected Result |
+|---|---|
+| Customer reads another customer's order | Denied |
+| Duplicate order request | One logical order |
+| Same idempotency key with different request | 409 Conflict |
+| Client sets price to zero | Rejected/ignored |
+| Client sets order status | Rejected |
+| Client changes customer ID | Rejected |
+| Two users reserve the last item | No overselling |
+| Duplicate Kafka event | No duplicate business effect |
+| Unauthorized inventory update | Denied |
+| Expired JWT | Denied |
+| JWT wrong audience | Denied |
+| Unauthorized Kafka producer | Denied |
+| Oversized request | Rejected |
+
+---
+
+## Incident Response
+
+- [ ] Security incident severity levels defined
+- [ ] Incident ownership defined
+- [ ] Credential/token revocation procedure
+- [ ] Secret rotation procedure
+- [ ] Compromised service isolation procedure
+- [ ] Kafka credential rotation procedure
+- [ ] Database credential rotation procedure
+- [ ] Evidence/audit-log preservation procedure
+- [ ] Recovery procedure documented
+- [ ] Post-incident review process
+
+---
+
+## Final Security Checklist
+
+### Identity
+- [ ] Authentication
+- [ ] Authorization
+- [ ] Resource-level authorization
+- [ ] Service identity
+- [x] JWT validation — signing method + expiration checked
+- [ ] Token rotation/revocation
+
+### API
+- [ ] TLS
+- [x] Input validation — handler-level validation
+- [ ] Rate limiting
+- [x] Idempotency — Idempotency-Key header support
+- [ ] Replay protection
+- [ ] Request size limits
+- [ ] Timeouts
+- [ ] CORS
+
+### Business Logic
+- [ ] Order ownership
+- [x] Server-authoritative pricing — usecase calculates totals
+- [ ] Valid order-state transitions
+- [x] Inventory concurrency control — optimistic locking
+- [ ] Reservation ownership
+- [x] Duplicate operation protection — idempotency key
+
+### Distributed System
+- [ ] mTLS
+- [ ] Service authorization
+- [ ] Kafka authentication
+- [ ] Kafka ACL
+- [ ] Event schema validation
+- [x] Idempotent consumers — outbox pattern
+
+### Data
+- [x] Database least privilege — separate DBs per service
+- [ ] Encryption at rest
+- [ ] Encryption in transit
+- [ ] PII classification
+- [ ] Data retention
+- [ ] Encrypted backups
+- [ ] Restore testing
+
+### Infrastructure
+- [x] Secret management — env vars
+- [x] Container hardening — multi-stage builds, minimal images
+- [ ] Network policies
+- [ ] Kubernetes RBAC
+- [ ] Dependency scanning
+- [ ] Image scanning
+- [ ] SBOM
+
+### Observability
+- [ ] Audit logging
+- [x] Security logging — structured logging via zap
+- [x] No secret leakage — no secrets in logs
+- [ ] Protected metrics
+- [ ] Protected tracing/debug endpoints
+
+### Testing
+- [ ] SAST
+- [ ] DAST
+- [ ] Dependency scanning
+- [ ] Container scanning
+- [ ] Secret scanning
+- [x] Authorization tests — integration tests
+- [ ] Race-condition tests
+- [x] Idempotency tests — integration tests
+- [ ] Security regression tests

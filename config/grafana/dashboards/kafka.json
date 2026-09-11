@@ -1,0 +1,106 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "title": "Status",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 0 },
+      "targets": [{ "expr": "up{job=\"kafka\"}", "legendFormat": "up" }],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [{ "options": { "0": { "text": "DOWN", "color": "red" }, "1": { "text": "UP", "color": "green" } }, "type": "value" }],
+          "thresholds": { "steps": [{ "value": 0, "color": "red" }, { "value": 1, "color": "green" }] }
+        }
+      }
+    },
+    {
+      "title": "Brokers",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 5, "x": 4, "y": 0 },
+      "targets": [{ "expr": "kafka_brokers{job=\"kafka\"}", "legendFormat": "brokers" }],
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "steps": [{ "value": 0, "color": "red" }, { "value": 1, "color": "green" }] } } }
+    },
+    {
+      "title": "Topics",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 5, "x": 9, "y": 0 },
+      "targets": [{ "expr": "count(kafka_topic_partitions{job=\"kafka\"})", "legendFormat": "topics" }],
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "steps": [{ "value": 0, "color": "blue" }] } } }
+    },
+    {
+      "title": "Partitions",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 5, "x": 14, "y": 0 },
+      "targets": [{ "expr": "sum(kafka_topic_partitions{job=\"kafka\"})", "legendFormat": "partitions" }],
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "steps": [{ "value": 0, "color": "blue" }] } } }
+    },
+    {
+      "title": "Consumer Groups",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 5, "x": 19, "y": 0 },
+      "targets": [{ "expr": "count(kafka_consumergroup_members{job=\"kafka\"})", "legendFormat": "groups" }],
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "steps": [{ "value": 0, "color": "blue" }] } } }
+    },
+    {
+      "title": "Messages In/sec by Topic",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "targets": [
+        { "expr": "rate(kafka_topic_messages_in_total{job=\"kafka\"}[5m])", "legendFormat": "{{topic}}" }
+      ]
+    },
+    {
+      "title": "Bytes In/sec by Topic",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "targets": [
+        { "expr": "rate(kafka_topic_bytes_in_total{job=\"kafka\"}[5m])", "legendFormat": "{{topic}}" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "Bps" } }
+    },
+    {
+      "title": "Consumer Group Lag",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+      "targets": [
+        { "expr": "kafka_consumergroup_lag{job=\"kafka\"}", "legendFormat": "{{consumergroup}} - {{topic}}" }
+      ]
+    },
+    {
+      "title": "Replication Lag",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+      "targets": [
+        { "expr": "kafka_brokers{job=\"kafka\"}", "legendFormat": "brokers" }
+      ]
+    },
+    {
+      "title": "Partitions per Topic",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 20 },
+      "targets": [
+        { "expr": "kafka_topic_partitions{job=\"kafka\"}", "legendFormat": "{{topic}}" }
+      ]
+    },
+    {
+      "title": "Consumer Group Members",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 20 },
+      "targets": [
+        { "expr": "kafka_consumergroup_members{job=\"kafka\"}", "legendFormat": "{{consumergroup}}" }
+      ]
+    }
+  ],
+  "schemaVersion": 39,
+  "tags": ["kafka"],
+  "templating": { "list": [] },
+  "time": { "from": "now-1h", "to": "now" },
+  "title": "Kafka",
+  "uid": "kafka",
+  "version": 1
+}

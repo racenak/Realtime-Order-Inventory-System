@@ -4,7 +4,7 @@
 
 | Property     | Value                   |
 | ------------ | ----------------------- |
-| Database     | PostgreSQL 16           |
+| Database     | PostgreSQL 18          |
 | Architecture | Database per Service    |
 | ID Strategy  | UUID v7 (time-sortable) |
 | Consistency  | Strong (ACID)           |
@@ -68,8 +68,8 @@ Main table storing order records.
 | `total_amount`     | DECIMAL(18,2) | NO       | Final amount              |
 | `shipping_address` | JSONB         | NO       | Delivery address          |
 | `idempotency_key`  | VARCHAR(100)  | YES      | Prevent duplicate orders  |
-| `created_at`       | TIMESTAMP     | NO       | Creation timestamp        |
-| `updated_at`       | TIMESTAMP     | NO       | Last update timestamp     |
+| `created_at`       | TIMESTAMPTZ   | NO       | Creation timestamp        |
+| `updated_at`       | TIMESTAMPTZ   | NO       | Last update timestamp     |
 
 **Status Values:**
 
@@ -108,7 +108,7 @@ Line items belonging to an order.
 | `unit_price`      | DECIMAL(18,2) | NO       | Price at time of order            |
 | `discount_amount` | DECIMAL(18,2) | NO       | Item discount                     |
 | `total_amount`    | DECIMAL(18,2) | NO       | quantity × unit_price - discount |
-| `created_at`      | TIMESTAMP     | NO       | Creation timestamp                |
+| `created_at`      | TIMESTAMPTZ   | NO       | Creation timestamp                |
 
 ---
 
@@ -123,7 +123,7 @@ Audit trail of order status changes.
 | `old_status` | VARCHAR(30)  | YES      | Previous status (NULL for first) |
 | `new_status` | VARCHAR(30)  | NO       | New status                       |
 | `reason`     | VARCHAR(255) | YES      | Reason for change                |
-| `created_at` | TIMESTAMP    | NO       | When change occurred             |
+| `created_at` | TIMESTAMPTZ  | NO       | When change occurred             |
 
 ---
 
@@ -139,8 +139,8 @@ Events pending publication to Kafka (Outbox Pattern).
 | `event_type`     | VARCHAR(100) | NO       | e.g., "order.created"        |
 | `payload`        | JSONB        | NO       | Full event payload           |
 | `status`         | VARCHAR(20)  | NO       | PENDING / PUBLISHED / FAILED |
-| `created_at`     | TIMESTAMP    | NO       | When event was created       |
-| `published_at`   | TIMESTAMP    | YES      | When event was published     |
+| `created_at`     | TIMESTAMPTZ  | NO       | When event was created       |
+| `published_at`   | TIMESTAMPTZ  | YES      | When event was published     |
 
 **Event Types:**
 
@@ -167,7 +167,7 @@ Warehouse locations.
 | `code`       | VARCHAR(50)  | NO       | Unique warehouse code |
 | `name`       | VARCHAR(255) | NO       | Warehouse name        |
 | `status`     | VARCHAR(20)  | NO       | active / inactive     |
-| `created_at` | TIMESTAMP    | NO       | Creation timestamp    |
+| `created_at` | TIMESTAMPTZ  | NO       | Creation timestamp    |
 
 ---
 
@@ -184,7 +184,7 @@ Current stock levels per product per warehouse.
 | `quantity_on_hand`  | INT          | NO       | Physical stock count        |
 | `quantity_reserved` | INT          | NO       | Reserved for pending orders |
 | `version`           | BIGINT       | NO       | Optimistic locking version  |
-| `updated_at`        | TIMESTAMP    | NO       | Last update timestamp       |
+| `updated_at`        | TIMESTAMPTZ  | NO       | Last update timestamp       |
 
 **Constraints:**
 
@@ -215,9 +215,9 @@ Tracks reserved stock for pending orders.
 | `warehouse_id`  | UUID         | NO       | FK → warehouses.id     |
 | `quantity`      | INT          | NO       | Reserved quantity       |
 | `status`        | VARCHAR(30)  | NO       | Reservation status      |
-| `expires_at`    | TIMESTAMP    | YES      | Reservation expiration  |
-| `created_at`    | TIMESTAMP    | NO       | Creation timestamp      |
-| `updated_at`    | TIMESTAMP    | NO       | Last update timestamp   |
+| `expires_at`    | TIMESTAMPTZ  | YES      | Reservation expiration  |
+| `created_at`    | TIMESTAMPTZ  | NO       | Creation timestamp      |
+| `updated_at`    | TIMESTAMPTZ  | NO       | Last update timestamp   |
 
 **Status Values:**
 
@@ -243,7 +243,7 @@ Audit trail of all inventory changes.
 | `quantity`       | INT          | NO       | Quantity changed (+/-)    |
 | `reference_type` | VARCHAR(50)  | YES      | e.g., "order", "transfer" |
 | `reference_id`   | UUID         | YES      | ID of related entity      |
-| `created_at`     | TIMESTAMP    | NO       | When movement occurred    |
+| `created_at`     | TIMESTAMPTZ  | NO       | When movement occurred    |
 
 **Movement Types:**
 
@@ -508,31 +508,33 @@ $$;
 
 | Tool           | Purpose           |
 | -------------- | ----------------- |
-| golang-migrate | Schema versioning |
-| SQL files      | Migration scripts |
+| Raw SQL files  | Schema init via Docker entrypoint |
 
 **Directory Structure:**
 
 ```
 migrations/
+├── init.sql                          # Combined schema (both DBs)
 ├── order/
-│   ├── 000001_create_orders.up.sql
-│   ├── 000001_create_orders.down.sql
-│   ├── 000002_create_order_items.up.sql
-│   ├── 000002_create_order_items.down.sql
-│   └── ...
+│   ├── 01-init.sql                   # Full order schema + uuidv7()
+│   ├── orders.sql                    # orders table only
+│   ├── order_items.sql               # order_items table only
+│   ├── order_status_history.sql      # order_status_history table only
+│   └── outbox_events.sql             # outbox_events table only
 └── inventory/
-    ├── 000001_create_warehouses.up.sql
-    ├── 000001_create_warehouses.down.sql
-    └── ...
+    ├── 01-init.sql                   # Full inventory schema + uuidv7()
+    ├── warehouses.sql                # warehouses table only
+    ├── inventory.sql                 # inventory table only
+    ├── inventory_reservations.sql    # inventory_reservations table only
+    └── inventory_movements.sql       # inventory_movements table only
 ```
 
-**Run Migrations:**
+**How it works:**
 
-```bash
-migrate -path migrations/order -database "postgres://user:pass@localhost:5432/order_db?sslmode=disable" up
-migrate -path migrations/inventory -database "postgres://user:pass@localhost:5432/inventory_db?sslmode=disable" up
-```
+- `cmd/order-db/Dockerfile` copies `migrations/order/01-init.sql` → `/docker-entrypoint-initdb.d/`
+- `cmd/inventory-db/Dockerfile` copies `migrations/inventory/01-init.sql` → `/docker-entrypoint-initdb.d/`
+- PostgreSQL runs `01-init.sql` automatically on first container start
+- Individual table files (e.g., `orders.sql`) are for reference/maintenance only
 
 ---
 
@@ -547,7 +549,7 @@ migrate -path migrations/inventory -database "postgres://user:pass@localhost:543
 | INT           | 4 bytes  | ±2.1B   | Quantities          |
 | BIGINT        | 8 bytes  | ±9.2E18 | Version counters    |
 | DECIMAL(18,2) | -        | -        | Money amounts       |
-| TIMESTAMP     | 8 bytes  | -        | Dates/times         |
+| TIMESTAMP     | 8 bytes  | -        | Dates/times (with tz)   |
 | JSONB         | -        | -        | Flexible structures |
 
 ---

@@ -17,3 +17,8 @@ CREATE TABLE IF NOT EXISTS inventory (
 
     FOREIGN KEY (warehouse_id) REFERENCES warehouses(id)
 );
+
+CREATE INDEX IF NOT EXISTS idx_inventory_product_id ON inventory(product_id);
+CREATE INDEX IF NOT EXISTS idx_inventory_warehouse_id ON inventory(warehouse_id);
+CREATE INDEX IF NOT EXISTS idx_inventory_low_stock ON inventory(quantity_on_hand - quantity_reserved)
+    WHERE (quantity_on_hand - quantity_reserved) < 50;

@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/racenak/Realtime-Order-Inventory-System/internal/inventory/usecase"
+	"github.com/racenak/Realtime-Order-Inventory-System/pkg/metrics"
 	"github.com/racenak/Realtime-Order-Inventory-System/pkg/response"
 )
 
@@ -73,9 +74,11 @@ func (h *InventoryHandler) ReserveStock(w http.ResponseWriter, r *http.Request) 
 			Quantity:      item.Quantity,
 		})
 		if err != nil {
+			metrics.InventoryFailedTotal.WithLabelValues("inventory-service", err.Error()).Inc()
 			lastErr = err
 			continue
 		}
+		metrics.InventoryReservationsTotal.WithLabelValues("inventory-service", "success").Inc()
 		results = append(results, reservationResult{
 			Reservation: reservation,
 			Item:        item,
@@ -96,10 +99,12 @@ func (h *InventoryHandler) ReleaseReservation(w http.ResponseWriter, r *http.Req
 	reservationID := chi.URLParam(r, "reservation_id")
 
 	if err := h.uc.ReleaseReservation(r.Context(), reservationID); err != nil {
+		metrics.InventoryFailedTotal.WithLabelValues("inventory-service", err.Error()).Inc()
 		handleError(w, r, err)
 		return
 	}
 
+	metrics.InventoryReleasesTotal.WithLabelValues("inventory-service").Inc()
 	response.JSON(w, r, http.StatusOK, map[string]string{"status": "released"})
 }
 
@@ -111,10 +116,12 @@ func (h *InventoryHandler) UpdateStock(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.uc.UpdateStock(r.Context(), req); err != nil {
+		metrics.InventoryFailedTotal.WithLabelValues("inventory-service", err.Error()).Inc()
 		handleError(w, r, err)
 		return
 	}
 
+	metrics.InventoryUpdatesTotal.WithLabelValues("inventory-service").Inc()
 	response.JSON(w, r, http.StatusOK, map[string]string{"status": "updated"})
 }
 

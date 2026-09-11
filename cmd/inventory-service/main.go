@@ -12,7 +12,9 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/segmentio/kafka-go"
+	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 
 	"github.com/racenak/Realtime-Order-Inventory-System/internal/inventory/adapter/cache"
@@ -25,6 +27,8 @@ import (
 	"github.com/racenak/Realtime-Order-Inventory-System/pkg/database"
 	kafkakit "github.com/racenak/Realtime-Order-Inventory-System/pkg/kafka"
 	"github.com/racenak/Realtime-Order-Inventory-System/pkg/logger"
+	"github.com/racenak/Realtime-Order-Inventory-System/pkg/metrics"
+	"github.com/racenak/Realtime-Order-Inventory-System/pkg/tracing"
 )
 
 type inventoryUseCaseAdapter struct {
@@ -54,6 +58,18 @@ func main() {
 	}
 	defer logger.Sync()
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	shutdownTracer, err := tracing.InitTracer(ctx, "inventory-service", "otel-collector:4317")
+	if err != nil {
+		logger.Warn("Failed to initialize tracer", zap.Error(err))
+	} else {
+		defer shutdownTracer(context.Background())
+	}
+
+	_ = otel.Tracer("inventory-service")
+
 	db, err := database.NewPostgresConnection(cfg.Database)
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
@@ -79,9 +95,6 @@ func main() {
 
 	inventoryHandler := httpd.NewInventoryHandler(inventoryUC)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
 	adapter := &inventoryUseCaseAdapter{uc: inventoryUC}
 	orderConsumer := kafkakit.NewConsumer(
 		kafkakit.ConsumerConfig{
@@ -104,6 +117,7 @@ func main() {
 	router.Use(middleware.Logger)
 	router.Use(middleware.Recoverer)
 	router.Use(middleware.RequestID)
+	router.Use(metrics.Middleware("inventory-service"))
 
 	router.Mount("/api/inventory", inventoryHandler.Routes())
 
@@ -111,6 +125,8 @@ func main() {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(`{"status":"ok"}`))
 	})
+
+	router.Handle("/metrics", promhttp.Handler())
 
 	addr := fmt.Sprintf(":%s", cfg.Server.HTTPPort)
 	logger.Info("Starting inventory service", zap.String("addr", addr))

@@ -265,3 +265,129 @@ func TestCancelOrder_CannotCancelShipped(t *testing.T) {
 	// For now, just verify it doesn't panic
 	_ = err
 }
+
+func TestCreateOrder_IdempotencyKey_Duplicate(t *testing.T) {
+	uc := setupOrderUsecase(t)
+
+	req := usecase.CreateOrderRequest{
+		CustomerID: uuid.New().String(),
+		Items: []usecase.OrderItemRequest{
+			{ProductID: uuid.New().String(), Quantity: 1, UnitPrice: 25.00},
+		},
+		ShippingAddress: usecase.ShippingAddressRequest{
+			Street: "123 Main St",
+			City:   "New York",
+		},
+		IdempotencyKey: "idem-key-001",
+	}
+
+	// First creation
+	order1, err := uc.CreateOrder(context.Background(), req)
+	require.NoError(t, err)
+	assert.Equal(t, "idem-key-001", order1.IdempotencyKey)
+
+	// Duplicate creation with same key
+	_, err = uc.CreateOrder(context.Background(), req)
+	assert.ErrorIs(t, err, domain.ErrDuplicateIdempotencyKey)
+}
+
+func TestCreateOrder_IdempotencyKey_DifferentKeys(t *testing.T) {
+	uc := setupOrderUsecase(t)
+
+	req1 := usecase.CreateOrderRequest{
+		CustomerID: uuid.New().String(),
+		Items: []usecase.OrderItemRequest{
+			{ProductID: uuid.New().String(), Quantity: 1, UnitPrice: 10.00},
+		},
+		ShippingAddress: usecase.ShippingAddressRequest{Street: "123 Main St", City: "New York"},
+		IdempotencyKey:  "key-aaa",
+	}
+
+	req2 := usecase.CreateOrderRequest{
+		CustomerID: uuid.New().String(),
+		Items: []usecase.OrderItemRequest{
+			{ProductID: uuid.New().String(), Quantity: 2, UnitPrice: 20.00},
+		},
+		ShippingAddress: usecase.ShippingAddressRequest{Street: "456 Oak Ave", City: "Boston"},
+		IdempotencyKey:  "key-bbb",
+	}
+
+	order1, err := uc.CreateOrder(context.Background(), req1)
+	require.NoError(t, err)
+
+	order2, err := uc.CreateOrder(context.Background(), req2)
+	require.NoError(t, err)
+
+	assert.NotEqual(t, order1.ID, order2.ID)
+}
+
+func TestCreateOrder_OutboxEventCreated(t *testing.T) {
+	db := helpers.SetupTestDB(t)
+
+	orderRepo := postgres.NewOrderRepository(db)
+	orderItemRepo := postgres.NewOrderItemRepository(db)
+	outboxRepo := postgres.NewOutboxRepository(db)
+	uc := usecase.NewCreateOrderUseCase(orderRepo, orderItemRepo, outboxRepo)
+
+	req := usecase.CreateOrderRequest{
+		CustomerID: uuid.New().String(),
+		Items: []usecase.OrderItemRequest{
+			{ProductID: uuid.New().String(), Quantity: 1, UnitPrice: 15.00},
+		},
+		ShippingAddress: usecase.ShippingAddressRequest{Street: "789 Pine Rd", City: "Chicago"},
+	}
+
+	order, err := uc.CreateOrder(context.Background(), req)
+	require.NoError(t, err)
+
+	// Verify outbox event was created atomically with order
+	events, err := outboxRepo.GetPending(context.Background(), 100)
+	require.NoError(t, err)
+
+	found := false
+	for _, e := range events {
+		if e.AggregateID == order.ID && e.EventType == "order.created" {
+			found = true
+			break
+		}
+	}
+	assert.True(t, found, "outbox event should be created for the order")
+}
+
+func TestCreateOrder_Atomicity_OrderAndItems(t *testing.T) {
+	db := helpers.SetupTestDB(t)
+
+	orderRepo := postgres.NewOrderRepository(db)
+	orderItemRepo := postgres.NewOrderItemRepository(db)
+	outboxRepo := postgres.NewOutboxRepository(db)
+	uc := usecase.NewCreateOrderUseCase(orderRepo, orderItemRepo, outboxRepo)
+
+	req := usecase.CreateOrderRequest{
+		CustomerID: uuid.New().String(),
+		Items: []usecase.OrderItemRequest{
+			{ProductID: uuid.New().String(), Quantity: 2, UnitPrice: 30.00},
+			{ProductID: uuid.New().String(), Quantity: 1, UnitPrice: 15.00},
+		},
+		ShippingAddress: usecase.ShippingAddressRequest{Street: "321 Elm St", City: "Seattle"},
+	}
+
+	order, err := uc.CreateOrder(context.Background(), req)
+	require.NoError(t, err)
+
+	// Verify order exists
+	fetched, err := uc.GetOrder(context.Background(), order.ID)
+	require.NoError(t, err)
+	assert.Len(t, fetched.Items, 2)
+
+	// Verify outbox event exists
+	events, err := outboxRepo.GetPending(context.Background(), 100)
+	require.NoError(t, err)
+	outboxFound := false
+	for _, e := range events {
+		if e.AggregateID == order.ID {
+			outboxFound = true
+			break
+		}
+	}
+	assert.True(t, outboxFound)
+}

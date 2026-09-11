@@ -1,4 +1,4 @@
-.PHONY: build run test test-integration test-order test-inventory lint db-init db-reset
+.PHONY: build run test test-unit test-integration test-e2e test-order test-inventory test-http lint db-init db-reset
 
 build:
 	go build -o bin/order-service ./cmd/order-service
@@ -9,20 +9,27 @@ run:
 	go run ./cmd/order-service & \
 	go run ./cmd/inventory-service
 
-test:
-	go test -v ./tests/unit/...
+test: test-unit
+
+test-unit:
+	go test -v -count=1 ./tests/unit/...
 
 test-integration:
-	go test -v -tags=integration ./tests/integration/...
+	go test -v -count=1 ./tests/integration/...
+
+test-e2e:
+	go test -v -count=1 ./tests/e2e/...
 
 test-order:
-	go test -v -tags=integration ./tests/integration/order/...
+	go test -v -count=1 ./tests/integration/order/...
 
 test-inventory:
-	go test -v -tags=integration ./tests/integration/inventory/...
+	go test -v -count=1 ./tests/integration/inventory/...
 
 test-http:
-	go test -v -tags=integration ./tests/integration/http/...
+	go test -v -count=1 ./tests/integration/http/...
+
+test-all: test-unit test-integration test-e2e
 
 lint:
 	golangci-lint run

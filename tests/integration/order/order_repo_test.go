@@ -307,3 +307,105 @@ func TestOrderRepository_JSONAddressMarshal(t *testing.T) {
 	assert.Equal(t, addr.Street, decoded.Street)
 	assert.Equal(t, addr.City, decoded.City)
 }
+
+func TestOutboxRepository_ClaimBatch(t *testing.T) {
+	setupTest(t)
+	repo := postgres.NewOutboxRepository(testDB)
+
+	// Create 5 pending events
+	for i := 0; i < 5; i++ {
+		err := repo.Create(context.Background(), domain.OutboxEvent{
+			ID:            uuid.New().String(),
+			AggregateType: "order",
+			AggregateID:   uuid.New().String(),
+			EventType:     "order.created",
+			Payload:       `{"test": true}`,
+			Status:        "PENDING",
+			CreatedAt:     time.Now().Format(time.RFC3339),
+		})
+		require.NoError(t, err)
+	}
+
+	// Claim batch of 3
+	claimed, err := repo.ClaimBatch(context.Background(), 3)
+	require.NoError(t, err)
+	assert.Len(t, claimed, 3)
+
+	// Verify claimed events have CLAIMED status
+	for _, e := range claimed {
+		events, err := repo.GetPending(context.Background(), 100)
+		require.NoError(t, err)
+		for _, pe := range events {
+			assert.NotEqual(t, e.ID, pe.ID, "claimed event should not appear in pending")
+		}
+	}
+
+	// Claim remaining 2
+	remaining, err := repo.ClaimBatch(context.Background(), 10)
+	require.NoError(t, err)
+	assert.Len(t, remaining, 2)
+
+	// No more pending
+	none, err := repo.ClaimBatch(context.Background(), 10)
+	require.NoError(t, err)
+	assert.Empty(t, none)
+}
+
+func TestOutboxRepository_MarkFailed(t *testing.T) {
+	setupTest(t)
+	repo := postgres.NewOutboxRepository(testDB)
+
+	eventID := uuid.New().String()
+	err := repo.Create(context.Background(), domain.OutboxEvent{
+		ID:            eventID,
+		AggregateType: "order",
+		AggregateID:   uuid.New().String(),
+		EventType:     "order.created",
+		Payload:       `{"test": true}`,
+		Status:        "PENDING",
+		CreatedAt:     time.Now().Format(time.RFC3339),
+	})
+	require.NoError(t, err)
+
+	err = repo.MarkFailed(context.Background(), eventID)
+	require.NoError(t, err)
+
+	// Should not appear in pending anymore
+	pending, err := repo.GetPending(context.Background(), 100)
+	require.NoError(t, err)
+	for _, e := range pending {
+		assert.NotEqual(t, eventID, e.ID)
+	}
+}
+
+func TestOrderRepository_GetByIDempotencyKey(t *testing.T) {
+	setupTest(t)
+	repo := postgres.NewOrderRepository(testDB)
+
+	order := &domain.Order{
+		ID:             uuid.New().String(),
+		CustomerID:     uuid.New().String(),
+		Status:         domain.StatusPendingPayment,
+		Currency:       "USD",
+		TotalAmount:    50.00,
+		IdempotencyKey: "idem-test-123",
+		ShippingAddress: domain.Address{
+			Street: "123 Main St",
+			City:   "New York",
+		},
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+
+	err := repo.Create(context.Background(), order)
+	require.NoError(t, err)
+
+	// Find by idempotency key
+	found, err := repo.GetByIDempotencyKey(context.Background(), "idem-test-123")
+	require.NoError(t, err)
+	assert.Equal(t, order.ID, found.ID)
+
+	// Not found
+	_, err = repo.GetByIDempotencyKey(context.Background(), "nonexistent")
+	assert.ErrorIs(t, err, domain.ErrOrderNotFound)
+}

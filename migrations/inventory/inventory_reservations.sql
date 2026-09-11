@@ -18,3 +18,8 @@ CREATE TABLE IF NOT EXISTS inventory_reservations (
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE INDEX IF NOT EXISTS idx_inventory_reservations_order_id ON inventory_reservations(order_id);
+CREATE INDEX IF NOT EXISTS idx_inventory_reservations_status ON inventory_reservations(status);
+CREATE INDEX IF NOT EXISTS idx_inventory_reservations_expires_at ON inventory_reservations(expires_at)
+    WHERE status = 'reserved';

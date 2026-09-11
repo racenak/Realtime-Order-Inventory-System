@@ -4,8 +4,8 @@
 
 | Metric | Count |
 |--------|-------|
-| Completed | 66 |
-| Remaining | 3 |
+| Completed | 68 |
+| Remaining | 1 |
 | Total | 69 |
 
 ---
@@ -81,6 +81,8 @@
 | B-78 | Security | Traefik gateway security spec | Middleware chain, gateway vs service responsibilities |
 | B-79 | Security | Resource-level authorization spec | Order ownership, inventory invariants |
 | B-80 | Docs | Auth Service docs (architecture, deployment, API spec) | Added Auth Service to 3 docs, fixed WebSocket port |
+| B-69 | Obs | Prometheus + Grafana + Loki + Jaeger + OTEL Collector | Full observability stack in docker-compose, config files, dashboards |
+| B-70 | Obs | /metrics endpoint in all Go services | promhttp.Handler() added to order, inventory, websocket, auth services |
 
 ---
 
@@ -107,5 +109,4 @@
 
 | ID | Task | Priority | Depends On |
 |----|------|----------|------------|
-| B-69 | Prometheus metrics endpoint | Low | — |
-| B-70 | OpenTelemetry tracing setup | Low | — |
+| — | — | — | — |

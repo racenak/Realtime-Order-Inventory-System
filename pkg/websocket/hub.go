@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"go.uber.org/zap"
+
+	"github.com/racenak/Realtime-Order-Inventory-System/pkg/metrics"
 )
 
 type Message struct {
@@ -51,6 +53,7 @@ func (h *Hub) Run() {
 				close(client.send)
 			}
 			h.mu.Unlock()
+			metrics.WSConnectionsActive.WithLabelValues("websocket-service").Dec()
 			h.logger.Info("client disconnected",
 				zap.String("client_id", client.ID()),
 				zap.Int("total_clients", h.ClientCount()),
@@ -102,6 +105,7 @@ func (h *Hub) BroadcastToChannel(channel string, msg Message) {
 		if client.HasChannel(channel) {
 			select {
 			case client.send <- data:
+				metrics.WSMessagesSentTotal.WithLabelValues("websocket-service", channel).Inc()
 			default:
 				close(client.send)
 				delete(h.clients, client)

@@ -117,6 +117,9 @@ services:
       - "--providers.file.filename=/etc/traefik/traefik-dynamic.yml"
       - "--providers.file.watch=false"
       - "--entrypoints.web.address=:8088"
+      - "--metrics.prometheus=true"
+      - "--metrics.prometheus.addEntryPointsLabels=true"
+      - "--metrics.prometheus.addServicesLabels=true"
       - "--log.level=INFO"
     ports:
       - "8088:8088"
@@ -210,6 +213,149 @@ services:
       - JWT_AUDIENCE=${JWT_AUDIENCE:-order-inventory-api}
       - HTTP_PORT=8083
 
+  # ========== Observability ==========
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    container_name: prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=7d"
+      - "--web.enable-lifecycle"
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./config/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro,z
+      - ./config/prometheus/alerts:/etc/prometheus/alerts:ro,z
+      - prometheus_data:/prometheus
+    depends_on:
+      - order-service
+      - inventory-service
+      - websocket-service
+      - auth-service
+
+  grafana:
+    image: grafana/grafana:11.1.0
+    container_name: grafana
+    user: root
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./config/grafana/provisioning:/etc/grafana/provisioning:ro,z
+      - ./config/grafana/dashboards:/var/lib/grafana/dashboards:ro,z
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+      - loki
+
+  loki:
+    image: grafana/loki:3.1.0
+    container_name: loki
+    command: -config.file=/etc/loki/loki.yml
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./config/loki/loki.yml:/etc/loki/loki.yml:ro,z
+      - loki_data:/loki
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.59
+    container_name: jaeger
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    ports:
+      - "16686:16686"
+      - "4317:4317"
+      - "4318:4318"
+    volumes:
+      - jaeger_data:/badger
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.104.0
+    container_name: otel-collector
+    command: ["--config=/etc/otel/otel-collector.yml"]
+    ports:
+      - "4319:4317"
+      - "4320:4318"
+      - "8888:8888"
+      - "8889:8889"
+    volumes:
+      - ./config/otel/otel-collector.yml:/etc/otel/otel-collector.yml:ro,z
+    depends_on:
+      - jaeger
+      - loki
+      - prometheus
+
+  promtail:
+    image: grafana/promtail:3.1.0
+    container_name: promtail
+    command: ["-config.file=/etc/promtail/promtail.yml"]
+    ports:
+      - "9080:9080"
+    volumes:
+      - ./config/promtail/promtail.yml:/etc/promtail/promtail.yml:ro
+      - /var/lib/containers/storage:/var/lib/containers/storage:ro
+      - ${XDG_RUNTIME_DIR}/podman/podman.sock:/var/run/docker.sock:ro
+      - promtail_data:/tmp
+    depends_on:
+      - loki
+    security_opt:
+      - label=disable
+
+  kafka-exporter:
+    image: danielqsj/kafka-exporter:v1.8.0
+    container_name: kafka-exporter
+    command:
+      - "--kafka.server=kafka:9092"
+      - "--kafka.version=3.3.1"
+    ports:
+      - "9308:9308"
+    depends_on:
+      kafka:
+        condition: service_healthy
+
+  redis-exporter:
+    image: oliver006/redis_exporter:v1.61.0
+    container_name: redis-exporter
+    environment:
+      - REDIS_ADDR=redis://redis:6379
+    ports:
+      - "9121:9121"
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  order-db-exporter:
+    image: prometheuscommunity/postgres-exporter:v0.15.0
+    container_name: order-db-exporter
+    environment:
+      - DATA_SOURCE_NAME=postgresql://postgres:postgres@order-db:5432/order_db?sslmode=disable
+    ports:
+      - "9187:9187"
+    depends_on:
+      order-db:
+        condition: service_healthy
+
+  inventory-db-exporter:
+    image: prometheuscommunity/postgres-exporter:v0.15.0
+    container_name: inventory-db-exporter
+    environment:
+      - DATA_SOURCE_NAME=postgresql://postgres:postgres@inventory-db:5432/inventory_db?sslmode=disable
+    ports:
+      - "9188:9187"
+    depends_on:
+      inventory-db:
+        condition: service_healthy
+
 volumes:
   order_db_data:
   inventory_db_data:
+  prometheus_data:
+  grafana_data:
+  loki_data:
+  jaeger_data:
+  promtail_data:

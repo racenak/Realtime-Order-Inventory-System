@@ -11,12 +11,16 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/redis/go-redis/v9"
+	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 
 	wsinternal "github.com/racenak/Realtime-Order-Inventory-System/internal/websocket"
 	"github.com/racenak/Realtime-Order-Inventory-System/pkg/config"
 	"github.com/racenak/Realtime-Order-Inventory-System/pkg/logger"
+	"github.com/racenak/Realtime-Order-Inventory-System/pkg/metrics"
+	"github.com/racenak/Realtime-Order-Inventory-System/pkg/tracing"
 	ws "github.com/racenak/Realtime-Order-Inventory-System/pkg/websocket"
 )
 
@@ -29,14 +33,23 @@ func main() {
 	}
 	defer appLogger.Sync()
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	shutdownTracer, err := tracing.InitTracer(ctx, "websocket-service", "otel-collector:4317")
+	if err != nil {
+		appLogger.Warn("Failed to initialize tracer", zap.Error(err))
+	} else {
+		defer shutdownTracer(context.Background())
+	}
+
+	_ = otel.Tracer("websocket-service")
+
 	rdb := redis.NewClient(&redis.Options{
 		Addr:     fmt.Sprintf("%s:%d", cfg.Redis.Host, cfg.Redis.Port),
 		Password: cfg.Redis.Password,
 		DB:       0,
 	})
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
 	hub := ws.NewHub(appLogger)
 	go hub.Run()
@@ -54,6 +67,7 @@ func main() {
 	router.Use(middleware.Logger)
 	router.Use(middleware.Recoverer)
 	router.Use(middleware.RequestID)
+	router.Use(metrics.Middleware("websocket-service"))
 
 	router.Mount("/ws", handler.Routes())
 
@@ -61,6 +75,8 @@ func main() {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(`{"status":"ok"}`))
 	})
+
+	router.Handle("/metrics", promhttp.Handler())
 
 	addr := fmt.Sprintf(":%s", cfg.Server.HTTPPort)
 	appLogger.Info("Starting websocket service", zap.String("addr", addr))

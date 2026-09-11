@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 type Claims struct {
@@ -37,6 +38,7 @@ func main() {
 
 	http.HandleFunc("/verify", handleVerify)
 	http.HandleFunc("/health", handleHealth)
+	http.Handle("/metrics", promhttp.Handler())
 
 	log.Printf("Auth service starting on :%s", port)
 	log.Fatal(http.ListenAndServe(":"+port, nil))

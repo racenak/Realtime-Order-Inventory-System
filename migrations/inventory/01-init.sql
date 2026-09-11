@@ -49,12 +49,14 @@ CREATE TABLE IF NOT EXISTS inventory (
 
 CREATE INDEX IF NOT EXISTS idx_inventory_product_id ON inventory(product_id);
 CREATE INDEX IF NOT EXISTS idx_inventory_warehouse_id ON inventory(warehouse_id);
+CREATE INDEX IF NOT EXISTS idx_inventory_low_stock ON inventory(quantity_on_hand - quantity_reserved)
+    WHERE (quantity_on_hand - quantity_reserved) < 50;
 
 -- Inventory reservations table
 CREATE TABLE IF NOT EXISTS inventory_reservations (
     id UUID PRIMARY KEY DEFAULT uuidv7(),
     order_id UUID NOT NULL,
-    order_item_id UUID,
+    order_item_id UUID NOT NULL,
     product_id UUID NOT NULL,
     sku VARCHAR(100) NOT NULL DEFAULT '',
     warehouse_id UUID NOT NULL,
@@ -67,6 +69,8 @@ CREATE TABLE IF NOT EXISTS inventory_reservations (
 
 CREATE INDEX IF NOT EXISTS idx_inventory_reservations_order_id ON inventory_reservations(order_id);
 CREATE INDEX IF NOT EXISTS idx_inventory_reservations_status ON inventory_reservations(status);
+CREATE INDEX IF NOT EXISTS idx_inventory_reservations_expires_at ON inventory_reservations(expires_at)
+    WHERE status = 'reserved';
 
 -- Inventory movements table
 CREATE TABLE IF NOT EXISTS inventory_movements (
@@ -84,6 +88,7 @@ CREATE TABLE IF NOT EXISTS inventory_movements (
 CREATE INDEX IF NOT EXISTS idx_inventory_movements_product_id ON inventory_movements(product_id);
 CREATE INDEX IF NOT EXISTS idx_inventory_movements_warehouse_id ON inventory_movements(warehouse_id);
 CREATE INDEX IF NOT EXISTS idx_inventory_movements_created_at ON inventory_movements(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_inventory_movements_reference ON inventory_movements(reference_type, reference_id);
 
 -- Seed data
 INSERT INTO warehouses (code, name, status) VALUES 

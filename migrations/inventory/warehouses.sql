@@ -8,3 +8,5 @@ CREATE TABLE IF NOT EXISTS warehouses (
 
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE INDEX IF NOT EXISTS idx_warehouses_status ON warehouses(status);

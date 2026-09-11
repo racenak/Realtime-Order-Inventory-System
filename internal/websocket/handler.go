@@ -8,6 +8,7 @@ import (
 	"github.com/gorilla/websocket"
 	"go.uber.org/zap"
 
+	"github.com/racenak/Realtime-Order-Inventory-System/pkg/metrics"
 	ws "github.com/racenak/Realtime-Order-Inventory-System/pkg/websocket"
 )
 
@@ -48,6 +49,9 @@ func (h *Handler) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 	client := ws.NewClient(conn, h.hub, h.logger)
 
 	h.hub.Register(client)
+
+	metrics.WSConnectionsTotal.WithLabelValues("websocket-service").Inc()
+	metrics.WSConnectionsActive.WithLabelValues("websocket-service").Inc()
 
 	go client.WritePump()
 	go client.ReadPump()

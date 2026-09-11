@@ -1,90 +1,90 @@
 # Backlogs
 
+## Progress
+
+| Metric | Count |
+|--------|-------|
+| Completed | 66 |
+| Remaining | 3 |
+| Total | 69 |
+
+---
+
 ## Completed
 
-| ID | Task | Status | Notes |
-|----|------|--------|-------|
-| B-01 | Architecture documentation | Done | 14 docs in `docs/` |
-| B-02 | Project folder structure (Clean Architecture) | Done | `cmd/`, `internal/`, `pkg/`, `tests/`, `schema/` |
-| B-03 | Domain layer — Order | Done | `order.go`, `repository.go`, `errors.go` |
-| B-04 | Domain layer — Inventory | Done | `inventory.go`, `repository.go`, `errors.go` |
-| B-05 | Usecase layer — Order (CreateOrder, GetOrder, CancelOrder, ListOrders) | Done | With total calculation, status validation |
-| B-06 | Usecase layer — Inventory (GetStock, ReserveStock, ReleaseReservation, UpdateStock) | Done | With optimistic locking, quantity reservation |
-| B-07 | Adapter layer — Order PostgreSQL repository | Done | Full CRUD, outbox events |
-| B-08 | Adapter layer — Inventory PostgreSQL repository | Done | With ReserveQuantity/ReleaseQuantity |
-| B-09 | HTTP handlers — Order | Done | Create, Get, List, Cancel |
-| B-10 | HTTP handlers — Inventory | Done | GetStock, Reserve, Release, UpdateStock |
-| B-11 | Database schema (`schema/init.sql`) | Done | 8 tables, uuidv7(), indexes |
-| B-12 | Shared packages (`pkg/`) | Done | config, database, logger, response |
-| B-13 | Service entry points (`cmd/`) | Done | Both build cleanly |
-| B-14 | Integration tests — Order (repo + usecase + handler) | Done | 22 tests |
-| B-15 | Integration tests — Inventory (repo + usecase + handler) | Done | 19 tests |
-| B-16 | Test helpers (`tests/helpers/testdb.go`) | Done | Auto table creation, cleanup, seed functions |
-| B-17 | Kafka producer (`pkg/kafka/producer.go`) | Done | segmentio/kafka-go |
-| B-18 | Kafka consumer (`pkg/kafka/consumer.go`) | Done | MessageHandler callback |
-| B-19 | Outbox polling publisher (`internal/order/adapter/kafka/outbox_publisher.go`) | Done | Polls outbox, publishes to Kafka topics |
-| B-20 | Order event handler — Inventory Service | Done | Handles `order.created`, `order.cancelled` |
-| B-21 | Inventory event handler — Order Service | Done | Handles `inventory.reserved`, `inventory.reservation_failed` |
-| B-22 | ConfirmOrder usecase method | Done | Updates status to processing, creates outbox event |
-| B-23 | Kafka topics in docker-compose | Done | 13 topics with auto-creation init container |
-| B-24 | WebSocket service skeleton (`cmd/websocket-service/main.go`) | Done | gorilla/websocket |
-| B-25 | WebSocket connection manager (hub pattern) | Done | `pkg/websocket/hub.go` |
-| B-26 | Redis Pub/Sub subscriber | Done | `internal/websocket/subscriber.go` |
-| B-27 | Client subscription management | Done | Channels: order_id, product_id, customer_id |
-| B-28 | WebSocket heartbeat / ping-pong | Done | 60s pong wait, 54s ping interval |
-| B-29 | Dockerfile — Order Service | Done | Multi-stage: golang:1.22-alpine → alpine:3.19 |
-| B-30 | Dockerfile — Inventory Service | Done | Multi-stage build |
-| B-31 | Dockerfile — WebSocket Service | Done | Multi-stage build |
-| B-32 | docker-compose.yml — Full stack (8 containers) | Done | 2 Postgres, Redis, Kafka, kafka-init, 3 services |
-| B-33 | docker-compose.yml — DB init via Dockerfile | Done | Dedicated DB Dockerfiles with schema SQL baked in |
-| B-34 | Kafka healthcheck fix | Done | `nc -z` instead of bash `/dev/tcp`; advertised `kafka:9092` for inter-container |
-| B-35 | SQL init scripts — fix `#` comments | Done | Changed to `--` for psql compatibility |
-| B-36 | GitHub Actions CI/CD workflow | Done | Test (2 Postgres services), build, push to GHCR |
-| B-37 | API bug fixes — ListOrders | Done | Handle empty customer_id to show all orders |
-| B-38 | API bug fixes — CreateOrder items | Done | Populate SKU, product_name, unit_price from request |
-| B-39 | API bug fixes — GetOrder | Done | Load order items from DB when fetching single order |
-| B-40 | API bug fixes — ReserveStock | Done | Resolve warehouse_code to warehouse_id via GetWarehouseByCode |
-| B-41 | API bug fixes — UpdateStock | Done | Upsert: create inventory if not exists |
-| B-42 | Redis caching — Shared client factory | Done | `pkg/cache/redis.go` (go-redis/v9) |
-| B-43 | Redis caching — Cache helper | Done | `pkg/cache/cache.go` (JSON serialize, TTL, prefix keys) |
-| B-44 | Redis caching — Order cache decorator | Done | `order:{id}` 5min, `order:items:{id}` 5min, invalidates on write |
-| B-45 | Redis caching — Inventory cache decorator | Done | `stock:{product_id}` 30s, `warehouse:code:{code}` 10min, invalidates on write |
-| B-50 | Traefik API gateway | Done | v2.11.57, file provider, custom Dockerfile |
-| B-51 | Routing: `/api/orders` → Order Service | Done | PathPrefix match via file provider |
-| B-52 | Routing: `/api/inventory` → Inventory Service | Done | PathPrefix match via file provider |
-| B-53 | Routing: `/ws` → WebSocket Service | Done | PathPrefix match via file provider |
-| B-72 | File provider (Podman compat) | Done | Baked config in custom Dockerfile, watch=false |
-| B-64 | Request validation middleware spec | Done | Covered in `security_updated.md` — input validation + XSS |
-| B-65 | CORS configuration spec | Done | Covered in `security_updated.md` — middleware + Traefik |
-| B-66 | SQL injection prevention audit | Done | All queries use parameterized `$1`, `$2` — verified |
-| B-67 | Secrets management spec | Done | Covered in `security_updated.md` — env vars + K8s Secrets |
-| B-73 | Security architecture document | Done | Full threat model, defense-in-depth layers |
-| B-74 | JWT implementation spec | Done | Token gen, validation, middleware, context keys |
-| B-75 | RBAC implementation spec | Done | Permissions, roles, middleware, route authorization |
-| B-76 | Rate limiting spec (atomic) | Done | Lua script, per-use-case separation |
-| B-77 | Idempotency schema spec | Done | DDL, uniqueness constraint, request hash |
-| B-78 | Traefik gateway security spec | Done | Middleware chain, gateway vs service responsibilities |
-| B-79 | Resource-level authorization spec | Done | Order ownership, inventory invariants |
-| B-68 | Structured logging across all services | Done | zap logger in all services + shared `pkg/logger` |
-| B-71 | Health check endpoints (liveness + readiness) | Done | `/health` via Traefik and direct |
-| B-54 | TLS termination (Let's Encrypt ACME) | Done | Traefik config ready, commented TLS options |
-| B-55 | Rate limiting middleware | Done | 100 req/s, 50 burst, per-IP via Traefik |
-| B-56 | JWT ForwardAuth middleware | Done | auth-service validates JWT, X-User-Id/Role headers |
-| B-80 | Auth Service docs (architecture, deployment, API spec) | Done | Added Auth Service to 3 docs, fixed WebSocket port |
+| ID | Category | Task | Notes |
+|----|----------|------|-------|
+| B-01 | Docs | Architecture documentation | 14 docs in `docs/` |
+| B-02 | Core | Project folder structure (Clean Architecture) | `cmd/`, `internal/`, `pkg/`, `tests/`, `schema/` |
+| B-03 | Core | Domain layer — Order | `order.go`, `repository.go`, `errors.go` |
+| B-04 | Core | Domain layer — Inventory | `inventory.go`, `repository.go`, `errors.go` |
+| B-05 | Core | Usecase layer — Order | CreateOrder, GetOrder, CancelOrder, ListOrders |
+| B-06 | Core | Usecase layer — Inventory | GetStock, ReserveStock, ReleaseReservation, UpdateStock |
+| B-07 | Adapter | Order PostgreSQL repository | Full CRUD, outbox events |
+| B-08 | Adapter | Inventory PostgreSQL repository | ReserveQuantity/ReleaseQuantity |
+| B-09 | Adapter | HTTP handlers — Order | Create, Get, List, Cancel |
+| B-10 | Adapter | HTTP handlers — Inventory | GetStock, Reserve, Release, UpdateStock |
+| B-11 | Data | Database schema (`schema/init.sql`) | 8 tables, uuidv7(), indexes |
+| B-12 | Core | Shared packages (`pkg/`) | config, database, logger, response |
+| B-13 | Infra | Service entry points (`cmd/`) | All build cleanly |
+| B-14 | Tests | Integration tests — Order | 22 tests (repo + usecase + handler) |
+| B-15 | Tests | Integration tests — Inventory | 19 tests (repo + usecase + handler) |
+| B-16 | Tests | Test helpers (`tests/helpers/testdb.go`) | Auto table creation, cleanup, seed functions |
+| B-17 | Kafka | Kafka producer (`pkg/kafka/producer.go`) | segmentio/kafka-go |
+| B-18 | Kafka | Kafka consumer (`pkg/kafka/consumer.go`) | MessageHandler callback |
+| B-19 | Kafka | Outbox polling publisher | Polls outbox, publishes to Kafka topics |
+| B-20 | Kafka | Order event handler — Inventory Service | Handles `order.created`, `order.cancelled` |
+| B-21 | Kafka | Inventory event handler — Order Service | Handles `inventory.reserved`, `inventory.reservation_failed` |
+| B-22 | Kafka | ConfirmOrder usecase method | Updates status to processing, creates outbox event |
+| B-23 | Kafka | Kafka topics in docker-compose | 13 topics with auto-creation init container |
+| B-24 | WS | WebSocket service skeleton | gorilla/websocket |
+| B-25 | WS | WebSocket connection manager (hub pattern) | `pkg/websocket/hub.go` |
+| B-26 | WS | Redis Pub/Sub subscriber | `internal/websocket/subscriber.go` |
+| B-27 | WS | Client subscription management | Channels: order_id, product_id, customer_id |
+| B-28 | WS | WebSocket heartbeat / ping-pong | 60s pong wait, 54s ping interval |
+| B-29 | Infra | Dockerfile — Order Service | Multi-stage: golang:1.22-alpine → alpine:3.19 |
+| B-30 | Infra | Dockerfile — Inventory Service | Multi-stage build |
+| B-31 | Infra | Dockerfile — WebSocket Service | Multi-stage build |
+| B-32 | Infra | docker-compose.yml — Full stack (10 containers) | 2 Postgres, Redis, Kafka, kafka-init, auth-service, 3 services, Traefik |
+| B-33 | Infra | docker-compose.yml — DB init via Dockerfile | Dedicated DB Dockerfiles with schema SQL baked in |
+| B-34 | Infra | Kafka healthcheck fix | `nc -z` instead of bash `/dev/tcp`; advertised `kafka:9092` |
+| B-35 | Infra | SQL init scripts — fix `#` comments | Changed to `--` for psql compatibility |
+| B-36 | Infra | GitHub Actions CI/CD workflow | Test (2 Postgres services), build, push to GHCR |
+| B-37 | Bugfix | API bug fix — ListOrders | Handle empty customer_id to show all orders |
+| B-38 | Bugfix | API bug fix — CreateOrder items | Populate SKU, product_name, unit_price from request |
+| B-39 | Bugfix | API bug fix — GetOrder | Load order items from DB when fetching single order |
+| B-40 | Bugfix | API bug fix — ReserveStock | Resolve warehouse_code to warehouse_id via GetWarehouseByCode |
+| B-41 | Bugfix | API bug fix — UpdateStock | Upsert: create inventory if not exists |
+| B-42 | Redis | Redis caching — Shared client factory | `pkg/cache/redis.go` (go-redis/v9) |
+| B-43 | Redis | Redis caching — Cache helper | `pkg/cache/cache.go` (JSON serialize, TTL, prefix keys) |
+| B-44 | Redis | Redis caching — Order cache decorator | `order:{id}` 5min, `order:items:{id}` 5min, invalidates on write |
+| B-45 | Redis | Redis caching — Inventory cache decorator | `stock:{product_id}` 30s, `warehouse:code:{code}` 10min, invalidates on write |
+| B-50 | Gateway | Traefik API gateway | v2.11.57, file provider, custom Dockerfile |
+| B-51 | Gateway | Routing: `/api/orders` → Order Service | PathPrefix match via file provider |
+| B-52 | Gateway | Routing: `/api/inventory` → Inventory Service | PathPrefix match via file provider |
+| B-53 | Gateway | Routing: `/ws` → WebSocket Service | PathPrefix match via file provider |
+| B-54 | Gateway | TLS termination (Let's Encrypt ACME) | Traefik config ready, commented TLS options |
+| B-55 | Gateway | Rate limiting middleware | 100 req/s, 50 burst, per-IP via Traefik |
+| B-56 | Gateway | JWT ForwardAuth middleware | auth-service validates JWT, X-User-Id/Role headers |
+| B-64 | Security | Request validation middleware spec | Covered in `security_updated.md` |
+| B-65 | Security | CORS configuration spec | Covered in `security_updated.md` |
+| B-66 | Security | SQL injection prevention audit | All queries use parameterized `$1`, `$2` — verified |
+| B-67 | Security | Secrets management spec | Covered in `security_updated.md` |
+| B-68 | Obs | Structured logging across all services | zap logger in all services + shared `pkg/logger` |
+| B-71 | Obs | Health check endpoints (liveness + readiness) | `/health` via Traefik and direct |
+| B-72 | Gateway | File provider (Podman compat) | Baked config in custom Dockerfile, watch=false |
+| B-73 | Security | Security architecture document | Full threat model, defense-in-depth layers |
+| B-74 | Security | JWT implementation spec | Token gen, validation, middleware, context keys |
+| B-75 | Security | RBAC implementation spec | Permissions, roles, middleware, route authorization |
+| B-76 | Security | Rate limiting spec (atomic) | Lua script, per-use-case separation |
+| B-77 | Security | Idempotency schema spec | DDL, uniqueness constraint, request hash |
+| B-78 | Security | Traefik gateway security spec | Middleware chain, gateway vs service responsibilities |
+| B-79 | Security | Resource-level authorization spec | Order ownership, inventory invariants |
+| B-80 | Docs | Auth Service docs (architecture, deployment, API spec) | Added Auth Service to 3 docs, fixed WebSocket port |
 
-## In Progress
+---
 
-| ID | Task | Status | Notes |
-|----|------|--------|-------|
-| — | — | — | — |
-
-## Backlogs
-
-### API Gateway (Traefik)
-
-| ID | Task | Priority | Depends On |
-|----|------|----------|------------|
-| — | All Traefik tasks completed (B-50–B-56, B-72) | — | — |
+## Backlog
 
 ### Infrastructure
 
@@ -103,33 +103,9 @@
 | B-62 | E2E tests (full order lifecycle) | Low | B-18, B-19, B-20, B-24 |
 | B-63 | `go test -p 1` → full parallel test support | Low | — |
 
-### Security
-
-| ID | Task | Priority | Depends On |
-|----|------|----------|------------|
-| — | All security design specs completed (B-64–B-79) | — | — |
-
 ### Observability
 
 | ID | Task | Priority | Depends On |
 |----|------|----------|------------|
 | B-69 | Prometheus metrics endpoint | Low | — |
 | B-70 | OpenTelemetry tracing setup | Low | — |
-
----
-
-## Summary
-
-| Category | Completed | In Progress | Backlog |
-|----------|-----------|-------------|---------|
-| Core Domain & Usecase | 8 | 0 | 0 |
-| Adapters (HTTP + DB) | 4 | 0 | 0 |
-| Tests | 4 | 0 | 6 |
-| Kafka | 7 | 0 | 0 |
-| WebSocket | 5 | 0 | 0 |
-| Redis | 4 | 0 | 0 |
-| Infrastructure (Docker/CI) | 8 | 0 | 1 |
-| API Gateway (Traefik) | 8 | 0 | 0 |
-| Security | 10 | 0 | 0 |
-| Observability | 2 | 0 | 2 |
-| **Total** | **66** | **0** | **3** |

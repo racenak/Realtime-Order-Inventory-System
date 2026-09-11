@@ -11,6 +11,16 @@
 
 ## Authentication
 
+All API requests (except `/health`) require a valid JWT in the `Authorization` header. The JWT is validated by the Auth Service via Traefik ForwardAuth middleware.
+
+### Auth Service
+
+| Property | Value |
+|----------|-------|
+| Port | 8083 (internal) |
+| Endpoint | `POST /verify` |
+| Validation | HMAC-SHA256, issuer, audience, expiration |
+
 ### Token Structure
 
 ```json
@@ -18,6 +28,8 @@
   "user_id": "uuid",
   "email": "user@example.com",
   "role": "customer|warehouse_manager|admin",
+  "iss": "order-inventory-system",
+  "aud": "order-inventory-api",
   "exp": 1234567890
 }
 ```
@@ -27,8 +39,24 @@
 ```
 Authorization: Bearer <token>
 Content-Type: application/json
-X-Request-ID: uuid
+Idempotency-Key: <unique-key>   (for POST requests)
 ```
+
+### Traefik Middleware Chain
+
+| Chain | Middlewares | Used By |
+|-------|------------|---------|
+| `public-chain` | rate-limit, security-headers | `/health` |
+| `protected-chain` | jwt-auth, rate-limit, security-headers | `/api/*`, `/ws` |
+
+### Response Headers (from Auth Service)
+
+When JWT is valid, Traefik forwards these headers to downstream services:
+
+| Header | Description |
+|--------|-------------|
+| `X-User-Id` | Authenticated user's UUID |
+| `X-User-Role` | User's role (customer, warehouse_manager, admin) |
 
 ---
 

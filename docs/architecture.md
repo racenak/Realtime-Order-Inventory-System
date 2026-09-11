@@ -18,7 +18,7 @@ Realtime Order Inventory System is a distributed microservices-based application
                               │ HTTP / HTTPS
 ┌─────────────────────────────▼───────────────────────────────────────┐
 │                          TRAEFIK                                    │
-│         (Reverse Proxy, TLS, Rate Limiting, Auth, Routing)         │
+│   (Reverse Proxy, TLS, Rate Limiting, JWT Auth, Routing)           │
 └──────┬──────────────┬──────────────────────┬───────────────────────┘
        │              │                      │
        │              │                      │ WebSocket
@@ -36,6 +36,14 @@ Realtime Order Inventory System is a distributed microservices-based application
 ┌──────▼──────────────▼───────────────────────────────────────────────┐
 │                         DATA LAYER                                  │
 │              PostgreSQL (Primary) + Redis (Cache)                   │
+└─────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────┐
+│                      SUPPORT SERVICES                               │
+│  ┌──────────────┐                                                  │
+│  │ Auth Service │  (JWT validation, ForwardAuth for Traefik)       │
+│  │ :8083        │                                                  │
+│  └──────────────┘                                                  │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -90,35 +98,51 @@ Realtime Order Inventory System is a distributed microservices-based application
 | Property     | Description                          |
 | ------------ | ------------------------------------ |
 | Protocol     | WebSocket                            |
-| Port         | 8081                                 |
+| Port         | 8082                                |
 | Responsibilities | Real-time Order Status, Inventory Updates, Notifications |
 
 **Technologies:** Gorilla WebSocket, Redis Pub/Sub
+
+### 5. Auth Service
+
+| Property     | Description                          |
+| ------------ | ------------------------------------ |
+| Protocol     | HTTP                                |
+| Port         | 8083                                |
+| Responsibilities | JWT validation, User identity resolution |
+
+**Technologies:** golang-jwt/jwt/v5
+
+**Role in architecture:** Traefik forwards authentication requests to this service via ForwardAuth middleware. On valid JWT, it returns `X-User-Id` and `X-User-Role` headers that downstream services can trust.
 
 ## Data Flow
 
 ### Order Creation Flow
 
 ```
-Client ──POST /orders──▶ Traefik ──HTTP──▶ Order Service
-                                               │
-                                               ├──▶ Validate Request
-                                               ├──▶ Create Order (DB)
-                                               ├──▶ Save Outbox Event
-                                               └──▶ Publish to Kafka
-                                                        │
-                                        ┌───────────────┘
-                                        ▼
-                        Inventory Service ◄── Consume Event
-                                        │
-                                        ├──▶ Reserve Stock
-                                        ├──▶ Update Inventory
-                                        └──▶ Publish Inventory Updated Event
-                                                 │
-                                                 ▼
-                                      WebSocket Service
-                                        │
-                                        └──▶ Notify Client (Real-time)
+Client ──POST /orders──▶ Traefik ──ForwardAuth──▶ Auth Service
+                                    │              (validate JWT)
+                                    │              (return X-User-Id, X-User-Role)
+                                    ▼
+                              Order Service
+                                    │
+                                    ├──▶ Validate Request
+                                    ├──▶ Create Order (DB)
+                                    ├──▶ Save Outbox Event
+                                    └──▶ Publish to Kafka
+                                             │
+                             ┌───────────────┘
+                             ▼
+             Inventory Service ◄── Consume Event
+                             │
+                             ├──▶ Reserve Stock
+                             ├──▶ Update Inventory
+                             └──▶ Publish Inventory Updated Event
+                                      │
+                                      ▼
+                               WebSocket Service
+                                 │
+                                 └──▶ Notify Client (Real-time)
 ```
 
 ### Inventory Update Flow
@@ -199,10 +223,10 @@ id, product_id, warehouse_id, movement_type, quantity, reference_id, created_at
 │  │ Pod (x2) │  │ Pod (x2) │  │ Pod (x2) │                         │
 │  └──────────┘  └──────────┘  └──────────┘                         │
 │                                                                     │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐                         │
-│  │ Order    │  │Inventory │  │ WebSocket│                         │
-│  │ Svc (x3) │  │Svc (x3) │  │ Svc (x3) │                         │
-│  └──────────┘  └──────────┘  └──────────┘                         │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐             │
+│  │ Order    │  │Inventory │  │ WebSocket│  │   Auth   │             │
+│  │ Svc (x3) │  │Svc (x3) │  │ Svc (x3) │  │ Svc (x2) │             │
+│  └──────────┘  └──────────┘  └──────────┘  └──────────┘             │
 │                                                                     │
 │  ┌──────────┐  ┌──────────┐  ┌──────────┐                         │
 │  │PostgreSQL│  │  Redis   │  │  Kafka   │                         │

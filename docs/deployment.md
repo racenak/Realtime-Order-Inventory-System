@@ -153,13 +153,25 @@ services:
       context: .
       dockerfile: cmd/websocket-service/Dockerfile
     ports:
-      - "8081:8081"
+      - "8082:8082"
     environment:
       - REDIS_HOST=redis
       - KAFKA_BROKERS=kafka:9092
     depends_on:
       - redis
       - kafka
+
+  auth-service:
+    build:
+      context: .
+      dockerfile: cmd/auth-service/Dockerfile
+    ports:
+      - "8083:8083"
+    environment:
+      - JWT_SECRET=${JWT_SECRET:-changeme}
+      - JWT_ISSUER=${JWT_ISSUER:-order-inventory-system}
+      - JWT_AUDIENCE=${JWT_AUDIENCE:-order-inventory-api}
+      - HTTP_PORT=8083
 
   postgres:
     image: postgres:16-alpine

@@ -67,6 +67,9 @@
 | B-79 | Resource-level authorization spec | Done | Order ownership, inventory invariants |
 | B-68 | Structured logging across all services | Done | zap logger in all services + shared `pkg/logger` |
 | B-71 | Health check endpoints (liveness + readiness) | Done | `/health` via Traefik and direct |
+| B-54 | TLS termination (Let's Encrypt ACME) | Done | Traefik config ready, commented TLS options |
+| B-55 | Rate limiting middleware | Done | 100 req/s, 50 burst, per-IP via Traefik |
+| B-56 | JWT ForwardAuth middleware | Done | auth-service validates JWT, X-User-Id/Role headers |
 
 ## In Progress
 
@@ -127,7 +130,7 @@
 | WebSocket | 5 | 0 | 0 |
 | Redis | 4 | 0 | 0 |
 | Infrastructure (Docker/CI) | 8 | 0 | 1 |
-| API Gateway (Traefik) | 5 | 0 | 3 |
+| API Gateway (Traefik) | 8 | 0 | 0 |
 | Security | 10 | 0 | 0 |
 | Observability | 2 | 0 | 2 |
-| **Total** | **62** | **0** | **6** |
+| **Total** | **65** | **0** | **3** |

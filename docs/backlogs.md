@@ -54,6 +54,17 @@
 | B-52 | Routing: `/api/inventory` → Inventory Service | Done | PathPrefix match via file provider |
 | B-53 | Routing: `/ws` → WebSocket Service | Done | PathPrefix match via file provider |
 | B-72 | File provider (Podman compat) | Done | Baked config in custom Dockerfile, watch=false |
+| B-64 | Request validation middleware spec | Done | Covered in `security_updated.md` — input validation + XSS |
+| B-65 | CORS configuration spec | Done | Covered in `security_updated.md` — middleware + Traefik |
+| B-66 | SQL injection prevention audit | Done | All queries use parameterized `$1`, `$2` — verified |
+| B-67 | Secrets management spec | Done | Covered in `security_updated.md` — env vars + K8s Secrets |
+| B-73 | Security architecture document | Done | Full threat model, defense-in-depth layers |
+| B-74 | JWT implementation spec | Done | Token gen, validation, middleware, context keys |
+| B-75 | RBAC implementation spec | Done | Permissions, roles, middleware, route authorization |
+| B-76 | Rate limiting spec (atomic) | Done | Lua script, per-use-case separation |
+| B-77 | Idempotency schema spec | Done | DDL, uniqueness constraint, request hash |
+| B-78 | Traefik gateway security spec | Done | Middleware chain, gateway vs service responsibilities |
+| B-79 | Resource-level authorization spec | Done | Order ownership, inventory invariants |
 
 ## In Progress
 
@@ -97,10 +108,7 @@
 
 | ID | Task | Priority | Depends On |
 |----|------|----------|------------|
-| B-64 | Request validation middleware (input sanitization) | Medium | — |
-| B-65 | CORS configuration | Medium | — |
-| B-66 | SQL injection prevention audit | Medium | — |
-| B-67 | Secrets management (env-based, no hardcoded) | Medium | — |
+| — | All security design specs completed (B-64–B-79) | — | — |
 
 ### Observability
 
@@ -125,6 +133,6 @@
 | Redis | 4 | 0 | 0 |
 | Infrastructure (Docker/CI) | 8 | 0 | 1 |
 | API Gateway (Traefik) | 5 | 0 | 3 |
-| Security | 0 | 0 | 4 |
+| Security | 10 | 0 | 0 |
 | Observability | 0 | 0 | 4 |
-| **Total** | **50** | **0** | **18** |
+| **Total** | **60** | **0** | **8** |

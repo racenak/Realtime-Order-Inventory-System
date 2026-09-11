@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/racenak/Realtime-Order-Inventory-System/internal/order/domain"
 	"github.com/racenak/Realtime-Order-Inventory-System/internal/order/usecase"
 	"github.com/racenak/Realtime-Order-Inventory-System/pkg/metrics"
 	"github.com/racenak/Realtime-Order-Inventory-System/pkg/response"
@@ -35,8 +36,16 @@ func (h *OrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if idempotencyKey := r.Header.Get("Idempotency-Key"); idempotencyKey != "" {
+		req.IdempotencyKey = idempotencyKey
+	}
+
 	order, err := h.uc.CreateOrder(r.Context(), req)
 	if err != nil {
+		if err == domain.ErrDuplicateIdempotencyKey {
+			response.JSON(w, r, http.StatusConflict, order)
+			return
+		}
 		metrics.OrdersFailedTotal.WithLabelValues("order-service", err.Error()).Inc()
 		handleError(w, r, err)
 		return
@@ -107,6 +116,8 @@ func handleError(w http.ResponseWriter, r *http.Request, err error) {
 		response.Error(w, r, http.StatusBadRequest, "EMPTY_CART", "Order must contain at least one item")
 	case "quantity must be greater than 0":
 		response.Error(w, r, http.StatusBadRequest, "INVALID_QUANTITY", "Quantity must be greater than 0")
+	case "duplicate idempotency key":
+		response.Error(w, r, http.StatusConflict, "DUPLICATE_IDEMPOTENCY_KEY", "An order with this idempotency key already exists")
 	default:
 		response.Error(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "An internal error occurred")
 	}

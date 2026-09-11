@@ -27,6 +27,7 @@ type Order struct {
 	TotalAmount     float64     `json:"total_amount" db:"total_amount"`
 	ShippingAddress Address     `json:"shipping_address"`
 	Items           []OrderItem `json:"items,omitempty"`
+	IdempotencyKey  string      `json:"idempotency_key,omitempty" db:"idempotency_key"`
 	CreatedAt       time.Time   `json:"created_at" db:"created_at"`
 	UpdatedAt       time.Time   `json:"updated_at" db:"updated_at"`
 }

@@ -10,6 +10,7 @@ type OrderRepository interface {
 	Create(ctx context.Context, order *Order) error
 	CreateInTx(ctx context.Context, tx *sqlx.Tx, order *Order) error
 	GetByID(ctx context.Context, id string) (*Order, error)
+	GetByIDempotencyKey(ctx context.Context, key string) (*Order, error)
 	List(ctx context.Context, customerID string, limit, offset int) ([]*Order, int, error)
 	UpdateStatus(ctx context.Context, id string, status OrderStatus) error
 	UpdateStatusInTx(ctx context.Context, tx *sqlx.Tx, id string, status OrderStatus) error

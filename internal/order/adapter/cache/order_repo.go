@@ -41,6 +41,10 @@ func (c *OrderCache) GetByID(ctx context.Context, id string) (*domain.Order, err
 	return orderPtr, nil
 }
 
+func (c *OrderCache) GetByIDempotencyKey(ctx context.Context, key string) (*domain.Order, error) {
+	return c.inner.GetByIDempotencyKey(ctx, key)
+}
+
 func (c *OrderCache) List(ctx context.Context, customerID string, limit, offset int) ([]*domain.Order, int, error) {
 	return c.inner.List(ctx, customerID, limit, offset)
 }

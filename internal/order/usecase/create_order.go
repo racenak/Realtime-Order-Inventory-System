@@ -39,6 +39,13 @@ func (uc *createOrderUseCase) CreateOrder(ctx context.Context, req CreateOrderRe
 		}
 	}
 
+	if req.IdempotencyKey != "" {
+		existing, err := uc.orderRepo.GetByIDempotencyKey(ctx, req.IdempotencyKey)
+		if err == nil && existing != nil {
+			return existing, domain.ErrDuplicateIdempotencyKey
+		}
+	}
+
 	currency := req.Currency
 	if currency == "" {
 		currency = "USD"
@@ -56,8 +63,9 @@ func (uc *createOrderUseCase) CreateOrder(ctx context.Context, req CreateOrderRe
 			Zip:     req.ShippingAddress.Zip,
 			Country: req.ShippingAddress.Country,
 		},
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+		IdempotencyKey: req.IdempotencyKey,
+		CreatedAt:      time.Now(),
+		UpdatedAt:      time.Now(),
 	}
 
 	var orderItems []domain.OrderItem

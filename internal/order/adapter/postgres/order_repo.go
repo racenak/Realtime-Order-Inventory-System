@@ -51,8 +51,8 @@ func (r *orderRepository) CreateInTx(ctx context.Context, tx *sqlx.Tx, order *do
 	}
 
 	query := `
-		INSERT INTO orders (id, customer_id, status, currency, subtotal, discount_amount, shipping_fee, tax_amount, total_amount, shipping_address, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`
+		INSERT INTO orders (id, customer_id, status, currency, subtotal, discount_amount, shipping_fee, tax_amount, total_amount, shipping_address, idempotency_key, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`
 
 	var executor database.DBExecutor = r.db
 	if tx != nil {
@@ -70,6 +70,7 @@ func (r *orderRepository) CreateInTx(ctx context.Context, tx *sqlx.Tx, order *do
 		order.TaxAmount,
 		order.TotalAmount,
 		shippingAddrJSON,
+		order.IdempotencyKey,
 		order.CreatedAt,
 		order.UpdatedAt,
 	)
@@ -82,6 +83,21 @@ func (r *orderRepository) GetByID(ctx context.Context, id string) (*domain.Order
 	query := `SELECT * FROM orders WHERE id = $1`
 
 	err := r.db.GetContext(ctx, &row, query, id)
+	if err == sql.ErrNoRows {
+		return nil, domain.ErrOrderNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	return r.rowToOrder(&row), nil
+}
+
+func (r *orderRepository) GetByIDempotencyKey(ctx context.Context, key string) (*domain.Order, error) {
+	var row orderRow
+	query := `SELECT * FROM orders WHERE idempotency_key = $1`
+
+	err := r.db.GetContext(ctx, &row, query, key)
 	if err == sql.ErrNoRows {
 		return nil, domain.ErrOrderNotFound
 	}

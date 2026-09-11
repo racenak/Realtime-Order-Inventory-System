@@ -19,6 +19,7 @@ type CreateOrderRequest struct {
 	Currency        string                 `json:"currency"`
 	Items           []OrderItemRequest     `json:"items"`
 	ShippingAddress ShippingAddressRequest `json:"shipping_address"`
+	IdempotencyKey  string                 `json:"idempotency_key,omitempty"`
 }
 
 type OrderItemRequest struct {

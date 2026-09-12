@@ -10,6 +10,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/racenak/Realtime-Order-Inventory-System/internal/order/domain"
+	pkgkafka "github.com/racenak/Realtime-Order-Inventory-System/pkg/kafka"
 )
 
 type OutboxRepository interface {
@@ -20,7 +21,7 @@ type OutboxRepository interface {
 
 type OutboxPublisher struct {
 	repo   OutboxRepository
-	writer *kafka.Writer
+	writer pkgkafka.MessageWriter
 	logger *zap.Logger
 }
 
@@ -36,6 +37,18 @@ func NewOutboxPublisher(
 			Balancer:     &kafka.LeastBytes{},
 			BatchTimeout: 10 * time.Millisecond,
 		},
+		logger: logger,
+	}
+}
+
+func NewOutboxPublisherWithWriter(
+	repo OutboxRepository,
+	writer pkgkafka.MessageWriter,
+	logger *zap.Logger,
+) *OutboxPublisher {
+	return &OutboxPublisher{
+		repo:   repo,
+		writer: writer,
 		logger: logger,
 	}
 }
@@ -101,7 +114,10 @@ func (p *OutboxPublisher) publishBatch(ctx context.Context, batchSize int) error
 }
 
 func (p *OutboxPublisher) publishEvent(ctx context.Context, event domain.OutboxEvent) error {
+	topic := p.getTopicForEvent(event.EventType)
+
 	msg := kafka.Message{
+		Topic: topic,
 		Key:   []byte(event.AggregateID),
 		Value: []byte(event.Payload),
 		Headers: []kafka.Header{
@@ -110,9 +126,6 @@ func (p *OutboxPublisher) publishEvent(ctx context.Context, event domain.OutboxE
 			{Key: "correlation_id", Value: []byte(uuid.New().String())},
 		},
 	}
-
-	topic := p.getTopicForEvent(event.EventType)
-	p.writer.Topic = topic
 
 	return p.writer.WriteMessages(ctx, msg)
 }
@@ -129,7 +142,22 @@ func (p *OutboxPublisher) getTopicForEvent(eventType string) string {
 }
 
 func (p *OutboxPublisher) Close() error {
-	return p.writer.Close()
+	if closer, ok := p.writer.(interface{ Close() error }); ok {
+		return closer.Close()
+	}
+	return nil
+}
+
+func (p *OutboxPublisher) GetTopicForEvent(eventType string) string {
+	return p.getTopicForEvent(eventType)
+}
+
+func (p *OutboxPublisher) PublishBatch(ctx context.Context, batchSize int) error {
+	return p.publishBatch(ctx, batchSize)
+}
+
+func (p *OutboxPublisher) PublishEvent(ctx context.Context, event domain.OutboxEvent) error {
+	return p.publishEvent(ctx, event)
 }
 
 func marshalEvent(data interface{}) (string, error) {

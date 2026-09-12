@@ -8,8 +8,14 @@ import (
 	"go.uber.org/zap"
 )
 
+// MessageWriter is an interface for writing Kafka messages.
+// Both *kafka.Writer and test mocks implement this.
+type MessageWriter interface {
+	WriteMessages(ctx context.Context, msgs ...kafka.Message) error
+}
+
 type Producer struct {
-	writer *kafka.Writer
+	writer MessageWriter
 	logger *zap.Logger
 }
 
@@ -38,5 +44,8 @@ func (p *Producer) WriteMessages(ctx context.Context, msgs ...kafka.Message) err
 }
 
 func (p *Producer) Close() error {
-	return p.writer.Close()
+	if closer, ok := p.writer.(*kafka.Writer); ok {
+		return closer.Close()
+	}
+	return nil
 }

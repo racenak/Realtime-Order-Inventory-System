@@ -169,3 +169,15 @@ func (c *Consumer) Close() error {
 	}
 	return c.reader.Close()
 }
+
+func (c *Consumer) HandleWithRetry(ctx context.Context, msg kafka.Message) error {
+	return c.handleWithRetry(ctx, msg)
+}
+
+func (c *Consumer) SendToDLQ(ctx context.Context, originalMsg kafka.Message, handlerErr error) error {
+	return c.sendToDLQ(ctx, originalMsg, handlerErr)
+}
+
+func (c *Consumer) Config() ConsumerConfig {
+	return c.config
+}

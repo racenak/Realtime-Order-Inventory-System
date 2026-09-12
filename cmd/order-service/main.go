@@ -82,6 +82,12 @@ func main() {
 	outboxPublisher := orderkafka.NewOutboxPublisher(outboxRepo, cfg.Kafka.Brokers, logger)
 	go outboxPublisher.Start(ctx, 5*time.Second, 10)
 
+	inventoryEventWriter := &kafka.Writer{
+		Addr:         kafka.TCP(cfg.Kafka.Brokers...),
+		Balancer:     &kafka.LeastBytes{},
+		BatchTimeout: 10 * time.Millisecond,
+	}
+
 	inventoryConsumer := kafkakit.NewConsumer(
 		kafkakit.ConsumerConfig{
 			Brokers:  cfg.Kafka.Brokers,
@@ -90,7 +96,7 @@ func main() {
 			MinBytes: 1,
 			MaxBytes: 10e6,
 		},
-		orderkafka.NewInventoryEventHandler(orderUC, &kafka.Writer{}, logger).Handle,
+		orderkafka.NewInventoryEventHandler(orderUC, inventoryEventWriter, logger).Handle,
 		logger,
 	)
 	go func() {

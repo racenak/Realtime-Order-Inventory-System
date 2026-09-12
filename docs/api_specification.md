@@ -1,724 +1,381 @@
 # API Specification
 
-## Overview
-
-| Property | Value |
-|----------|-------|
-| Base URL | `https://{domain}/api` |
-| Version | v1 |
-| Format | JSON |
-| Auth | Bearer Token (JWT) |
+**Base URL**: `http://localhost:8088` (Traefik reverse proxy)
 
 ## Authentication
 
-All API requests (except `/health`) require a valid JWT in the `Authorization` header. The JWT is validated by the Auth Service via Traefik ForwardAuth middleware.
-
-### Auth Service
-
-| Property | Value |
-|----------|-------|
-| Port | 8083 (internal) |
-| Endpoint | `POST /verify` |
-| Validation | HMAC-SHA256, issuer, audience, expiration |
-
-### Token Structure
-
-```json
-{
-  "user_id": "uuid",
-  "email": "user@example.com",
-  "role": "customer|warehouse_manager|admin",
-  "iss": "order-inventory-system",
-  "aud": "order-inventory-api",
-  "exp": 1234567890
-}
-```
-
-### Headers
+All API requests require a valid JWT token in the `Authorization` header:
 
 ```
 Authorization: Bearer <token>
-Content-Type: application/json
-Idempotency-Key: <unique-key>   (for POST requests)
 ```
 
-### Traefik Middleware Chain
+Traefik forwards authentication to the Auth Service via ForwardAuth middleware. On valid JWT, downstream services receive `X-User-Id` and `X-User-Role` headers.
 
-| Chain | Middlewares | Used By |
-|-------|------------|---------|
-| `public-chain` | rate-limit, security-headers | `/health` |
-| `protected-chain` | jwt-auth, rate-limit, security-headers | `/api/*`, `/ws` |
+### JWT Validation Rules
 
-### Response Headers (from Auth Service)
+| Rule | Value |
+|------|-------|
+| Algorithm | HMAC-SHA256 |
+| Issuer | `order-inventory-system` |
+| Audience | `order-inventory-api` |
+| Expiry | Required |
 
-When JWT is valid, Traefik forwards these headers to downstream services:
+### Rate Limiting
 
-| Header | Description |
-|--------|-------------|
-| `X-User-Id` | Authenticated user's UUID |
-| `X-User-Role` | User's role (customer, warehouse_manager, admin) |
+- **100 requests/second** per IP
+- **50 burst** capacity
 
 ---
 
-## Order Service
+## Response Format
 
-**Base Path:** `/api/orders`
-
-### 1. Create Order
-
-```http
-POST /api/orders
-```
-
-**Request:**
+All responses use JSON. Successful operations return the resource directly. Errors follow a standard envelope:
 
 ```json
 {
+  "error": {
+    "code": "ORDER_NOT_FOUND",
+    "message": "order not found"
+  }
+}
+```
+
+### HTTP Status Codes
+
+| Code | Meaning | When |
+|------|---------|------|
+| 200 | OK | GET requests, successful operations |
+| 201 | Created | POST requests that create a resource |
+| 400 | Bad Request | Invalid request body, missing fields |
+| 404 | Not Found | Resource doesn't exist |
+| 409 | Conflict | Duplicate idempotency key |
+| 500 | Internal Server Error | Unexpected errors |
+
+---
+
+## Order Endpoints
+
+### Create Order
+
+```http
+POST /api/orders
+Content-Type: application/json
+Idempotency-Key: unique-key-from-client
+
+{
+  "customer_id": "cust_01HXYZ123456",
   "items": [
     {
-      "product_id": "prod_001",
-      "quantity": 2
-    },
-    {
-      "product_id": "prod_002",
-      "quantity": 1
+      "product_id": "prod_01HXYZ789012",
+      "sku": "LAPTOP-001",
+      "product_name": "Gaming Laptop",
+      "quantity": 1,
+      "unit_price": 1299.99
     }
   ],
   "shipping_address": {
     "street": "123 Main St",
-    "city": "New York",
-    "state": "NY",
-    "zip": "10001",
+    "city": "Portland",
+    "state": "OR",
+    "zip": "97201",
     "country": "US"
   }
 }
 ```
 
+**Idempotency:**
+- Client sends `Idempotency-Key` header with a unique value
+- Order is looked up by idempotency key before insert (`GetByIDempotencyKey`)
+- If key exists: returns `409 Conflict` with existing order in error body
+- If key is new: inserts order, creates outbox event in same DB transaction
+
 **Response (201):**
-
 ```json
 {
-  "success": true,
-  "data": {
-    "order_id": "ord_abc123",
-    "status": "pending_payment",
-    "items": [
-      {
-        "product_id": "prod_001",
-        "product_name": "Widget A",
-        "quantity": 2,
-        "unit_price": 29.99,
-        "total_price": 59.98
-      },
-      {
-        "product_id": "prod_002",
-        "product_name": "Gadget B",
-        "quantity": 1,
-        "unit_price": 49.99,
-        "total_price": 49.99
-      }
-    ],
-    "subtotal": 109.97,
-    "tax": 8.80,
-    "total": 118.77,
-    "shipping_address": {
-      "street": "123 Main St",
-      "city": "New York",
-      "state": "NY",
-      "zip": "10001",
-      "country": "US"
-    },
-    "created_at": "2024-01-15T10:30:00Z"
+  "id": "01HXYZ1234567890ABCDEF01",
+  "customer_id": "cust_01HXYZ123456",
+  "status": "pending",
+  "currency": "USD",
+  "subtotal": 1299.99,
+  "total_amount": 1299.99,
+  "created_at": "2026-09-09T10:30:00Z"
+}
+```
+
+**Response (409):**
+```json
+{
+  "error": {
+    "code": "ORDER_ALREADY_EXISTS",
+    "message": "duplicate idempotency key",
+    "details": "existing order 01HXYZ9876543210FEDCBA98 returned"
   }
 }
 ```
 
-**Error Responses:**
+**Events Produced:**
+- `order.created` (Topic: `order.created`)
+- Stored in `outbox_events` table (status: PENDING) within DB transaction
 
-| Code | Error | Description |
-|------|-------|-------------|
-| 400 | `INVALID_REQUEST` | Missing required fields |
-| 400 | `EMPTY_CART` | No items in order |
-| 400 | `INVALID_QUANTITY` | Quantity must be > 0 |
-| 404 | `PRODUCT_NOT_FOUND` | Product does not exist |
-| 409 | `INSUFFICIENT_STOCK` | Not enough inventory |
-| 429 | `RATE_LIMITED` | Too many requests |
-
----
-
-### 2. Get Order
+### Get Order
 
 ```http
-GET /api/orders/{order_id}
+GET /api/orders/{id}
 ```
 
 **Response (200):**
-
 ```json
 {
-  "success": true,
-  "data": {
-    "order_id": "ord_abc123",
-    "user_id": "usr_xyz789",
-    "status": "processing",
-    "items": [...],
-    "subtotal": 109.97,
-    "tax": 8.80,
-    "total": 118.77,
-    "shipping_address": {...},
-    "status_history": [
-      {
-        "status": "pending_payment",
-        "changed_at": "2024-01-15T10:30:00Z"
-      },
-      {
-        "status": "paid",
-        "changed_at": "2024-01-15T10:31:15Z"
-      },
-      {
-        "status": "processing",
-        "changed_at": "2024-01-15T10:35:00Z"
-      }
-    ],
-    "created_at": "2024-01-15T10:30:00Z",
-    "updated_at": "2024-01-15T10:35:00Z"
-  }
-}
-```
-
----
-
-### 3. List Orders
-
-```http
-GET /api/orders
-```
-
-**Query Parameters:**
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `page` | int | 1 | Page number |
-| `limit` | int | 20 | Items per page (max 100) |
-| `status` | string | - | Filter by status |
-| `sort` | string | created_at | Sort field |
-| `order` | string | desc | Sort order (asc/desc) |
-| `from` | string | - | Start date (RFC3339) |
-| `to` | string | - | End date (RFC3339) |
-
-**Response (200):**
-
-```json
-{
-  "success": true,
-  "data": {
-    "orders": [...],
-    "pagination": {
-      "current_page": 1,
-      "total_pages": 10,
-      "total_items": 195,
-      "items_per_page": 20
+  "id": "01HXYZ1234567890ABCDEF01",
+  "customer_id": "cust_01HXYZ123456",
+  "status": "pending",
+  "currency": "USD",
+  "subtotal": 1299.99,
+  "total_amount": 1299.99,
+  "items": [
+    {
+      "id": "item-uuid",
+      "product_id": "prod_01HXYZ789012",
+      "sku": "LAPTOP-001",
+      "product_name": "Gaming Laptop",
+      "quantity": 1,
+      "unit_price": 1299.99,
+      "total_amount": 1299.99
     }
-  }
+  ],
+  "created_at": "2026-09-09T10:30:00Z",
+  "updated_at": "2026-09-09T10:30:00Z"
 }
 ```
 
----
-
-### 4. Cancel Order
+### List Orders
 
 ```http
-POST /api/orders/{order_id}/cancel
+GET /api/orders?customer_id=cust_01HXYZ123456&limit=20&offset=0
 ```
-
-**Request:**
-
-```json
-{
-  "reason": "Changed my mind"
-}
-```
-
-**Response (200):**
-
-```json
-{
-  "success": true,
-  "data": {
-    "order_id": "ord_abc123",
-    "status": "cancelled",
-    "cancelled_at": "2024-01-15T11:00:00Z",
-    "refund_status": "pending"
-  }
-}
-```
-
-**Error Responses:**
-
-| Code | Error | Description |
-|------|-------|-------------|
-| 400 | `ORDER_NOT_CANCELLABLE` | Order already shipped/delivered |
-| 404 | `ORDER_NOT_FOUND` | Order does not exist |
-
----
-
-### 5. Get Order Status
-
-```http
-GET /api/orders/{order_id}/status
-```
-
-**Response (200):**
-
-```json
-{
-  "success": true,
-  "data": {
-    "order_id": "ord_abc123",
-    "status": "shipped",
-    "tracking_number": "TRK123456",
-    "carrier": "UPS",
-    "estimated_delivery": "2024-01-18"
-  }
-}
-```
-
----
-
-## Inventory Service
-
-**Base Path:** `/api/inventory`
-
-### 6. Get Product Stock
-
-```http
-GET /api/inventory/stock/{product_id}
-```
-
-**Response (200):**
-
-```json
-{
-  "success": true,
-  "data": {
-    "product_id": "prod_001",
-    "product_name": "Widget A",
-    "total_quantity": 500,
-    "total_reserved": 25,
-    "available": 475,
-    "warehouses": [
-      {
-        "warehouse_id": "wh_nyc",
-        "warehouse_name": "New York Warehouse",
-        "quantity": 200,
-        "reserved": 10,
-        "available": 190
-      },
-      {
-        "warehouse_id": "wh_la",
-        "warehouse_name": "Los Angeles Warehouse",
-        "quantity": 300,
-        "reserved": 15,
-        "available": 285
-      }
-    ]
-  }
-}
-```
-
----
-
-### 7. List Inventory
-
-```http
-GET /api/inventory
-```
-
-**Query Parameters:**
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `page` | int | 1 | Page number |
-| `limit` | int | 20 | Items per page |
-| `warehouse_id` | string | - | Filter by warehouse |
-| `low_stock` | bool | - | Only low stock items |
-| `search` | string | - | Search by product name/SKU |
+| customer_id | string | (empty) | Filter by customer. If omitted, returns all orders. |
+| limit | int | 20 | Max results per page (max 100) |
+| offset | int | 0 | Pagination offset |
+
+### Cancel Order
+
+```http
+POST /api/orders/{id}/cancel
+```
+
+Cancels a pending order. Cannot cancel orders with status `shipped` or `delivered`.
 
 **Response (200):**
-
 ```json
 {
-  "success": true,
-  "data": {
-    "items": [
-      {
-        "product_id": "prod_001",
-        "product_name": "Widget A",
-        "sku": "WGT-001",
-        "warehouse_id": "wh_nyc",
-        "quantity": 200,
-        "reserved": 10,
-        "available": 190,
-        "low_stock_threshold": 50,
-        "is_low_stock": false
-      }
-    ],
-    "pagination": {...}
-  }
+  "id": "01HXYZ1234567890ABCDEF01",
+  "status": "cancelled"
 }
 ```
 
+**Events Produced:**
+- `order.cancelled` (Topic: `order.cancelled`)
+
 ---
 
-### 8. Update Stock
+## Inventory Endpoints
+
+### Get Stock
+
+```http
+GET /api/inventory/{product_id}
+```
+
+Returns stock for a product across all warehouses.
+
+**Response (200):**
+```json
+{
+  "product_id": "prod_01HXYZ789012",
+  "warehouses": [
+    {
+      "warehouse_id": "wh_01HXYZ...",
+      "warehouse_code": "MAIN",
+      "quantity_on_hand": 50,
+      "quantity_reserved": 5,
+      "available": 45
+    }
+  ],
+  "total_available": 45
+}
+```
+
+### Reserve Stock
+
+```http
+POST /api/inventory/reserve
+Content-Type: application/json
+
+{
+  "order_id": "01HXYZ1234567890ABCDEF01",
+  "order_item_id": "item-uuid",
+  "product_id": "prod_01HXYZ789012",
+  "sku": "LAPTOP-001",
+  "quantity": 2,
+  "warehouse_code": "MAIN"
+}
+```
+
+**Response (201):**
+```json
+{
+  "reservation_id": "01HXYZ...",
+  "status": "confirmed",
+  "quantity": 2,
+  "expires_at": "2026-09-09T11:00:00Z"
+}
+```
+
+**Events Produced:**
+- `inventory.reserved` (on success)
+- `inventory.reservation_failed` (on insufficient stock)
+
+### Release Reservation
+
+```http
+POST /api/inventory/release
+Content-Type: application/json
+
+{
+  "reservation_id": "01HXYZ...",
+  "order_id": "01HXYZ1234567890ABCDEF01"
+}
+```
+
+**Events Produced:**
+- `inventory.released`
+
+### Update Stock
 
 ```http
 PUT /api/inventory/stock
-```
+Content-Type: application/json
 
-**Request:**
-
-```json
 {
-  "product_id": "prod_001",
-  "warehouse_id": "wh_nyc",
-  "quantity": 250,
-  "reason": "Restock shipment received"
+  "product_id": "prod_01HXYZ789012",
+  "sku": "LAPTOP-001",
+  "warehouse_code": "MAIN",
+  "quantity": 50
 }
 ```
 
-**Response (200):**
+Upserts inventory record: creates if not found for product/warehouse combo.
 
-```json
-{
-  "success": true,
-  "data": {
-    "product_id": "prod_001",
-    "warehouse_id": "wh_nyc",
-    "previous_quantity": 200,
-    "new_quantity": 250,
-    "movement_id": "mov_xyz123",
-    "updated_at": "2024-01-15T12:00:00Z"
-  }
-}
-```
-
----
-
-### 9. Transfer Stock
-
-```http
-POST /api/inventory/transfer
-```
-
-**Request:**
-
-```json
-{
-  "product_id": "prod_001",
-  "from_warehouse_id": "wh_la",
-  "to_warehouse_id": "wh_nyc",
-  "quantity": 50,
-  "reason": "Rebalance inventory"
-}
-```
-
-**Response (201):**
-
-```json
-{
-  "success": true,
-  "data": {
-    "transfer_id": "tfr_abc123",
-    "product_id": "prod_001",
-    "from_warehouse": {
-      "warehouse_id": "wh_la",
-      "previous_quantity": 300,
-      "new_quantity": 250
-    },
-    "to_warehouse": {
-      "warehouse_id": "wh_nyc",
-      "previous_quantity": 200,
-      "new_quantity": 250
-    },
-    "status": "in_transit",
-    "created_at": "2024-01-15T12:30:00Z"
-  }
-}
-```
-
----
-
-### 10. Get Movement History
-
-```http
-GET /api/inventory/movements
-```
-
-**Query Parameters:**
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `product_id` | string | - | Filter by product |
-| `warehouse_id` | string | - | Filter by warehouse |
-| `type` | string | - | in/out/transfer |
-| `from` | string | - | Start date |
-| `to` | string | - | End date |
-| `page` | int | 1 | Page number |
-| `limit` | int | 20 | Items per page |
-
-**Response (200):**
-
-```json
-{
-  "success": true,
-  "data": {
-    "movements": [
-      {
-        "movement_id": "mov_xyz123",
-        "product_id": "prod_001",
-        "warehouse_id": "wh_nyc",
-        "type": "in",
-        "quantity": 50,
-        "reference_id": "tfr_abc123",
-        "reference_type": "transfer",
-        "notes": "Transfer from LA warehouse",
-        "created_by": "usr_mgr001",
-        "created_at": "2024-01-15T12:30:00Z"
-      }
-    ],
-    "pagination": {...}
-  }
-}
-```
-
----
-
-### 11. Set Low Stock Threshold
-
-```http
-PUT /api/inventory/threshold
-```
-
-**Request:**
-
-```json
-{
-  "product_id": "prod_001",
-  "warehouse_id": "wh_nyc",
-  "threshold": 50
-}
-```
-
-**Response (200):**
-
-```json
-{
-  "success": true,
-  "data": {
-    "product_id": "prod_001",
-    "warehouse_id": "wh_nyc",
-    "low_stock_threshold": 50,
-    "current_stock": 190,
-    "is_low_stock": false
-  }
-}
-```
+**Events Produced:**
+- `inventory.updated`
 
 ---
 
 ## WebSocket Service
 
-**Connection:** `wss://{domain}/ws`
+### Connect
 
-### Authentication
-
-```
-wss://domain.com/ws?token=<jwt_token>
+```http
+GET /ws?channels=order_id:01HXYZ...&channels=product_id:prod_01HXYZ789012
 ```
 
-### Subscribe to Channels
+Query parameter `channels` specifies which event channels to subscribe to. Multiple channels can be specified.
 
-**Request:**
+### Subscribe to Order Updates
 
+```http
+GET /ws?channels=order_id:{order_id}
+```
+
+### Subscribe to Product Updates
+
+```http
+GET /ws?channels=product_id:{product_id}
+```
+
+### Subscribe to Inventory Updates
+
+```http
+GET /ws?channels=product_id:{product_id}
+```
+
+### Message Format
+
+**Order Update:**
 ```json
 {
-  "action": "subscribe",
-  "channels": [
-    "order:ord_abc123",
-    "inventory:prod_001",
-    "inventory:warehouse:wh_nyc"
-  ]
-}
-```
-
-### Unsubscribe
-
-```json
-{
-  "action": "unsubscribe",
-  "channels": ["order:ord_abc123"]
-}
-```
-
-### Events Received
-
-#### Order Status Update
-
-```json
-{
-  "event": "order.status_changed",
+  "type": "order_update",
   "data": {
-    "order_id": "ord_abc123",
-    "status": "shipped",
-    "previous_status": "processing",
-    "tracking_number": "TRK123456",
-    "updated_at": "2024-01-15T14:00:00Z"
+    "order_id": "01HXYZ...",
+    "status": "confirmed",
+    "updated_at": "2026-09-09T10:35:00Z"
   }
 }
 ```
 
-#### Inventory Update
-
+**Inventory Update:**
 ```json
 {
-  "event": "inventory.updated",
+  "type": "inventory_update",
   "data": {
-    "product_id": "prod_001",
-    "warehouse_id": "wh_nyc",
-    "previous_quantity": 200,
-    "new_quantity": 190,
-    "available": 180,
-    "updated_at": "2024-01-15T14:05:00Z"
-  }
-}
-```
-
-#### Low Stock Alert
-
-```json
-{
-  "event": "inventory.low_stock",
-  "data": {
-    "product_id": "prod_001",
-    "product_name": "Widget A",
-    "warehouse_id": "wh_nyc",
-    "current_stock": 45,
-    "threshold": 50,
-    "alert_at": "2024-01-15T14:10:00Z"
+    "product_id": "prod_01HXYZ789012",
+    "available": 45,
+    "updated_at": "2026-09-09T10:35:00Z"
   }
 }
 ```
 
 ### Heartbeat
 
-**Server Ping (every 30s):**
-
-```json
-{
-  "event": "ping"
-}
-```
-
-**Client Pong:**
-
-```json
-{
-  "event": "pong"
-}
-```
+WebSocket service sends ping frames every 54 seconds. Clients must respond with pong within 60 seconds or the connection is closed.
 
 ---
 
-## Error Response Format
+## Health Check
 
+```http
+GET /health
+```
+
+**Response (200):**
 ```json
 {
-  "success": false,
-  "error": {
-    "code": "ERROR_CODE",
-    "message": "Human readable message",
-    "details": {
-      "field": "Additional context"
-    }
-  },
-  "request_id": "req_uuid"
-}
-```
-
-### Standard Error Codes
-
-| Code | HTTP Status | Description |
-|------|-------------|-------------|
-| `INVALID_REQUEST` | 400 | Bad request format |
-| `UNAUTHORIZED` | 401 | Invalid or missing token |
-| `FORBIDDEN` | 403 | Insufficient permissions |
-| `NOT_FOUND` | 404 | Resource not found |
-| `CONFLICT` | 409 | Resource conflict |
-| `RATE_LIMITED` | 429 | Rate limit exceeded |
-| `INTERNAL_ERROR` | 500 | Server error |
-| `SERVICE_UNAVAILABLE` | 503 | Downstream service unavailable |
-
----
-
-## Rate Limits
-
-| Endpoint | Limit | Window |
-|----------|-------|--------|
-| `POST /api/orders` | 10 req | 1 min |
-| `GET /api/orders` | 100 req | 1 min |
-| `GET /api/inventory` | 100 req | 1 min |
-| `PUT /api/inventory/*` | 30 req | 1 min |
-| WebSocket connections | 5 per user | - |
-
-**Headers:**
-
-```
-X-RateLimit-Limit: 100
-X-RateLimit-Remaining: 95
-X-RateLimit-Reset: 1705320000
-```
-
----
-
-## Pagination
-
-**Request:**
-
-```
-GET /api/orders?page=2&limit=20
-```
-
-**Response:**
-
-```json
-{
-  "pagination": {
-    "current_page": 2,
-    "total_pages": 10,
-    "total_items": 195,
-    "items_per_page": 20,
-    "has_next": true,
-    "has_previous": true
-  }
+  "status": "healthy",
+  "service": "order-service"
 }
 ```
 
 ---
 
-## Versioning
+## Metrics
 
-API version is included in the URL path:
-
-```
-/api/v1/orders
-/api/v2/orders
+```http
+GET :9090/metrics  (Prometheus scraping endpoint)
 ```
 
-Deprecated versions return header:
+Each Go service exposes `/metrics` via `promhttp.Handler()`.
 
-```
-Sunset: Sat, 01 Jun 2025 00:00:00 GMT
-Deprecation: true
-Link: </api/v2/orders>; rel="successor-version"
-```
+**Custom Business Metrics (16 total):**
+
+| Metric | Type | Description |
+|--------|------|-------------|
+| `orders_created_total` | Counter | Total orders created |
+| `orders_completed_total` | Counter | Total orders completed |
+| `orders_cancelled_total` | Counter | Total orders cancelled |
+| `order_processing_duration_seconds` | Histogram | Order processing duration |
+| `inventory_reservations_total` | Counter | Total reservations |
+| `inventory_releases_total` | Counter | Total releases |
+| `inventory_movements_total` | Counter | Total movements |
+| `inventory_stock_level` | Gauge | Current stock level |
+| `websocket_connections_active` | Gauge | Active WS connections |
+| `websocket_messages_sent_total` | Counter | Total WS messages sent |
+| `kafka_messages_published_total` | Counter | Total messages published |
+| `kafka_messages_consumed_total` | Counter | Total messages consumed |
+| `kafka_publish_errors_total` | Counter | Total publish errors |
+| `kafka_dlq_messages_total` | Counter | Total DLQ messages |
+| `http_requests_total` | Counter | Total HTTP requests |
+| `http_request_duration_seconds` | Histogram | HTTP request duration |

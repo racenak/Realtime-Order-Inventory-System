@@ -2,686 +2,224 @@
 
 ## Overview
 
-| Property | Value |
-|----------|-------|
-| Message Broker | Apache Kafka |
-| Serialization | JSON |
-| Delivery | At-least-once |
-| Ordering | Per partition (by aggregate_id) |
-
-## Event Bus Architecture
-
-```
-┌─────────────────────────────────────────────────────────────────────────────────┐
-│                              KAFKA CLUSTER                                       │
-│                                                                                 │
-│  ┌─────────────────────────────────────────────────────────────────────────┐   │
-│  │                           Topics                                        │   │
-│  │                                                                         │   │
-│  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐                 │   │
-│  │  │order.created │  │order.paid    │  │order.cancelled│                │   │
-│  │  │  (3 parts)   │  │  (3 parts)   │  │  (3 parts)   │                 │   │
-│  │  └──────────────┘  └──────────────┘  └──────────────┘                 │   │
-│  │                                                                         │   │
-│  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐                 │   │
-│  │  │inventory.    │  │inventory.    │  │inventory.    │                 │   │
-│  │  │reserved      │  │updated       │  │low_stock     │                 │   │
-│  │  │  (3 parts)   │  │  (3 parts)   │  │  (3 parts)   │                 │   │
-│  │  └──────────────┘  └──────────────┘  └──────────────┘                 │   │
-│  │                                                                         │   │
-│  │  ┌──────────────┐  ┌──────────────┐                                   │   │
-│  │  │order.        │  │notification. │                                   │   │
-│  │  │status.changed│  │send          │                                   │   │
-│  │  │  (3 parts)   │  │  (3 parts)   │                                   │   │
-│  │  └──────────────┘  └──────────────┘                                   │   │
-│  └─────────────────────────────────────────────────────────────────────────┘   │
-│                                                                                 │
-│  ┌─────────────────────────────────────────────────────────────────────────┐   │
-│  │                        Consumer Groups                                  │   │
-│  │                                                                         │   │
-│  │  ┌────────────────┐  ┌────────────────┐  ┌────────────────┐           │   │
-│  │  │inventory-svc   │  │order-svc       │  │websocket-svc   │           │   │
-│  │  │consumer-group  │  │consumer-group  │  │consumer-group  │           │   │
-│  │  └────────────────┘  └────────────────┘  └────────────────┘           │   │
-│  └─────────────────────────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────────────────────────┘
-```
+Events are the backbone of inter-service communication. The system uses **Kafka** as the event bus with the **Outbox Pattern** for reliable publishing.
 
 ---
 
-## Topics
+## Event Types
 
-| Topic | Partitions | Retention | Consumers |
-|-------|------------|-----------|-----------|
-| `order.created` | 3 | 7 days | inventory-svc |
-| `order.paid` | 3 | 7 days | inventory-svc |
-| `order.confirmed` | 3 | 7 days | inventory-svc |
-| `order.cancelled` | 3 | 7 days | inventory-svc |
-| `order.shipped` | 3 | 7 days | notification-svc |
-| `order.delivered` | 3 | 7 days | notification-svc |
-| `order.status.changed` | 3 | 7 days | websocket-svc |
-| `inventory.reserved` | 3 | 7 days | order-svc |
-| `inventory.released` | 3 | 7 days | order-svc |
-| `inventory.updated` | 3 | 7 days | websocket-svc |
-| `inventory.low_stock` | 3 | 30 days | notification-svc |
-| `notification.send` | 3 | 7 days | notification-svc |
-| `dead_letter` | 3 | 30 days | monitoring |
+| Event | Topic | Producer | Consumer | Description |
+|-------|-------|----------|----------|-------------|
+| `order.created` | `order.created` | Order Service | Inventory Service | Trigger stock reservation |
+| `order.confirmed` | `order.confirmed` | Order Service | Inventory Service | Confirm stock deduction |
+| `order.cancelled` | `order.cancelled` | Order Service | Inventory Service | Release reserved stock |
+| `order.paid` | `order.paid` | Order Service | — | Payment confirmed |
+| `order.shipped` | `order.shipped` | Order Service | — | Order shipped |
+| `order.delivered` | `order.delivered` | Order Service | — | Order delivered |
+| `order.status.changed` | `order.status.changed` | Order Service | WebSocket Service | Notify order progress |
+| `inventory.reserved` | `inventory.reserved` | Inventory Service | Order Service | Confirm reservation success |
+| `inventory.released` | `inventory.released` | Inventory Service | Order Service | Reservation released |
+| `inventory.reservation_failed` | `inventory.reservation_failed` | Inventory Service | Order Service | Reservation failed |
+| `inventory.updated` | `inventory.updated` | Inventory Service | WebSocket Service | Broadcast stock changes |
+| `inventory.low_stock` | `inventory.low_stock` | Inventory Service | — | Low stock alert |
+
+**Consumer config**: Manual offset commit (`CommitInterval: 0`), configurable retry (`MaxRetries: 3`, `RetryDelay: 1s`), DLQ on final failure.
 
 ---
 
-## Event Schemas
+## Event Schema
 
-### Order Events
-
-#### order.created
-
-Triggered when a new order is placed.
+### CloudEvents-inspired (simplified)
 
 ```json
 {
-  "event_id": "evt_01H1234567890ABCDE",
-  "event_type": "order.created",
-  "event_version": "1.0",
-  "timestamp": "2024-01-15T10:30:00Z",
-  "producer": "order-service",
-  "correlation_id": "corr_abc123",
+  "id": "evt_01HXYZ123456",
+  "type": "order.created",
+  "source": "order-service",
   "data": {
-    "order_id": "ord_abc123",
-    "customer_id": "usr_xyz789",
-    "status": "pending_payment",
-    "currency": "USD",
-    "subtotal": 109.97,
-    "discount_amount": 0.00,
-    "shipping_fee": 9.99,
-    "tax_amount": 8.80,
-    "total_amount": 118.77,
-    "items": [
-      {
-        "order_item_id": "itm_001",
-        "product_id": "prod_001",
-        "sku": "WGT-001",
-        "product_name": "Widget A",
-        "quantity": 2,
-        "unit_price": 29.99,
-        "total_price": 59.98
-      },
-      {
-        "order_item_id": "itm_002",
-        "product_id": "prod_002",
-        "sku": "GDG-002",
-        "product_name": "Gadget B",
-        "quantity": 1,
-        "unit_price": 49.99,
-        "total_price": 49.99
-      }
-    ],
-    "shipping_address": {
-      "street": "123 Main St",
-      "city": "New York",
-      "state": "NY",
-      "zip": "10001",
-      "country": "US"
-    }
-  }
+    "order_id": "01HXYZ1234567890ABCDEF01",
+    "customer_id": "cust_01HXYZ123456",
+    "items": [...],
+    "total_amount": 1299.99
+  },
+  "timestamp": "2026-09-09T10:30:00Z"
 }
 ```
 
----
+### Fields
 
-#### order.paid
-
-Triggered when payment is confirmed.
-
-```json
-{
-  "event_id": "evt_01H1234567890ABCDEF",
-  "event_type": "order.paid",
-  "event_version": "1.0",
-  "timestamp": "2024-01-15T10:31:15Z",
-  "producer": "order-service",
-  "correlation_id": "corr_abc123",
-  "data": {
-    "order_id": "ord_abc123",
-    "customer_id": "usr_xyz789",
-    "status": "paid",
-    "payment": {
-      "payment_id": "pay_xyz789",
-      "amount": 118.77,
-      "currency": "USD",
-      "method": "credit_card",
-      "paid_at": "2024-01-15T10:31:15Z"
-    }
-  }
-}
-```
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| id | string | Yes | Unique event ID (UUID v7) |
+| type | string | Yes | Event type (e.g., `order.created`) |
+| source | string | Yes | Service that produced the event |
+| data | object | Yes | Event payload |
+| timestamp | string | Yes | ISO 8601 timestamp |
 
 ---
 
-#### order.confirmed
+## Outbox Pattern
 
-Triggered after inventory reservation is successful.
-
-```json
-{
-  "event_id": "evt_01H1234567890ABCDF0",
-  "event_type": "order.confirmed",
-  "event_version": "1.0",
-  "timestamp": "2024-01-15T10:35:00Z",
-  "producer": "order-service",
-  "correlation_id": "corr_abc123",
-  "data": {
-    "order_id": "ord_abc123",
-    "customer_id": "usr_xyz789",
-    "status": "processing",
-    "reservations": [
-      {
-        "reservation_id": "rsv_001",
-        "product_id": "prod_001",
-        "warehouse_id": "wh_nyc",
-        "quantity": 2
-      },
-      {
-        "reservation_id": "rsv_002",
-        "product_id": "prod_002",
-        "warehouse_id": "wh_nyc",
-        "quantity": 1
-      }
-    ]
-  }
-}
-```
-
----
-
-#### order.cancelled
-
-Triggered when an order is cancelled.
-
-```json
-{
-  "event_id": "evt_01H1234567890ABCDG1",
-  "event_type": "order.cancelled",
-  "event_version": "1.0",
-  "timestamp": "2024-01-15T11:00:00Z",
-  "producer": "order-service",
-  "correlation_id": "corr_abc123",
-  "data": {
-    "order_id": "ord_abc123",
-    "customer_id": "usr_xyz789",
-    "status": "cancelled",
-    "cancelled_by": "customer",
-    "reason": "Changed my mind",
-    "refund_required": true,
-    "reservation_ids": ["rsv_001", "rsv_002"]
-  }
-}
-```
-
----
-
-#### order.shipped
-
-Triggered when an order is shipped.
-
-```json
-{
-  "event_id": "evt_01H1234567890ABCDG2",
-  "event_type": "order.shipped",
-  "event_version": "1.0",
-  "timestamp": "2024-01-15T14:00:00Z",
-  "producer": "order-service",
-  "correlation_id": "corr_abc123",
-  "data": {
-    "order_id": "ord_abc123",
-    "customer_id": "usr_xyz789",
-    "status": "shipped",
-    "shipment": {
-      "carrier": "UPS",
-      "tracking_number": "TRK123456",
-      "estimated_delivery": "2024-01-18",
-      "shipped_at": "2024-01-15T14:00:00Z"
-    }
-  }
-}
-```
-
----
-
-#### order.status.changed
-
-Triggered on any status change for WebSocket broadcast.
-
-```json
-{
-  "event_id": "evt_01H1234567890ABCDG3",
-  "event_type": "order.status.changed",
-  "event_version": "1.0",
-  "timestamp": "2024-01-15T14:00:00Z",
-  "producer": "order-service",
-  "correlation_id": "corr_abc123",
-  "data": {
-    "order_id": "ord_abc123",
-    "customer_id": "usr_xyz789",
-    "previous_status": "processing",
-    "new_status": "shipped",
-    "tracking_number": "TRK123456",
-    "updated_at": "2024-01-15T14:00:00Z"
-  }
-}
-```
-
----
-
-### Inventory Events
-
-#### inventory.reserved
-
-Triggered when stock is successfully reserved.
-
-```json
-{
-  "event_id": "evt_01H1234567890ABCDG4",
-  "event_type": "inventory.reserved",
-  "event_version": "1.0",
-  "timestamp": "2024-01-15T10:33:00Z",
-  "producer": "inventory-service",
-  "correlation_id": "corr_abc123",
-  "data": {
-    "order_id": "ord_abc123",
-    "reservations": [
-      {
-        "reservation_id": "rsv_001",
-        "product_id": "prod_001",
-        "product_name": "Widget A",
-        "sku": "WGT-001",
-        "warehouse_id": "wh_nyc",
-        "warehouse_name": "New York Warehouse",
-        "quantity": 2,
-        "expires_at": "2024-01-15T10:48:00Z"
-      },
-      {
-        "reservation_id": "rsv_002",
-        "product_id": "prod_002",
-        "product_name": "Gadget B",
-        "sku": "GDG-002",
-        "warehouse_id": "wh_nyc",
-        "warehouse_name": "New York Warehouse",
-        "quantity": 1,
-        "expires_at": "2024-01-15T10:48:00Z"
-      }
-    ]
-  }
-}
-```
-
----
-
-#### inventory.released
-
-Triggered when reserved stock is released.
-
-```json
-{
-  "event_id": "evt_01H1234567890ABCDG5",
-  "event_type": "inventory.released",
-  "event_version": "1.0",
-  "timestamp": "2024-01-15T11:05:00Z",
-  "producer": "inventory-service",
-  "correlation_id": "corr_abc123",
-  "data": {
-    "order_id": "ord_abc123",
-    "released_items": [
-      {
-        "reservation_id": "rsv_001",
-        "product_id": "prod_001",
-        "warehouse_id": "wh_nyc",
-        "quantity": 2
-      },
-      {
-        "reservation_id": "rsv_002",
-        "product_id": "prod_002",
-        "warehouse_id": "wh_nyc",
-        "quantity": 1
-      }
-    ]
-  }
-}
-```
-
----
-
-#### inventory.updated
-
-Triggered when stock levels change.
-
-```json
-{
-  "event_id": "evt_01H1234567890ABCDG6",
-  "event_type": "inventory.updated",
-  "event_version": "1.0",
-  "timestamp": "2024-01-15T12:00:00Z",
-  "producer": "inventory-service",
-  "correlation_id": "corr_xyz456",
-  "data": {
-    "product_id": "prod_001",
-    "product_name": "Widget A",
-    "sku": "WGT-001",
-    "warehouse_id": "wh_nyc",
-    "warehouse_name": "New York Warehouse",
-    "previous": {
-      "quantity": 200,
-      "reserved": 10,
-      "available": 190
-    },
-    "current": {
-      "quantity": 250,
-      "reserved": 10,
-      "available": 240
-    },
-    "movement": {
-      "movement_id": "mov_xyz123",
-      "type": "in",
-      "quantity": 50,
-      "reference_type": "restock",
-      "reference_id": "po_abc123"
-    }
-  }
-}
-```
-
----
-
-#### inventory.low_stock
-
-Triggered when stock falls below threshold.
-
-```json
-{
-  "event_id": "evt_01H1234567890ABCDG7",
-  "event_type": "inventory.low_stock",
-  "event_version": "1.0",
-  "timestamp": "2024-01-15T14:10:00Z",
-  "producer": "inventory-service",
-  "correlation_id": "corr_def789",
-  "data": {
-    "product_id": "prod_001",
-    "product_name": "Widget A",
-    "sku": "WGT-001",
-    "warehouse_id": "wh_nyc",
-    "warehouse_name": "New York Warehouse",
-    "current_stock": 45,
-    "threshold": 50,
-    "alert_level": "warning",
-    "suggested_action": "reorder"
-  }
-}
-```
-
----
-
-### Notification Events
-
-#### notification.send
-
-Triggered to send email/SMS notifications.
-
-```json
-{
-  "event_id": "evt_01H1234567890ABCDG8",
-  "event_type": "notification.send",
-  "event_version": "1.0",
-  "timestamp": "2024-01-15T14:00:01Z",
-  "producer": "notification-service",
-  "correlation_id": "corr_abc123",
-  "data": {
-    "notification_id": "ntf_abc123",
-    "recipient": {
-      "user_id": "usr_xyz789",
-      "email": "customer@example.com",
-      "phone": "+1234567890"
-    },
-    "channels": ["email", "sms"],
-    "template": "order_shipped",
-    "variables": {
-      "customer_name": "John Doe",
-      "order_id": "ord_abc123",
-      "tracking_number": "TRK123456",
-      "carrier": "UPS",
-      "estimated_delivery": "2024-01-18"
-    }
-  }
-}
-```
-
----
-
-## Event Flow Diagrams
-
-### Order Creation Flow
+### Flow
 
 ```
-┌──────────────┐     ┌──────────────┐     ┌──────────────┐
-│    Client     │     │  Order Svc   │     │Inventory Svc │
-└──────┬───────┘     └──────┬───────┘     └──────┬───────┘
-       │ POST /orders       │                     │
-       │───────────────────▶│                     │
-       │                    │                     │
-       │                    │ Create order        │
-       │                    │ Save outbox         │
-       │                    │─────────┐           │
-       │                    │◀────────┘           │
-       │                    │                     │
-       │                    │ Publish             │
-       │                    │ order.created       │
-       │                    │────────────────────▶│
-       │                    │                     │
-       │                    │                     │ Reserve stock
-       │                    │                     │─────────┐
-       │                    │                     │◀────────┘
-       │                    │                     │
-       │                    │ Publish             │
-       │                    │ inventory.reserved  │
-       │                    │◀────────────────────│
-       │                    │                     │
-       │  201 Created       │                     │
-       │◀───────────────────│                     │
-       │                    │                     │
+1. Service writes business data + outbox event (atomic, DB transaction)
+2. Outbox publisher polls for PENDING events
+3. ClaimBatch uses FOR UPDATE SKIP LOCKED (atomic batch claim)
+4. Publisher writes to Kafka
+5. On success: status → PUBLISHED
+6. On failure (retry exhausted): status → FAILED
 ```
 
-### Order Cancellation Flow
-
-```
-┌──────────────┐     ┌──────────────┐     ┌──────────────┐     ┌──────────────┐
-│    Client     │     │  Order Svc   │     │Inventory Svc │     │ WebSocket Svc│
-└──────┬───────┘     └──────┬───────┘     └──────┬───────┘     └──────┬───────┘
-       │ POST /cancel       │                     │                     │
-       │───────────────────▶│                     │                     │
-       │                    │                     │                     │
-       │                    │ Publish             │                     │
-       │                    │ order.cancelled     │                     │
-       │                    │────────────────────▶│                     │
-       │                    │                     │                     │
-       │                    │                     │ Release stock       │
-       │                    │                     │─────────┐           │
-       │                    │                     │◀────────┘           │
-       │                    │                     │                     │
-       │                    │ Publish             │                     │
-       │                    │ inventory.released  │                     │
-       │                    │◀────────────────────│                     │
-       │                    │                     │                     │
-       │                    │ Publish             │                     │
-       │                    │ order.status.changed│                     │
-       │                    │─────────────────────────────────────────▶│
-       │                    │                     │                     │
-       │                    │                     │    Broadcast to     │
-       │                    │                     │    client (WS)      │
-       │                    │                     │                     │
-       │  200 OK            │                     │                     │
-       │◀───────────────────│                     │                     │
-```
-
-### Low Stock Alert Flow
-
-```
-┌──────────────┐     ┌──────────────┐     ┌──────────────┐
-│Inventory Svc │     │ Notification │     │    Admin      │
-└──────┬───────┘     └──────┬───────┘     └──────┬───────┘
-       │                    │                     │
-       │ Stock updated      │                     │
-       │ (below threshold)  │                     │
-       │─────────┐          │                     │
-       │◀────────┘          │                     │
-       │                    │                     │
-       │ Publish            │                     │
-       │ inventory.low_stock│                     │
-       │───────────────────▶│                     │
-       │                    │                     │
-       │                    │ Send email alert    │
-       │                    │────────────────────▶│
-       │                    │                     │
-```
-
----
-
-## Partitioning Strategy
-
-| Topic | Partition Key | Reason |
-|-------|---------------|--------|
-| `order.*` | `order_id` | Ensure ordering per order |
-| `inventory.*` | `product_id` | Ensure ordering per product |
-| `notification.*` | `user_id` | Ensure ordering per user |
-
-**Partition Assignment:**
-
-```
-partition = hash(partition_key) % num_partitions
-```
-
----
-
-## Consumer Configuration
-
-| Consumer Group | Topics | Offset Reset | Max Poll |
-|----------------|--------|--------------|----------|
-| `inventory-svc` | order.created, order.paid, order.cancelled | latest | 100 |
-| `order-svc` | inventory.reserved, inventory.released | latest | 100 |
-| `websocket-svc` | order.status.changed, inventory.updated | latest | 50 |
-| `notification-svc` | order.shipped, inventory.low_stock | latest | 50 |
-
----
-
-## Error Handling
-
-### Retry Policy
+### Outbox Event Schema
 
 ```go
-type RetryConfig struct {
-    MaxRetries     int           // 3
-    InitialBackoff time.Duration // 1s
-    MaxBackoff     time.Duration // 30s
-    Multiplier     float64       // 2.0
+type OutboxEvent struct {
+    ID            string
+    AggregateType string    // "order" or "inventory"
+    AggregateID   string    // ID of the aggregate root
+    EventType     string    // e.g., "order.created"
+    Payload       []byte    // JSON-encoded event data
+    Status        string    // PENDING, CLAIMED, PUBLISHED, FAILED
+    CreatedAt     time.Time
+    PublishedAt   *time.Time
 }
 ```
 
-### Dead Letter Queue
+### Status Flow
 
-Failed events after max retries are sent to `dead_letter` topic.
-
-```json
-{
-  "original_topic": "order.created",
-  "original_partition": 0,
-  "original_offset": 12345,
-  "original_event": { ... },
-  "error": "inventory service unavailable",
-  "retry_count": 3,
-  "first_attempt_at": "2024-01-15T10:30:00Z",
-  "last_attempt_at": "2024-01-15T10:35:00Z"
-}
+```
+PENDING → CLAIMED → PUBLISHED
+                 → FAILED (after retry exhaustion)
 ```
 
 ---
 
-## Idempotency
+## Topic Routing
 
-### Event ID Deduplication
-
-Each event has a unique `event_id`. Consumers must track processed IDs.
-
-**Storage: Redis**
-
-```
-Key:   processed_events:{consumer_group}:{event_id}
-TTL:   24 hours
-Value: "processed"
-```
-
-### Idempotent Processing
+Events are routed to topics based on their type:
 
 ```go
-func (c *Consumer) HandleEvent(ctx context.Context, event Event) error {
-    // Check if already processed
-    if c.redis.Exists(ctx, fmt.Sprintf("processed_events:%s:%s", c.groupID, event.EventID)) {
-        return nil // Already processed
+func getTopicForEvent(eventType string) string {
+    switch {
+    case strings.HasPrefix(eventType, "order."):
+        return eventType // order.created → order.created topic
+    case strings.HasPrefix(eventType, "inventory."):
+        return eventType // inventory.reserved → inventory.reserved topic
+    default:
+        return "default"
     }
-
-    // Process event
-    if err := c.process(ctx, event); err != nil {
-        return err
-    }
-
-    // Mark as processed
-    c.redis.Set(ctx, fmt.Sprintf("processed_events:%s:%s", c.groupID, event.EventID), "processed", 24*time.Hour)
-
-    return nil
 }
 ```
 
 ---
 
-## Event Versioning
+## Consumer Design
 
-### Version Format
+### Idempotency
 
-```
-event_version: "1.0"
-```
+Consumers must be idempotent because:
+- Kafka provides at-least-once delivery
+- Producer may retry on network error
+- Consumer may crash before offset commit
 
-### Schema Evolution Rules
+**Strategy**: Use conditional updates (e.g., `UPDATE ... WHERE status = 'pending'`).
 
-1. **Add field**: New field must be optional
-2. **Remove field**: Deprecate first, remove in next major version
-3. **Rename field**: Add new field, deprecate old, remove in next major
-4. **Breaking change**: Increment major version, run parallel consumers
+### Retry Logic
 
-### Version Header
-
-```json
-{
-  "event_type": "order.created",
-  "event_version": "1.0",
-  "min_compatible_version": "1.0"
+```go
+func (c *Consumer) HandleWithRetry(ctx context.Context, msg kafka.Message) error {
+    var lastErr error
+    for attempt := 0; attempt <= c.config.MaxRetries; attempt++ {
+        if attempt > 0 {
+            time.Sleep(c.config.RetryDelay * time.Duration(attempt))
+        }
+        lastErr = c.handler(ctx, msg)
+        if lastErr == nil {
+            return nil
+        }
+    }
+    // Exhausted retries → DLQ
+    return c.SendToDLQ(ctx, msg, lastErr)
 }
+```
+
+### DLQ (Dead Letter Queue)
+
+Failed messages are published to `<topic>.dlq` with error metadata headers:
+
+| Header | Value |
+|--------|-------|
+| `error-message` | Original error description |
+| `retry-count` | Number of retries attempted |
+| `original-topic` | Source topic name |
+| `original-partition` | Source partition |
+| `original-offset` | Source offset |
+| `timestamp` | ISO 8601 timestamp |
+
+---
+
+## Event Handler Routing
+
+### Order Service (consuming inventory events)
+
+| Topic | Handler | Action |
+|-------|---------|--------|
+| `inventory.reserved` | `InventoryEventHandler` | Confirm order (update status to `confirmed`) |
+| `inventory.reservation_failed` | `InventoryEventHandler` | Cancel order (update status to `cancelled`) |
+| `inventory.released` | `InventoryEventHandler` | Log only (no order state change) |
+
+### Inventory Service (consuming order events)
+
+| Topic | Handler | Action |
+|-------|---------|--------|
+| `order.created` | `OrderEventHandler` | Reserve stock for each order item |
+| `order.cancelled` | `OrderEventHandler` | Release reserved stock |
+
+---
+
+## Kafka Topics
+
+### Auto-created Topics
+
+The `kafka-init` container creates all required topics on startup:
+
+```
+order.created
+order.confirmed
+order.cancelled
+order.paid
+order.shipped
+order.delivered
+order.status.changed
+inventory.reserved
+inventory.released
+inventory.reservation_failed
+inventory.updated
+inventory.low_stock
+default
+```
+
+### DLQ Topics (created on first failed message)
+
+```
+order.created.dlq
+inventory.reserved.dlq
+...
 ```
 
 ---
 
-## Monitoring
+## What's Implemented
 
-### Key Metrics
-
-| Metric | Description |
-|--------|-------------|
-| `kafka_consumer_lag` | Messages pending per partition |
-| `kafka_producer_errors` | Failed publish attempts |
-| `event_processing_duration` | Time to process each event |
-| `dead_letter_queue_size` | Events in DLQ |
-
-### Alerts
-
-| Alert | Condition | Severity |
-|-------|-----------|----------|
-| High Consumer Lag | lag > 1000 | Warning |
-| Consumer Group Down | no active consumers | Critical |
-| DLQ Growing | dlq_size > 100 | Warning |
-| Event Processing Slow | duration > 5s | Warning |
+- [x] 13 Kafka topics with auto-creation
+- [x] Outbox pattern with ClaimBatch (FOR UPDATE SKIP LOCKED)
+- [x] Topic routing based on event type prefix
+- [x] Consumer retry with configurable max retries
+- [x] DLQ publishing with error metadata headers
+- [x] Manual offset commit
+- [x] Order event handler (inventory service): order.created → reserve stock
+- [x] Order event handler (inventory service): order.cancelled → release stock
+- [x] Inventory event handler (order service): inventory.reserved → confirm order
+- [x] Inventory event handler (order service): inventory.reservation_failed → cancel order
+- [x] `MessageWriter` interface for testable Kafka components

@@ -7,6 +7,8 @@ import (
 
 	"github.com/segmentio/kafka-go"
 	"go.uber.org/zap"
+
+	pkgkafka "github.com/racenak/Realtime-Order-Inventory-System/pkg/kafka"
 )
 
 type InventoryUseCase interface {
@@ -54,13 +56,13 @@ type OrderCancelledEvent struct {
 
 type OrderEventHandler struct {
 	inventoryUC InventoryUseCase
-	producer    *kafka.Writer
+	producer    pkgkafka.MessageWriter
 	logger      *zap.Logger
 }
 
 func NewOrderEventHandler(
 	inventoryUC InventoryUseCase,
-	producer *kafka.Writer,
+	producer pkgkafka.MessageWriter,
 	logger *zap.Logger,
 ) *OrderEventHandler {
 	return &OrderEventHandler{
@@ -162,6 +164,7 @@ func (h *OrderEventHandler) publishInventoryReservationFailed(ctx context.Contex
 	}
 
 	msg := kafka.Message{
+		Topic: "inventory.reservation_failed",
 		Key:   []byte(orderID),
 		Value: value,
 		Headers: []kafka.Header{
@@ -169,7 +172,6 @@ func (h *OrderEventHandler) publishInventoryReservationFailed(ctx context.Contex
 		},
 	}
 
-	h.producer.Topic = "inventory.reservation_failed"
 	return h.producer.WriteMessages(ctx, msg)
 }
 

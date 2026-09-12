@@ -17,14 +17,15 @@ Realtime Order Inventory System is a distributed microservices-based application
 └─────────────────────────────┬───────────────────────────────────────┘
                               │ HTTP / HTTPS
 ┌─────────────────────────────▼───────────────────────────────────────┐
-│                          TRAEFIK                                    │
-│   (Reverse Proxy, TLS, Rate Limiting, JWT Auth, Routing)           │
+│                          TRAEFIK (:8088)                            │
+│   (Reverse Proxy, Rate Limiting, JWT ForwardAuth, Routing)          │
+│   File provider config, Traefik Dashboard :8090                     │
 └──────┬──────────────┬──────────────────────┬───────────────────────┘
-       │              │                      │
        │              │                      │ WebSocket
 ┌──────▼──────┐ ┌─────▼──────┐ ┌────────────▼────────────┐
 │   Order     │ │ Inventory  │ │    WebSocket Service    │
-│   Service   │ │  Service   │ │   (Real-time Updates)   │
+│  Service    │ │  Service   │ │   (Real-time Updates)   │
+│  (:8080)   │ │  (:8081)   │ │      (:8082)            │
 └──────┬──────┘ └─────┬──────┘ └────────────┬────────────┘
        │              │                      │
        │         ┌────▼────┐                 │
@@ -35,15 +36,17 @@ Realtime Order Inventory System is a distributed microservices-based application
        │              │
 ┌──────▼──────────────▼───────────────────────────────────────────────┐
 │                         DATA LAYER                                  │
-│              PostgreSQL (Primary) + Redis (Cache)                   │
+│     order_db (:5432)  inventory_db (:5433)   Redis (:6379)        │
 └─────────────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────────────┐
 │                      SUPPORT SERVICES                               │
-│  ┌──────────────┐                                                  │
-│  │ Auth Service │  (JWT validation, ForwardAuth for Traefik)       │
-│  │ :8083        │                                                  │
-│  └──────────────┘                                                  │
+│  ┌──────────────┐  ┌────────────────────────────────────────────┐  │
+│  │ Auth Service │  │ Observability Stack                         │  │
+│  │   (:8083)    │  │ Prometheus :9090, Grafana :3000            │  │
+│  │ JWT via      │  │ Loki :3100, Jaeger :16686                   │  │
+│  │ ForwardAuth  │  │ OTel Collector :8888, Promtail :9080        │  │
+│  └──────────────┘  └────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -53,91 +56,99 @@ Realtime Order Inventory System is a distributed microservices-based application
 
 | Property     | Description                          |
 | ------------ | ------------------------------------ |
-| Protocol     | HTTP/2, HTTPS, gRPC                  |
-| Port         | 80 (HTTP), 443 (HTTPS)              |
-| Responsibilities | Reverse Proxy, TLS Termination, Routing, Rate Limiting, Auth |
+| Protocol     | HTTP, HTTPS                          |
+| Port         | 8088 (HTTP), 8090 (Dashboard)        |
+| Config       | File provider (Podman compatible)    |
+| Responsibilities | Reverse Proxy, Routing, Rate Limiting, JWT Auth |
 
 **Middleware:**
-- Rate Limiting (per IP / per user)
-- JWT Authentication
-- Circuit Breaker
-- Retry
-- Compress
+- Rate Limiting (per IP, 100 req/s, 50 burst)
+- JWT ForwardAuth (auth-service validates, returns X-User-Id/Role)
+- Security Headers (HSTS, CSP, X-Frame-Options, etc.)
 - CORS
 - Strip Prefix
-
-**Why Traefik:**
-- Kubernetes-native with automatic service discovery
-- Built-in Let's Encrypt ACME support
-- Dynamic configuration via Kubernetes IngressRoutes
-- Dashboard for monitoring
-- Middleware plugins for extensibility
 
 ### 2. Order Service
 
 | Property     | Description                          |
 | ------------ | ------------------------------------ |
-| Protocol     | gRPC (internal) / REST (gateway)     |
-| Port         | 9001                                 |
-| Responsibilities | Order CRUD, Order Lifecycle, Payment Integration |
+| Port         | 8080                                 |
+| Responsibilities | Order CRUD, Order Lifecycle, Outbox Event Publishing |
 
-**Patterns:** CQRS, Outbox Pattern, Event Publishing
+**Patterns:** CQRS, Outbox Pattern (ClaimBatch with FOR UPDATE SKIP LOCKED), DB Transactions
 
 ### 3. Inventory Service
 
 | Property     | Description                          |
 | ------------ | ------------------------------------ |
-| Protocol     | gRPC (internal) / REST (gateway)     |
-| Port         | 9002                                 |
+| Port         | 8081                                 |
 | Responsibilities | Stock Management, Reservations, Warehouse Operations |
 
-**Patterns:** Optimistic Locking, Event Sourcing, CQRS
+**Patterns:** Optimistic Locking, Event Sourcing, DB Transactions
 
 ### 4. WebSocket Service
 
 | Property     | Description                          |
 | ------------ | ------------------------------------ |
-| Protocol     | WebSocket                            |
-| Port         | 8082                                |
+| Port         | 8082                                 |
 | Responsibilities | Real-time Order Status, Inventory Updates, Notifications |
 
-**Technologies:** Gorilla WebSocket, Redis Pub/Sub
+**Technologies:** gorilla/websocket, Redis Pub/Sub, Hub pattern with unregister channel (data race fixed)
 
 ### 5. Auth Service
 
 | Property     | Description                          |
 | ------------ | ------------------------------------ |
-| Protocol     | HTTP                                |
-| Port         | 8083                                |
+| Port         | 8083                                 |
 | Responsibilities | JWT validation, User identity resolution |
 
-**Technologies:** golang-jwt/jwt/v5
+**Technologies:** golang-jwt/jwt/v5, HMAC-SHA256
 
 **Role in architecture:** Traefik forwards authentication requests to this service via ForwardAuth middleware. On valid JWT, it returns `X-User-Id` and `X-User-Role` headers that downstream services can trust.
+
+### 6. Observability Stack
+
+| Service | Port | Purpose |
+|---------|------|---------|
+| Prometheus | 9090 | Metrics TSDB + scraping |
+| Grafana | 3000 | 9 dashboards (Overview, Order, Inventory, WebSocket, Auth, Kafka, Redis, Infra, API) |
+| Loki | 3100 | Log aggregation |
+| Jaeger | 16686 | Distributed trace UI |
+| OTel Collector | 8888 | Telemetry pipeline |
+| Promtail | 9080 | Log shipping |
+| kafka-exporter | 9308 | Kafka metrics |
+| redis-exporter | 9121 | Redis metrics |
+| postgres-exporter | 9187/9188 | Per-DB metrics |
 
 ## Data Flow
 
 ### Order Creation Flow
 
 ```
-Client ──POST /orders──▶ Traefik ──ForwardAuth──▶ Auth Service
+Client ──POST /api/orders──▶ Traefik ──ForwardAuth──▶ Auth Service
                                     │              (validate JWT)
                                     │              (return X-User-Id, X-User-Role)
                                     ▼
                               Order Service
                                     │
                                     ├──▶ Validate Request
+                                    ├──▶ BeginTx
                                     ├──▶ Create Order (DB)
-                                    ├──▶ Save Outbox Event
-                                    └──▶ Publish to Kafka
+                                    ├──▶ Create Order Items (DB)
+                                    ├──▶ Create Outbox Event (DB)
+                                    ├──▶ Commit Tx
+                                    └──▶ Outbox Publisher polls
                                              │
                              ┌───────────────┘
                              ▼
-             Inventory Service ◄── Consume Event
+              Inventory Service ◄── Consume Event
                              │
+                             ├──▶ BeginTx
                              ├──▶ Reserve Stock
-                             ├──▶ Update Inventory
-                             └──▶ Publish Inventory Updated Event
+                             ├──▶ Create Reservation
+                             ├──▶ Create Movement
+                             ├──▶ Commit Tx
+                             └──▶ Publish inventory.reserved Event
                                       │
                                       ▼
                                WebSocket Service
@@ -145,17 +156,26 @@ Client ──POST /orders──▶ Traefik ──ForwardAuth──▶ Auth Servi
                                  └──▶ Notify Client (Real-time)
 ```
 
-### Inventory Update Flow
+### Order Cancellation Flow
 
 ```
-Inventory Service ──Update Stock──▶ PostgreSQL
-                                      │
-                                      └──▶ Publish InventoryUpdated Event
-                                              │
-                              ┌────────────────┤
-                              ▼                ▼
-                      WebSocket Service   Order Service
-                      (Notify Clients)    (Check Reservations)
+Client ──POST /api/orders/:id/cancel──▶ Traefik ──▶ Order Service
+                                                        │
+                                                        ├──▶ BeginTx
+                                                        ├──▶ Update Status
+                                                        ├──▶ Create History
+                                                        ├──▶ Create Outbox Event
+                                                        ├──▶ Commit Tx
+                                                        └──▶ order.cancelled Event
+                                                                  │
+                                                                  ▼
+                                                          Inventory Service
+                                                                  │
+                                                                  ├──▶ BeginTx
+                                                                  ├──▶ Release Reservation
+                                                                  ├──▶ Create Movement
+                                                                  ├──▶ Commit Tx
+                                                                  └──▶ inventory.released Event
 ```
 
 ## Event Bus (Kafka Topics)
@@ -165,100 +185,98 @@ Inventory Service ──Update Stock──▶ PostgreSQL
 | `order.created`            | Order Service    | Inventory Service | Trigger stock reservation      |
 | `order.confirmed`          | Order Service    | Inventory Service | Confirm stock deduction        |
 | `order.cancelled`          | Order Service    | Inventory Service | Release reserved stock         |
-| `inventory.reserved`       | Inventory Service| Order Service     | Confirm reservation success    |
-| `inventory.updated`        | Inventory Service| WebSocket Service | Broadcast stock changes        |
-| `order.status.changed`     | Order Service    | WebSocket Service | Notify order progress          |
+| `order.paid`              | Order Service    | —                 | Payment confirmed              |
+| `order.shipped`           | Order Service    | —                 | Order shipped                  |
+| `order.delivered`         | Order Service    | —                 | Order delivered                |
+| `order.status.changed`    | Order Service    | WebSocket Service | Notify order progress          |
+| `inventory.reserved`      | Inventory Service| Order Service     | Confirm reservation success    |
+| `inventory.released`      | Inventory Service| Order Service     | Reservation released           |
+| `inventory.reservation_failed` | Inventory Service | Order Service | Reservation failed             |
+| `inventory.updated`       | Inventory Service| WebSocket Service | Broadcast stock changes        |
+| `inventory.low_stock`     | Inventory Service| —                 | Low stock alert                |
+| `default`                 | —                | —                 | Fallback for unknown events    |
+
+**Consumer config:** Manual offset commit (`CommitInterval: 0`), configurable retry (`MaxRetries: 3`, `RetryDelay: 1s`), DLQ publishing on final failure.
 
 ## Database Schema
 
-### Order Service Database
+### Order Database (order_db :5432)
 
 ```sql
 -- orders
-id, user_id, status, total_amount, created_at, updated_at
+id (UUID v7), customer_id, status, currency, subtotal, discount_amount,
+shipping_fee, tax_amount, total_amount, shipping_address (JSONB),
+idempotency_key, created_at, updated_at
 
 -- order_items
-id, order_id, product_id, quantity, unit_price, total_price
+id (UUID v7), order_id, product_id, sku, product_name, quantity,
+unit_price, discount_amount, total_amount, created_at
 
 -- order_status_history
-id, order_id, old_status, new_status, changed_at
+id (UUID v7), order_id, old_status, new_status, reason, created_at
 
 -- outbox_events
-id, aggregate_type, aggregate_id, event_type, payload, published, created_at
+id (UUID v7), aggregate_type, aggregate_id, event_type, payload,
+status (PENDING/CLAIMED/PUBLISHED/FAILED), created_at, published_at
 ```
 
-### Inventory Service Database
+### Inventory Database (inventory_db :5433)
 
 ```sql
 -- warehouses
-id, name, location, is_active
+id (UUID v7), code, name, status, created_at
 
 -- inventory
-id, product_id, warehouse_id, quantity, reserved_quantity, version
+id (UUID v7), product_id, sku, warehouse_id, quantity_on_hand,
+quantity_reserved, version, updated_at
 
 -- inventory_reservations
-id, order_id, product_id, warehouse_id, quantity, status, expires_at
+id (UUID v7), order_id, order_item_id, product_id, sku, warehouse_id,
+quantity, status, expires_at, created_at, updated_at
 
 -- inventory_movements
-id, product_id, warehouse_id, movement_type, quantity, reference_id, created_at
+id (UUID v7), product_id, sku, warehouse_id, movement_type, quantity,
+reference_type, reference_id, notes, created_by, created_at
 ```
 
 ## Caching Strategy (Redis)
 
 | Key Pattern              | TTL   | Description                    |
 | ------------------------ | ----- | ------------------------------ |
-| `inventory:{product_id}` | 30s   | Product stock across warehouses|
-| `order:{order_id}`       | 60s   | Order details cache            |
-| `user:{user_id}:orders`  | 30s   | User recent orders             |
-| `rate_limit:{ip}`        | 60s   | API rate limiting              |
+| `order:{id}`             | 5min  | Order details cache            |
+| `order:items:{id}`       | 5min  | Order items cache              |
+| `stock:{product_id}`     | 30s   | Product stock across warehouses|
+| `warehouse:code:{code}`  | 10min | Warehouse code → ID mapping    |
 
-## Deployment
-
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                        Kubernetes Cluster                           │
-│                                                                     │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐                         │
-│  │ Traefik  │  │ Traefik  │  │ Traefik  │   (Edge Router)         │
-│  │ Pod (x2) │  │ Pod (x2) │  │ Pod (x2) │                         │
-│  └──────────┘  └──────────┘  └──────────┘                         │
-│                                                                     │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐             │
-│  │ Order    │  │Inventory │  │ WebSocket│  │   Auth   │             │
-│  │ Svc (x3) │  │Svc (x3) │  │ Svc (x3) │  │ Svc (x2) │             │
-│  └──────────┘  └──────────┘  └──────────┘  └──────────┘             │
-│                                                                     │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐                         │
-│  │PostgreSQL│  │  Redis   │  │  Kafka   │                         │
-│  │ (HA)     │  │ (Cluster)│  │ (Cluster)│                         │
-│  └──────────┘  └──────────┘  └──────────┘                         │
-└─────────────────────────────────────────────────────────────────────┘
-```
+Cache decorators for Order and Inventory repos. Writes invalidate cache. Read-through pattern with fail-open on cache errors.
 
 ## Technology Stack
 
 | Layer          | Technology                          |
 | -------------- | ----------------------------------- |
 | Language       | Go 1.22                             |
-| API Gateway    | Traefik                             |
+| API Gateway    | Traefik v2.11.57 (file provider)   |
 | HTTP Router    | Chi (per-service)                   |
-| gRPC           | Google gRPC                         |
-| Database       | PostgreSQL 16                       |
+| Database       | PostgreSQL 18 (2 instances)         |
 | Cache          | Redis 7                             |
-| Message Broker | Apache Kafka                        |
-| ORM            | sqlx / pgx                          |
-| Config         | Viper                               |
-| Logging        | Zap                                 |
-| Testing        | Go testing + Testify                |
-| Container      | Docker + Docker Compose             |
-| Orchestration  | Kubernetes                          |
+| Message Broker | Apache Kafka (apache/kafka:4.3.1)   |
+| ORM            | sqlx                                |
+| Config         | envconfig                           |
+| Logging        | Zap (structured JSON)               |
+| Metrics        | Prometheus + custom (16 metrics)    |
+| Tracing        | OpenTelemetry (OTLP gRPC → Jaeger)  |
+| Log Aggregation| Loki + Promtail                     |
+| Testing        | Go testing + function-field mocks   |
+| Container      | Podman + Podman Compose             |
+| CI/CD          | GitHub Actions                      |
 
 ## Security
 
 - JWT-based authentication via Traefik ForwardAuth middleware
-- TLS termination at Traefik (Let's Encrypt ACME)
-- Rate limiting at Traefik edge
-- Service-to-service mTLS (internal gRPC)
-- Row-level security in PostgreSQL
-- Redis AUTH for cache layer
+- Auth Service validates JWT (HMAC-SHA256, issuer, audience, expiration)
+- Rate limiting at Traefik edge (100 req/s, 50 burst)
+- SQL injection prevention (parameterized queries throughout)
+- Parameterized queries with `$1`, `$2` placeholders
 - Environment-based secret management
+- Structured logging without sensitive data
+- Security headers (HSTS, CSP, X-Frame-Options, Referrer-Policy, Permissions-Policy)

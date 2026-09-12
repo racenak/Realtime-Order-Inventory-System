@@ -96,6 +96,14 @@ func main() {
 	inventoryHandler := httpd.NewInventoryHandler(inventoryUC)
 
 	adapter := &inventoryUseCaseAdapter{uc: inventoryUC}
+
+	failedEventWriter := &kafka.Writer{
+		Addr:         kafka.TCP(cfg.Kafka.Brokers...),
+		Topic:        "inventory.reservation_failed",
+		Balancer:     &kafka.LeastBytes{},
+		BatchTimeout: 10 * time.Millisecond,
+	}
+
 	orderConsumer := kafkakit.NewConsumer(
 		kafkakit.ConsumerConfig{
 			Brokers:  cfg.Kafka.Brokers,
@@ -104,7 +112,7 @@ func main() {
 			MinBytes: 1,
 			MaxBytes: 10e6,
 		},
-		inventorykafka.NewOrderEventHandler(adapter, &kafka.Writer{}, logger).Handle,
+		inventorykafka.NewOrderEventHandler(adapter, failedEventWriter, logger).Handle,
 		logger,
 	)
 	go func() {

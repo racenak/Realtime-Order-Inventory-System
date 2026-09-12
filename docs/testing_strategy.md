@@ -2,745 +2,364 @@
 
 ## Overview
 
-| Level | Coverage Target | Tools |
-|-------|-----------------|-------|
-| Unit Tests | 80%+ | Go testing, Testify |
-| Integration Tests | 70%+ | Go testing, testcontainers |
-| E2E Tests | Critical paths | Go testing, HTTP clients |
-| Performance Tests | SLA validation | k6, Vegeta |
+Three-layer testing approach: Unit → Integration → E2E.
+
+| Layer | Count | Infrastructure | Speed |
+|-------|-------|----------------|-------|
+| Unit | 58 | None | Fast |
+| Integration | 43 | PostgreSQL | Medium |
+| E2E | 8 | PostgreSQL + HTTP | Slow |
+| **Total** | **109** | | |
 
 ---
 
-## Test Pyramid
+## Test Structure
 
 ```
-                    ┌─────────┐
-                    │   E2E   │
-                    │  Tests  │
-                   ┌┴─────────┴┐
-                   │Integration │
-                   │   Tests    │
-                  ┌┴───────────┴┐
-                  │    Unit      │
-                  │    Tests     │
-                  └──────────────┘
-
-    Coverage:     80%+           70%+           Critical
-    Speed:        Slow           Medium          Fast
-    Cost:         High           Medium          Low
+tests/
+├── unit/
+│   ├── domain/          # Domain logic (pure functions)
+│   ├── usecase/         # Business logic (mock repos)
+│   └── pkg/             # Shared packages
+├── integration/
+│   ├── order/           # Repository + usecase + handler
+│   ├── inventory/       # Repository + usecase + handler
+│   └── http/            # HTTP handler integration
+├── e2e/                 # Full HTTP lifecycle
+└── mocks/               # Function-field mocks
 ```
 
 ---
 
 ## Unit Tests
 
-### Order Service Tests
+### Domain Logic
 
 ```go
-package order_test
+// tests/unit/domain/order_test.go
+func TestCalculateTotal(t *testing.T) {
+    order := &Order{Currency: "USD"}
+    order.AddItem(OrderItem{Quantity: 2, UnitPrice: 10.00})
+    order.AddItem(OrderItem{Quantity: 1, UnitPrice: 5.00})
+    order.CalculateTotal()
 
-import (
-    "testing"
-    "github.com/stretchr/testify/assert"
-    "github.com/stretchr/testify/mock"
-)
-
-type MockOrderRepo struct {
-    mock.Mock
-}
-
-func (m *MockOrderRepo) Create(ctx context.Context, order *Order) error {
-    args := m.Called(ctx, order)
-    return args.Error(0)
-}
-
-func (m *MockOrderRepo) GetByID(ctx context.Context, id string) (*Order, error) {
-    args := m.Called(ctx, id)
-    return args.Get(0).(*Order), args.Error(1)
-}
-
-func TestCreateOrder_Success(t *testing.T) {
-    // Arrange
-    mockRepo := new(MockOrderRepo)
-    mockPublisher := new(MockPublisher)
-    service := NewOrderService(mockRepo, mockPublisher)
-
-    req := CreateOrderRequest{
-        CustomerID: "usr_001",
-        Items: []OrderItemRequest{
-            {ProductID: "prod_001", Quantity: 2},
-        },
+    if order.Subtotal != 25.00 {
+        t.Errorf("expected 25.00, got %f", order.Subtotal)
     }
-
-    mockRepo.On("Create", mock.Anything, mock.Anything).Return(nil)
-    mockPublisher.On("Publish", mock.Anything, "order.created", mock.Anything).Return(nil)
-
-    // Act
-    order, err := service.CreateOrder(context.Background(), req)
-
-    // Assert
-    assert.NoError(t, err)
-    assert.NotNil(t, order)
-    assert.Equal(t, "pending_payment", order.Status)
-    mockRepo.AssertExpectations(t)
-    mockPublisher.AssertExpectations(t)
 }
+```
 
+**Coverage:**
+- `Order.CalculateTotal()` — 5 tests (multi-item, single item, zero quantity, negative price, discounts)
+- `Order.CanCancel()` — 7 statuses tested
+- `Inventory.Available()` — 6 cases (normal, zero stock, all reserved, etc.)
+- Domain error sentinels — via usecase tests
+
+### Use Cases
+
+```go
+// tests/unit/usecase/order_test.go
 func TestCreateOrder_EmptyCart(t *testing.T) {
-    // Arrange
-    service := NewOrderService(nil, nil)
-    req := CreateOrderRequest{
-        CustomerID: "usr_001",
-        Items:      []OrderItemRequest{},
+    orderRepo := &mocks.MockOrderRepository{}
+    usecase := NewOrderUseCase(orderRepo, nil, nil)
+
+    _, err := usecase.CreateOrder(context.Background(), domain.CreateOrderRequest{
+        CustomerID: "cust_123",
+        Items:      []domain.CreateOrderItemRequest{},
+    })
+
+    if !errors.Is(err, domain.ErrInvalidRequest) {
+        t.Errorf("expected ErrInvalidRequest, got %v", err)
     }
-
-    // Act
-    _, err := service.CreateOrder(context.Background(), req)
-
-    // Assert
-    assert.Error(t, err)
-    assert.Contains(t, err.Error(), "EMPTY_CART")
-}
-
-func TestCreateOrder_InvalidQuantity(t *testing.T) {
-    // Arrange
-    service := NewOrderService(nil, nil)
-    req := CreateOrderRequest{
-        CustomerID: "usr_001",
-        Items: []OrderItemRequest{
-            {ProductID: "prod_001", Quantity: -1},
-        },
-    }
-
-    // Act
-    _, err := service.CreateOrder(context.Background(), req)
-
-    // Assert
-    assert.Error(t, err)
-    assert.Contains(t, err.Error(), "INVALID_QUANTITY")
 }
 ```
 
-### Inventory Service Tests
+**Coverage:**
+- Order: empty cart, invalid quantity, duplicate idempotency, not found, cancel guards, confirm guards
+- Inventory: invalid quantity, insufficient stock, already released, not found
+
+### Kafka Event Handlers
 
 ```go
-func TestReserveStock_Success(t *testing.T) {
-    // Arrange
-    mockRepo := new(MockInventoryRepo)
-    service := NewInventoryService(mockRepo)
+// tests/unit/kafka_order_event_handler_test.go
+func TestOrderEventHandler_ReserveStock(t *testing.T) {
+    invUC := &mocks.MockInventoryUseCase{
+        ReserveStockFn: func(ctx context.Context, req domain.ReserveStockRequest) (*domain.Reservation, error) {
+            return &domain.Reservation{ID: "res_123"}, nil
+        },
+    }
+    writer := &mocks.MockMessageWriter{}
+    handler := NewOrderEventHandler(invUC, writer)
 
-    mockRepo.On("GetInventory", mock.Anything, "prod_001", "wh_nyc").
-        Return(&Inventory{QuantityOnHand: 100, QuantityReserved: 10, Version: 1}, nil)
-    mockRepo.On("ReserveStock", mock.Anything, "prod_001", "wh_nyc", 5, 90).
-        Return(nil)
-    mockRepo.On("CreateReservation", mock.Anything, mock.Anything).
-        Return(&Reservation{ID: "rsv_001"}, nil)
+    msg := kafka.Message{
+        Topic: "order.created",
+        Value: eventJSON,
+    }
 
-    // Act
-    reservation, err := service.ReserveStock(context.Background(), ReserveStockRequest{
-        OrderID:     "ord_001",
-        ProductID:   "prod_001",
-        WarehouseID: "wh_nyc",
-        Quantity:    5,
-    })
-
-    // Assert
-    assert.NoError(t, err)
-    assert.NotNil(t, reservation)
-    assert.Equal(t, "rsv_001", reservation.ID)
-}
-
-func TestReserveStock_InsufficientStock(t *testing.T) {
-    // Arrange
-    mockRepo := new(MockInventoryRepo)
-    service := NewInventoryService(mockRepo)
-
-    mockRepo.On("GetInventory", mock.Anything, "prod_001", "wh_nyc").
-        Return(&Inventory{QuantityOnHand: 10, QuantityReserved: 8, Version: 1}, nil)
-
-    // Act
-    _, err := service.ReserveStock(context.Background(), ReserveStockRequest{
-        ProductID:   "prod_001",
-        WarehouseID: "wh_nyc",
-        Quantity:    5,
-    })
-
-    // Assert
-    assert.Error(t, err)
-    assert.Contains(t, err.Error(), "INSUFFICIENT_STOCK")
-}
-
-func TestReserveStock_ConcurrentModification(t *testing.T) {
-    // Arrange
-    mockRepo := new(MockInventoryRepo)
-    service := NewInventoryService(mockRepo)
-
-    mockRepo.On("GetInventory", mock.Anything, "prod_001", "wh_nyc").
-        Return(&Inventory{QuantityOnHand: 100, QuantityReserved: 10, Version: 1}, nil)
-    mockRepo.On("ReserveStock", mock.Anything, "prod_001", "wh_nyc", 5, 90).
-        Return(ErrConcurrentModification)
-
-    // Act
-    _, err := service.ReserveStock(context.Background(), ReserveStockRequest{
-        ProductID:   "prod_001",
-        WarehouseID: "wh_nyc",
-        Quantity:    5,
-    })
-
-    // Assert
-    assert.Error(t, err)
-    assert.Contains(t, err.Error(), "CONCURRENT_MODIFICATION")
+    err := handler.Handle(context.Background(), msg)
+    if err != nil {
+        t.Errorf("unexpected error: %v", err)
+    }
 }
 ```
 
-### Table-Driven Tests
+**Coverage:**
+- Order events: order.created → reserve, order.cancelled → release, unknown event, bad JSON, failure event publishing
+- Inventory events: inventory.reserved → confirm, inventory.reservation_failed → cancel, inventory.released (log only)
+- Outbox publisher: topic routing (9 event types), batch publish, partial failure, ClaimBatch error
+- Consumer: success, retry, exhaust retries, context cancelled, defaults, DLQ
+
+### Mock Infrastructure
+
+Function-field mocks (not code-generated):
 
 ```go
-func TestValidateOrderRequest(t *testing.T) {
-    tests := []struct {
-        name    string
-        req     CreateOrderRequest
-        wantErr string
-    }{
-        {
-            name: "valid request",
-            req: CreateOrderRequest{
-                CustomerID: "usr_001",
-                Items: []OrderItemRequest{
-                    {ProductID: "prod_001", Quantity: 1},
-                },
-            },
-            wantErr: "",
-        },
-        {
-            name: "empty cart",
-            req: CreateOrderRequest{
-                CustomerID: "usr_001",
-                Items:      []OrderItemRequest{},
-            },
-            wantErr: "EMPTY_CART",
-        },
-        {
-            name: "invalid quantity",
-            req: CreateOrderRequest{
-                CustomerID: "usr_001",
-                Items: []OrderItemRequest{
-                    {ProductID: "prod_001", Quantity: 0},
-                },
-            },
-            wantErr: "INVALID_QUANTITY",
-        },
-        {
-            name: "missing product_id",
-            req: CreateOrderRequest{
-                CustomerID: "usr_001",
-                Items: []OrderItemRequest{
-                    {Quantity: 1},
-                },
-            },
-            wantErr: "product_id is required",
-        },
-    }
+type MockOrderRepository struct {
+    CreateFn         func(ctx context.Context, order *domain.Order) error
+    GetByIDFn        func(ctx context.Context, id string) (*domain.Order, error)
+    // ...
+}
 
-    for _, tt := range tests {
-        t.Run(tt.name, func(t *testing.T) {
-            err := ValidateOrderRequest(tt.req)
-            if tt.wantErr == "" {
-                assert.NoError(t, err)
-            } else {
-                assert.Contains(t, err.Error(), tt.wantErr)
-            }
-        })
+func (m *MockOrderRepository) Create(ctx context.Context, order *domain.Order) error {
+    if m.CreateFn != nil {
+        return m.CreateFn(ctx, order)
     }
+    return nil
 }
 ```
+
+**8 mock files:**
+- `order_repo.go` — OrderRepository
+- `order_item_repo.go` — OrderItemRepository
+- `outbox_repo.go` — OutboxRepository
+- `inventory_repo.go` — InventoryRepository
+- `reservation_repo.go` — ReservationRepository
+- `movement_repo.go` — MovementRepository
+- `usecases.go` — OrderUseCase + InventoryUseCase (for kafka)
+- `kafka.go` — MockMessageWriter
 
 ---
 
 ## Integration Tests
 
-### Database Tests with Testcontainers
+### Testcontainers
 
 ```go
-package integration_test
-
-import (
-    "testing"
-    "github.com/testcontainers/testcontainers-go"
-    "github.com/testcontainers/testcontainers-go/modules/postgres"
-)
-
-func setupTestDB(t *testing.T) (*sql.DB, func()) {
+// tests/helpers/testdb.go
+func SetupTestDB(t *testing.T) *sqlx.DB {
     ctx := context.Background()
-
-    pgContainer, err := postgres.RunContainer(ctx,
-        testcontainers.WithImage("postgres:16-alpine"),
-        postgres.WithDatabase("testdb"),
-        postgres.WithUsername("test"),
-        postgres.WithPassword("test"),
-    )
-    if err != nil {
-        t.Fatal(err)
+    req := testcontainers.ContainerRequest{
+        Image:        "postgres:18-alpine",
+        ExposedPorts: []string{"5432/tcp"},
+        Env: map[string]string{
+            "POSTGRES_DB":       "order_db",
+            "POSTGRES_USER":     "postgres",
+            "POSTGRES_PASSWORD": "postgres",
+        },
     }
-
-    connStr, _ := pgContainer.ConnectionString(ctx, "sslmode=disable")
-    db, err := sql.Open("postgres", connStr)
-    if err != nil {
-        t.Fatal(err)
-    }
-
-    // Run migrations
-    runMigrations(db)
-
-    cleanup := func() {
-        db.Close()
-        pgContainer.Terminate(ctx)
-    }
-
-    return db, cleanup
+    // ...
 }
+```
 
+### Repository Tests
+
+```go
+// tests/integration/order/order_repo_test.go
 func TestOrderRepository_Create(t *testing.T) {
-    db, cleanup := setupTestDB(t)
-    defer cleanup()
+    db := testdb.SetupTestDB(t)
+    repo := repository.NewOrderRepository(db)
 
-    repo := NewOrderRepo(db)
-    order := &Order{
-        ID:         "ord_001",
-        CustomerID: "usr_001",
-        Status:     "pending_payment",
+    order := &domain.Order{
+        ID:         uuid.New().String(),
+        CustomerID: "cust_123",
+        Status:     "pending",
     }
 
     err := repo.Create(context.Background(), order)
-    assert.NoError(t, err)
+    if err != nil {
+        t.Fatalf("failed to create order: %v", err)
+    }
 
     // Verify
-    fetched, err := repo.GetByID(context.Background(), "ord_001")
-    assert.NoError(t, err)
-    assert.Equal(t, order.ID, fetched.ID)
-}
-```
-
-### Redis Integration Tests
-
-```go
-func setupTestRedis(t *testing.T) (*redis.Client, func()) {
-    ctx := context.Background()
-
-    redisContainer, err := testcontainers.GenericContainer(ctx,
-        testcontainers.GenericContainerRequest{
-            ContainerRequest: testcontainers.ContainerRequest{
-                Image:        "redis:7-alpine",
-                ExposedPorts: []string{"6379/tcp"},
-            },
-            Started: true,
-        },
-    )
+    fetched, err := repo.GetByID(context.Background(), order.ID)
     if err != nil {
-        t.Fatal(err)
+        t.Fatalf("failed to get order: %v", err)
     }
-
-    host, _ := redisContainer.Host(ctx)
-    port, _ := redisContainer.MappedPort(ctx, "6379")
-
-    client := redis.NewClient(&redis.Options{
-        Addr: fmt.Sprintf("%s:%s", host, port.Port()),
-    })
-
-    cleanup := func() {
-        client.Close()
-        redisContainer.Terminate(ctx)
+    if fetched.CustomerID != "cust_123" {
+        t.Errorf("expected cust_123, got %s", fetched.CustomerID)
     }
-
-    return client, cleanup
-}
-
-func TestCache_SetAndGet(t *testing.T) {
-    client, cleanup := setupTestRedis(t)
-    defer cleanup()
-
-    cache := NewRedisCache(client, "test", 5*time.Minute)
-
-    // Set
-    err := cache.Set(context.Background(), "key1", "value1")
-    assert.NoError(t, err)
-
-    // Get
-    var result string
-    err = cache.Get(context.Background(), "key1", &result)
-    assert.NoError(t, err)
-    assert.Equal(t, "value1", result)
 }
 ```
 
-### Kafka Integration Tests
+**Coverage:**
+- Order CRUD, outbox events (ClaimBatch, MarkPublished, MarkFailed), idempotency key lookup
+- Inventory CRUD, reservations, movements, concurrent access
+- Atomicity tests (order + items in same transaction)
+- Optimistic locking tests
+
+### HTTP Handler Tests
 
 ```go
-func setupTestKafka(t *testing.T) (testcontainers.Container, func()) {
-    ctx := context.Background()
+// tests/integration/http/order_handler_test.go
+func TestCreateOrder(t *testing.T) {
+    db := testdb.SetupTestDB(t)
+    handler := handler.NewOrderHandler(usecase)
 
-    kafkaContainer, err := testcontainers.GenericContainer(ctx,
-        testcontainers.GenericContainerRequest{
-            ContainerRequest: testcontainers.ContainerRequest{
-                Image:        "confluentinc/cp-kafka:7.6.0",
-                ExposedPorts: []string{"9092/tcp"},
-                Env: map[string]string{
-                    "KAFKA_NODE_ID":               "1",
-                    "KAFKA_LISTENER_SECURITY_PROTOCOL_MAP": "PLAINTEXT:PLAINTEXT",
-                    "KAFKA_ADVERTISED_LISTENERS":  "PLAINTEXT://localhost:9092",
-                },
-            },
-            Started: true,
-        },
-    )
-    if err != nil {
-        t.Fatal(err)
-    }
+    body := `{"customer_id":"cust_123","items":[...]}`
+    req := httptest.NewRequest("POST", "/api/orders", strings.NewReader(body))
+    w := httptest.NewRecorder()
 
-    cleanup := func() {
-        kafkaContainer.Terminate(ctx)
-    }
+    handler.CreateOrder(w, req)
 
-    return kafkaContainer, cleanup
-}
-
-func TestKafka_PublishAndConsume(t *testing.T) {
-    container, cleanup := setupTestKafka(t)
-    defer cleanup()
-
-    // Create producer and consumer
-    producer := NewKafkaProducer(container.Endpoint())
-    consumer := NewKafkaConsumer(container.Endpoint(), "test-group")
-
-    // Publish
-    err := producer.Publish(context.Background(), "test-topic", "test-key", []byte("test-value"))
-    assert.NoError(t, err)
-
-    // Consume
-    msg, err := consumer.Consume(context.Background(), "test-topic", 5*time.Second)
-    assert.NoError(t, err)
-    assert.Equal(t, []byte("test-value"), msg.Value)
-}
-```
-
----
-
-## End-to-End Tests
-
-### HTTP API Tests
-
-```go
-func TestE2E_OrderCreation(t *testing.T) {
-    // Setup
-    server := setupTestServer(t)
-    defer server.Close()
-
-    client := &http.Client{Timeout: 10 * time.Second}
-
-    // Create order
-    orderReq := CreateOrderRequest{
-        CustomerID: "usr_001",
-        Items: []OrderItemRequest{
-            {ProductID: "prod_001", Quantity: 2},
-        },
-    }
-    body, _ := json.Marshal(orderReq)
-
-    resp, err := client.Post(
-        server.URL+"/api/orders",
-        "application/json",
-        bytes.NewReader(body),
-    )
-    assert.NoError(t, err)
-    assert.Equal(t, http.StatusCreated, resp.StatusCode)
-
-    var orderResp OrderResponse
-    json.NewDecoder(resp.Body).Decode(&orderResp)
-    assert.Equal(t, "pending_payment", orderResp.Data.Status)
-
-    // Get order
-    resp, err = client.Get(server.URL + "/api/orders/" + orderResp.Data.ID)
-    assert.NoError(t, err)
-    assert.Equal(t, http.StatusOK, resp.StatusCode)
-
-    // Cancel order
-    resp, err = client.Post(
-        server.URL+"/api/orders/"+orderResp.Data.ID+"/cancel",
-        "application/json",
-        strings.NewReader(`{"reason": "test"}`),
-    )
-    assert.NoError(t, err)
-    assert.Equal(t, http.StatusOK, resp.StatusCode)
-}
-```
-
-### WebSocket Tests
-
-```go
-func TestE2E_WebSocketNotifications(t *testing.T) {
-    // Connect to WebSocket
-    conn, _, err := websocket.DefaultDialer.Dial(
-        "ws://localhost:8081/ws?token=test-token",
-        nil,
-    )
-    assert.NoError(t, err)
-    defer conn.Close()
-
-    // Subscribe to order updates
-    subscribeMsg := map[string]interface{}{
-        "action":   "subscribe",
-        "channels": []string{"order:ord_001"},
-    }
-    err = conn.WriteJSON(subscribeMsg)
-    assert.NoError(t, err)
-
-    // Simulate order status change (via API)
-    go func() {
-        time.Sleep(1 * time.Second)
-        http.Post("http://localhost:8080/api/orders/ord_001/ship", "application/json", nil)
-    }()
-
-    // Read notification
-    conn.SetReadDeadline(time.Now().Add(5 * time.Second))
-    _, message, err := conn.ReadMessage()
-    assert.NoError(t, err)
-
-    var event Event
-    json.Unmarshal(message, &event)
-    assert.Equal(t, "order.status_changed", event.Type)
-}
-```
-
----
-
-## Performance Tests
-
-### k6 Load Test
-
-```javascript
-// load_test.js
-import http from 'k6/http';
-import { check, sleep } from 'k6';
-
-export const options = {
-    stages: [
-        { duration: '30s', target: 20 },  // Ramp up
-        { duration: '1m', target: 50 },   // Stay at 50
-        { duration: '30s', target: 0 },   // Ramp down
-    ],
-    thresholds: {
-        http_req_duration: ['p(95)<500'],  // 95% under 500ms
-        http_req_failed: ['rate<0.01'],    // Less than 1% errors
-    },
-};
-
-export default function () {
-    const payload = JSON.stringify({
-        customer_id: 'usr_001',
-        items: [{ product_id: 'prod_001', quantity: 1 }],
-    });
-
-    const params = {
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer test-token',
-        },
-    };
-
-    const res = http.post('http://localhost:8080/api/orders', payload, params);
-
-    check(res, {
-        'status is 201': (r) => r.status === 201,
-        'response time < 500ms': (r) => r.timings.duration < 500,
-    });
-
-    sleep(1);
-}
-```
-
-### Vegeta Load Test
-
-```go
-func TestLoad_OrderCreation(t *testing.T) {
-    target := vegeta.Target{
-        Method: "POST",
-        URL:    "http://localhost:8080/api/orders",
-        Header: http.Header{
-            "Content-Type":  {"application/json"},
-            "Authorization": {"Bearer test-token"},
-        },
-        Body: []byte(`{
-            "customer_id": "usr_001",
-            "items": [{"product_id": "prod_001", "quantity": 1}]
-        }`),
-    }
-
-    attacker := vegeta.NewAttacker()
-    rate := vegeta.Rate{Freq: 100, Per: time.Second}
-    duration := 1 * time.Minute
-
-    var metrics vegeta.Metrics
-    for res := range attacker.Attack(target.Serve, rate, duration, "Load Test") {
-        metrics.Add(res)
-    }
-    metrics.Close()
-
-    // Check results
-    if metrics.Success < 0.99 {
-        t.Errorf("Success rate too low: %.2f%%", metrics.Success*100)
-    }
-    if metrics.Latencies.P95 > 500*time.Millisecond {
-        t.Errorf("P95 latency too high: %v", metrics.Latencies.P95)
+    if w.Code != http.StatusCreated {
+        t.Errorf("expected 201, got %d", w.Code)
     }
 }
 ```
 
 ---
 
-## Test Organization
+## E2E Tests
 
+```go
+// tests/e2e/order_e2e_test.go
+func TestCreateOrder(t *testing.T) {
+    db := testdb.SetupTestDB(t)
+    router := setupRouter(db)
+
+    body := `{"customer_id":"cust_123","items":[...]}`
+    req := httptest.NewRequest("POST", "/api/orders", strings.NewReader(body))
+    w := httptest.NewRecorder()
+
+    router.ServeHTTP(w, req)
+
+    if w.Code != http.StatusCreated {
+        t.Errorf("expected 201, got %d", w.Code)
+    }
+
+    var resp map[string]interface{}
+    json.Unmarshal(w.Body.Bytes(), &resp)
+    if resp["status"] != "pending" {
+        t.Errorf("expected pending, got %s", resp["status"])
+    }
+}
 ```
-├── unit/
-│   ├── order/
-│   │   ├── service_test.go
-│   │   └── repository_test.go
-│   ├── inventory/
-│   │   ├── service_test.go
-│   │   └── repository_test.go
-│   └── common/
-│       └── validator_test.go
-├── integration/
-│   ├── database_test.go
-│   ├── redis_test.go
-│   └── kafka_test.go
-├── e2e/
-│   ├── order_flow_test.go
-│   └── websocket_test.go
-├── performance/
-│   ├── load_test.go
-│   └── stress_test.go
-└── helpers/
-    ├── testdb.go
-    └── fixtures.go
-```
+
+**Coverage:**
+- Full CRUD lifecycle
+- Idempotency (duplicate key → 409)
+- Error handling (invalid JSON, empty cart, not found)
+- Total calculation verification
 
 ---
 
-## Test Helpers
+## Test Commands
 
-```go
-// testhelpers/testdb.go
-func SetupTestDB(t *testing.T) *sql.DB {
-    t.Helper()
+```bash
+# Unit tests only (no infrastructure)
+make test-unit
+go test ./tests/unit/...
 
-    db, err := sql.Open("postgres", os.Getenv("TEST_DATABASE_URL"))
-    if err != nil {
-        t.Fatal(err)
-    }
+# Integration tests (starts PostgreSQL)
+make test-integration
+go test ./tests/integration/...
 
-    // Clean database before test
-    db.Exec("TRUNCATE orders, order_items, inventory CASCADE")
+# All tests
+make test-all
+make test
 
-    t.Cleanup(func() {
-        db.Close()
-    })
+# Specific test
+go test ./tests/unit/domain/ -run TestCalculateTotal
 
-    return db
-}
+# With coverage
+go test -coverprofile=coverage.out ./...
+go tool cover -html=coverage.out
 
-// testhelpers/fixtures.go
-func CreateTestOrder(db *sql.DB, id string) {
-    db.Exec(`
-        INSERT INTO orders (id, customer_id, status, currency, subtotal, total_amount, created_at, updated_at)
-        VALUES ($1, 'usr_001', 'pending_payment', 'USD', 100.00, 100.00, NOW(), NOW())`,
-        id,
-    )
-}
-
-func CreateTestInventory(db *sql.DB, productID, warehouseID string, quantity int) {
-    db.Exec(`
-        INSERT INTO inventory (id, product_id, sku, warehouse_id, quantity_on_hand, quantity_reserved, version, updated_at)
-        VALUES (uuid_generate_v4(), $1, 'SKU-001', $2, $3, 0, 0, NOW())`,
-        productID, warehouseID, quantity,
-    )
-}
+# Race detector
+go test -race ./tests/unit/...
 ```
 
 ---
 
 ## CI/CD Integration
 
-### GitHub Actions
+### GitHub Actions Workflow
 
 ```yaml
-# .github/workflows/test.yml
-name: Tests
-
-on: [push, pull_request]
-
 jobs:
   test:
-    runs-on: ubuntu-latest
-
     services:
       postgres:
-        image: postgres:16
+        image: postgres:18-alpine
         env:
-          POSTGRES_DB: testdb
-          POSTGRES_USER: test
-          POSTGRES_PASSWORD: test
+          POSTGRES_DB: order_db
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
         ports:
           - 5432:5432
-
-      redis:
-        image: redis:7
-        ports:
-          - 6379:6379
-
     steps:
       - uses: actions/checkout@v4
-
-      - name: Setup Go
-        uses: actions/setup-go@v5
+      - uses: actions/setup-go@v5
         with:
           go-version: '1.22'
-
-      - name: Run Unit Tests
-        run: go test -v ./unit/... -coverprofile=coverage.out
-
-      - name: Run Integration Tests
-        run: go test -v ./integration/... -tags=integration
-        env:
-          TEST_DATABASE_URL: postgres://test:test@localhost:5432/testdb?sslmode=disable
-          TEST_REDIS_URL: localhost:6379
-
-      - name: Upload Coverage
-        uses: codecov/codecov-action@v3
-        with:
-          file: ./coverage.out
+      - run: go test -v -p 1 ./...
 ```
 
 ---
 
-## Coverage Reports
+## Test Helpers
 
-```bash
-# Generate coverage report
-go test ./... -coverprofile=coverage.out
+### Table Creation
 
-# View coverage
-go tool cover -html=coverage.out
-
-# Coverage by package
-go test ./... -cover | grep -v "no test files"
+```go
+func createTables(db *sqlx.DB) {
+    db.Exec(`
+        CREATE TABLE IF NOT EXISTS orders (
+            id VARCHAR(26) PRIMARY KEY,
+            customer_id VARCHAR(26) NOT NULL,
+            status VARCHAR(20) NOT NULL DEFAULT 'pending',
+            ...
+        )
+    `)
+}
 ```
 
-### Coverage Thresholds
+### Cleanup
 
-| Package | Minimum Coverage |
-|---------|------------------|
-| order | 85% |
-| inventory | 85% |
-| websocket | 80% |
-| common | 90% |
-| Overall | 80% |
+```go
+func cleanupTables(db *sqlx.DB) {
+    db.Exec("TRUNCATE order_status_history, order_items, outbox_events, orders CASCADE")
+}
+```
+
+### Seed Data
+
+```go
+func seedOrder(db *sqlx.DB, order *domain.Order) {
+    repo := repository.NewOrderRepository(db)
+    repo.Create(context.Background(), order)
+}
+```
+
+---
+
+## What's Implemented
+
+- [x] 58 unit tests (domain, usecase, kafka, pkg)
+- [x] 43 integration tests (repository, usecase, handler)
+- [x] 8 E2E tests (full HTTP lifecycle)
+- [x] 8 mock files (repos, usecases, kafka writer)
+- [x] Testcontainers for PostgreSQL
+- [x] Test helpers (table creation, cleanup, seed)
+- [x] GitHub Actions CI/CD
+- [x] Makefile targets (test-unit, test-integration, test-all)
+- [x] `-p 1` flag for parallel test safety
+
+## Not Implemented
+
+- [ ] Benchmark tests (testing.B)
+- [ ] Fuzz tests (testing.F)
+- [ ] Test coverage reporting in CI
+- [ ] Mock generation (mockgen/counterfeiter)
+- [ ] Redis integration tests
+- [ ] WebSocket integration tests

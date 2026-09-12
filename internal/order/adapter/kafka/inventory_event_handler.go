@@ -7,6 +7,8 @@ import (
 
 	"github.com/segmentio/kafka-go"
 	"go.uber.org/zap"
+
+	pkgkafka "github.com/racenak/Realtime-Order-Inventory-System/pkg/kafka"
 )
 
 type OrderUseCase interface {
@@ -41,13 +43,13 @@ type InventoryReservationFailedEvent struct {
 
 type InventoryEventHandler struct {
 	orderUC  OrderUseCase
-	producer *kafka.Writer
+	producer pkgkafka.MessageWriter
 	logger   *zap.Logger
 }
 
 func NewInventoryEventHandler(
 	orderUC OrderUseCase,
-	producer *kafka.Writer,
+	producer pkgkafka.MessageWriter,
 	logger *zap.Logger,
 ) *InventoryEventHandler {
 	return &InventoryEventHandler{

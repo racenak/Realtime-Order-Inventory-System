@@ -1,532 +1,394 @@
-# Architecture Decision Records
+# Architecture Decision Records (ADR)
 
-## Overview
+## ADR-01: Event-Driven Architecture
 
-This document records key architectural decisions for the Realtime Order Inventory System (ROIS). Each decision follows the ADR format: Title, Status, Context, Decision, Consequences.
+**Status**: Accepted
 
----
+**Decision**: Use event-driven architecture with Kafka as the event bus.
 
-## ADR-001: Microservices Architecture
+**Rationale**:
+- Loose coupling between Order and Inventory services
+- Natural fit for inventory reservation/release patterns
+- Enables real-time updates via WebSocket
+- Kafka provides durability, ordering, and replay
 
-**Status:** Accepted
-
-**Context:**
-We need to build a system that handles order processing and inventory management with real-time synchronization. The system must support independent scaling, deployment, and development of different components.
-
-**Decision:**
-Adopt a microservices architecture with separate services for Order, Inventory, and WebSocket functionality.
-
-**Rationale:**
-- Independent scaling: Order service may need more resources during peak hours than inventory
-- Independent deployment: Changes to notification logic don't require redeploying order service
-- Team autonomy: Different teams can own different services
-- Technology flexibility: Each service can use optimized libraries
-
-**Consequences:**
-
-| Positive | Negative |
-|----------|----------|
-| Independent scaling per service | Increased operational complexity |
-| Fault isolation | Network latency between services |
-| Independent deployments | Distributed transaction challenges |
-| Team autonomy | More infrastructure to maintain |
-| Technology flexibility | Debugging complexity |
+**Consequences**:
+- Eventual consistency between services
+- Need for idempotent consumers
+- Outbox pattern for reliable event publishing
 
 ---
 
-## ADR-002: Event-Driven Communication with Kafka
+## ADR-02: CQRS Pattern
 
-**Status:** Accepted
+**Status**: Accepted
 
-**Context:**
-Services need to communicate asynchronously. We need reliable event delivery, event ordering, and the ability to handle high throughput.
+**Decision**: Separate read and write models for Order and Inventory.
 
-**Decision:**
-Use Apache Kafka as the primary event bus for inter-service communication.
+**Rationale**:
+- Order reads (list, detail) need different views than writes (create, cancel)
+- Inventory reads (stock check) optimized differently than writes (reserve, release)
+- Enables independent scaling of read/write paths
 
-**Alternatives Considered:**
-- RabbitMQ: Simpler but lower throughput, no event replay
-- NATS: Lightweight but less mature ecosystem
-- Redis Pub/Sub: Simple but no persistence guarantee
-
-**Rationale:**
-- High throughput (millions of messages/second)
-- Event persistence and replay capability
-- Ordered events within partitions
-- Mature ecosystem with excellent Go client libraries
-- Built-in consumer groups for parallel processing
-
-**Consequences:**
-
-| Positive | Negative |
-|----------|----------|
-| High throughput | Operational complexity (Kafka cluster) |
-| Event replay capability | Higher latency than in-process calls |
-| Ordered events | Requires careful partition key design |
-| Consumer groups | Message ordering only within partition |
-| Mature ecosystem | Learning curve for team |
+**Consequences**:
+- More complex code structure
+- Potential for stale reads (mitigated by Redis caching)
+- Clear separation of concerns
 
 ---
 
-## ADR-003: PostgreSQL as Primary Database
+## ADR-03: Two Separate Databases
 
-**Status:** Accepted
+**Status**: Accepted
 
-**Context:**
-We need a reliable, ACID-compliant database for storing orders and inventory with strong consistency requirements.
+**Decision**: Order Service and Inventory Service each own their own PostgreSQL database.
 
-**Decision:**
-Use PostgreSQL 16 as the primary database for all services.
-
-**Alternatives Considered:**
-- MySQL: Good but fewer advanced features
-- MongoDB: Flexible schema but weaker consistency
-- CockroachDB: Distributed but higher operational cost
-
-**Rationale:**
-- ACID compliance for financial transactions
-- JSONB support for flexible data (shipping addresses)
-- Strong consistency with row-level locking
-- Mature and battle-tested
-- Excellent Go driver support (pgx)
-- Built-in UUID support
-
-**Consequences:**
-
-| Positive | Negative |
-|----------|----------|
-| Strong ACID guarantees | Vertical scaling limits |
-| JSONB for flexible data | Requires careful connection pooling |
-| Excellent Go support | Schema migrations required |
-| Rich feature set | Storage cost for JSONB |
-| Mature ecosystem | Read replicas needed for scaling reads |
-
----
-
-## ADR-004: Redis for Caching and Distributed Locking
-
-**Status:** Accepted
-
-**Context:**
-We need fast data access for frequently read data, session storage, and distributed locking for coordination across service instances.
-
-**Decision:**
-Use Redis 7 with Cluster mode for caching, distributed locking, and real-time features.
-
-**Alternatives Considered:**
-- Memcached: Simpler but no persistence or data structures
-- Hazelcast: JVM-based, doesn't fit Go ecosystem
-- etcd: Good for locking but not optimized for caching
-
-**Rationale:**
-- Sub-millisecond latency
-- Rich data structures (strings, hashes, lists, sets)
-- Built-in Pub/Sub for real-time features
-- Atomic operations for distributed locking
-- TTL support for automatic expiration
-- Cluster mode for high availability
-
-**Consequences:**
-
-| Positive | Negative |
-|----------|----------|
-| Sub-millisecond latency | Memory cost |
-| Rich data structures | Cache invalidation complexity |
-| Built-in Pub/Sub | Eventual consistency for cached data |
-| Atomic operations | Cache stampede risk |
-| TTL support | Another infrastructure component |
-
----
-
-## ADR-005: Traefik as API Gateway
-
-**Status:** Accepted
-
-**Context:**
-We need a reverse proxy to handle routing, TLS termination, authentication, and rate limiting for external API traffic.
-
-**Decision:**
-Use Traefik as the API Gateway/edge router.
-
-**Alternatives Considered:**
-- Custom Go API Gateway: Full control but high development cost
-- Kong: Feature-rich but complex configuration
-- Nginx: Battle-tested but less Kubernetes-native
-- Envoy: Powerful but steep learning curve
-
-**Rationale:**
-- Kubernetes-native with automatic service discovery
-- Built-in Let's Encrypt ACME support
-- Dynamic configuration via Kubernetes CRDs
-- Middleware plugins for rate limiting, auth, CORS
-- Built-in dashboard for monitoring
-- Lower operational cost than custom solution
-
-**Consequences:**
-
-| Positive | Negative |
-|----------|----------|
-| Kubernetes-native | Less control than custom gateway |
-| Auto TLS with Let's Encrypt | Vendor dependency on Traefik |
-| Dynamic configuration | Debugging middleware issues |
-| Built-in dashboard | Limited custom logic |
-| Lower development cost | Learning curve for CRDs |
-
----
-
-## ADR-006: WebSocket for Real-Time Updates
-
-**Status:** Accepted
-
-**Context:**
-We need to push real-time order status updates and inventory changes to connected clients without polling.
-
-**Decision:**
-Implement a dedicated WebSocket service using Gorilla WebSocket library.
-
-**Alternatives Considered- SSE (Server-Sent Events): Simpler but unidirectional
-- Long Polling: Simple but inefficient
-- gRPC Streaming: Powerful but complex client setup
-- Socket.IO: Feature-rich but adds dependency
-
-**Rationale:**
-- Full-duplex communication
-- Browser-native support
-- Gorilla WebSocket is battle-tested
-- Redis Pub/Sub for broadcasting to multiple instances
-- No polling overhead
-
-**Consequences:**
-
-| Positive | Negative |
-|----------|----------|
-| Real-time bidirectional | Connection management complexity |
-| Browser-native | Horizontal scaling requires sticky sessions or pub/sub |
-| Efficient | Stateful connections |
-| Low latency | Connection handling overhead |
-| Battle-tested library | WebSocket load balancing challenges |
-
----
-
-## ADR-007: Outbox Pattern for Event Publishing
-
-**Status:** Accepted
-
-**Context:**
-We need to guarantee that events are published when database state changes. We cannot afford to lose events or publish events without corresponding database changes.
-
-**Decision:**
-Implement the Transactional Outbox Pattern for reliable event publishing.
-
-**Alternatives Considered:**
-- Direct Kafka publish: Risk of inconsistency
-- CDC (Change Data Capture): Complex setup
-- Two-phase commit: Performance and availability issues
-
-**Rationale:**
-- Guarantees atomicity between database write and event publication
-- No distributed transactions required
-- Polling publisher is simple to implement
-- Proven pattern for event-driven architectures
-
-**Consequences:**
-
-| Positive | Negative |
-|----------|----------|
-| Guaranteed event publication | Added database writes |
-| No distributed transactions | Polling overhead |
-| Simple implementation | Eventual consistency |
-| Reliable | Outbox table growth |
-| battle-tested | Requires cleanup job |
-
----
-
-## ADR-008: Saga Pattern for Distributed Transactions
-
-**Status:** Accepted
-
-**Context:**
-Order creation spans multiple services (order, inventory, notification). We need to maintain consistency without distributed transactions.
-
-**Decision:**
-Implement Choreography-based Saga pattern with compensation logic.
-
-**Alternatives Considered:**
-- Orchestration Saga: Central coordinator but single point of failure
-- Two-phase commit: Poor performance and availability
-- Tight coupling: Simple but no fault tolerance
-
-**Rationale:**
-- No central coordinator (single point of failure)
-- Loose coupling between services
-- Compensation logic handles failures
-- Each service is autonomous
-
-**Consequences:**
-
-| Positive | Negative |
-|----------|----------|
-| No single point of failure | Complex compensation logic |
-| Loose coupling | Harder to track overall flow |
-| Service autonomy | Eventual consistency |
-| Fault tolerance | Debugging complexity |
-| Scalability | Circular event dependencies possible |
-
----
-
-## ADR-009: CQRS for Read/Write Separation
-
-**Status:** Accepted
-
-**Context:**
-Read and write patterns have different performance requirements. Reads are frequent and need low latency; writes are less frequent but need strong consistency.
-
-**Decision:**
-Implement CQRS (Command Query Responsibility Segregation) with separate read and write models.
-
-**Rationale:**
-- Optimize read and write independently
-- Read replicas for scaling reads
-- Redis cache for hot data
-- Write model optimized for consistency
-- Read model optimized for query performance
-
-**Consequences:**
-
-| Positive | Negative |
-|----------|----------|
-| Independent optimization | Increased complexity |
-| Better read performance | Eventual consistency |
-| Scalable reads | Data synchronization challenges |
-| Clear separation of concerns | More code to maintain |
-| Flexible query optimization | Cache invalidation complexity |
-
----
-
-## ADR-010: UUID v7 for Primary Keys
-
-**Status:** Accepted
-
-**Context:**
-We need unique identifiers that are globally unique, time-sortable, and work well with databases and caches.
-
-**Decision:**
-Use UUID v7 (time-ordered) for all primary keys.
-
-**Alternatives Considered:**
-- Auto-increment: Not distributed-friendly
-- UUID v4: Random, poor index performance
-- ULID: Similar to UUID v7 but less standard
-- NanoID: Short but not time-ordered
-
-**Rationale:**
-- Globally unique without coordination
-- Time-ordered for better index performance
-- Standard format (RFC 9562)
-- Safe to expose externally
-- No database sequence contention
-
-**Consequences:**
-
-| Positive | Negative |
-|----------|----------|
-| Globally unique | 16 bytes storage |
-| Time-ordered | Less human-readable |
-| No coordination | Requires UUID library |
-| Index-friendly | Can't be manually generated |
-| External-safe | Order reveals creation time (minor) |
-
----
-
-## ADR-011: Structured Logging with Zap
-
-**Status:** Accepted
-
-**Context:**
-We need high-performance, structured logging that integrates with log aggregation systems.
-
-**Decision:**
-Use Uber's Zap library for structured JSON logging.
-
-**Alternatives Considered:**
-- Logrus: Popular but slower
-- zerolog: Similar performance but less mainstream
-- Standard log: No structure
-
-**Rationale:**
-- High performance (zero allocation)
-- Structured JSON output
-- Context-aware logging
-- Strong ecosystem support
-- Battle-tested at Uber
-
-**Consequences:**
-
-| Positive | Negative |
-|----------|----------|
-| High performance | Slightly complex API |
-| Structured logs | Different API than standard log |
-| Context support | Requires initialization |
-| JSON output | Learning curve |
-| Battle-tested | |
-
----
-
-## ADR-012: OpenTelemetry for Observability
-
-**Status:** Accepted
-
-**Context:**
-We need unified observability across logging, metrics, and tracing in a distributed system.
-
-**Decision:**
-Use OpenTelemetry as the observability framework.
-
-**Alternatives Considered:**
-- Jaeger only: Tracing only
-- Prometheus + Grafana only: Metrics only
-- Datadog: Expensive, vendor lock-in
-- Custom solution: High development cost
-
-**Rationale:**
-- Unified API for logs, metrics, traces
-- Vendor-neutral (no lock-in)
-- Automatic context propagation
-- Growing industry standard
-- Excellent Go SDK
-
-**Consequences:**
-
-| Positive | Negative |
-|----------|----------|
-| Unified observability | Additional complexity |
-| Vendor-neutral | Learning curve |
-| Automatic context propagation | Overhead of instrumentation |
-| Industry standard | Still maturing |
-| Go SDK support | |
-
----
-
-## ADR-013: Database per Service
-
-**Status:** Accepted
-
-**Context:**
-Each microservice should own its data to ensure loose coupling and independent deployment.
-
-**Decision:**
-Each service has its own database (order_db, inventory_db).
-
-**Alternatives Considered:**
-- Shared database: Tight coupling, deployment conflicts
-- Schema per service: Partial isolation
-- API-only access: Performance overhead
-
-**Rationale:**
-- True loose coupling
+**Rationale**:
+- Strong data isolation per bounded context
 - Independent schema evolution
-- No cross-service locks
-- Clear data ownership
-- Independent scaling
+- Prevents cross-service direct DB access
+- Aligns with microservice ownership model
 
-**Consequences:**
-
-| Positive | Negative |
-|----------|----------|
-| True loose coupling | No joins across services |
-| Independent schema evolution | Data consistency challenges |
-| No cross-service locks | More databases to manage |
-| Clear ownership | Increased storage cost |
-| Independent scaling | Backup complexity |
+**Consequences**:
+- Cross-service queries require API calls
+- No JOIN across services (by design)
+- Each service responsible for its own migrations
 
 ---
 
-## ADR-014: Kubernetes for Orchestration
+## ADR-04: Outbox Pattern for Event Publishing
 
-**Status:** Accepted
+**Status**: Accepted
 
-**Context:**
-We need a container orchestration platform for deploying, scaling, and managing services.
+**Decision**: Use Outbox Pattern with polling publisher for reliable event delivery.
 
-**Decision:**
-Use Kubernetes for container orchestration.
+**Implementation**:
+- Write use cases insert outbox event in same DB transaction as business data
+- Outbox publisher polls `outbox_events` table for PENDING events
+- Publisher uses `ClaimBatch()` with `FOR UPDATE SKIP LOCKED` to prevent duplicate processing
+- Status flow: `PENDING → CLAIMED → PUBLISHED/FAILED`
+- Published messages include `event_type` header for consumer routing
 
-**Alternatives Considered:**
-- Docker Swarm: Simpler but less features
-- ECS: AWS-specific, vendor lock-in
-- Nomad: Simpler but smaller ecosystem
-- Manual deployment: Not scalable
+**Rationale**:
+- Guarantees at-least-once delivery without distributed transactions
+- atomic business write + event write eliminates lost events
+- `FOR UPDATE SKIP LOCKED` prevents race condition when multiple publisher instances compete
+- DLQ (dead letter queue) captures events that exhaust retries
 
-**Rationale:**
-- Industry standard
-- Rich ecosystem (Helm, operators)
-- Auto-scaling (HPA, VPA)
-- Self-healing capabilities
-- Rolling updates and rollbacks
-- Strong community support
-
-**Consequences:**
-
-| Positive | Negative |
-|----------|----------|
-| Industry standard | Steep learning curve |
-| Rich ecosystem | Complex configuration |
-| Auto-scaling | Resource overhead |
-| Self-healing | Requires expertise |
-| Rolling updates | YAML management |
+**Consequences**:
+- Polling latency (configurable interval)
+- Slight delay between write and event publication
+- Failed events stored for retry/DLQ
 
 ---
 
-## ADR-015: gRPC for Internal Communication
+## ADR-05: Idempotency Key (Client-Sends-Key)
 
-**Status:** Accepted
+**Status**: Accepted
 
-**Context:**
-Services need efficient, type-safe internal communication.
+**Decision**: Clients generate and send `Idempotency-Key` header on `POST /api/orders/`.
 
-**Decision:**
-Use gRPC for synchronous service-to-service communication.
+**Implementation**:
+- Client generates unique UUID and sends as `Idempotency-Key` header
+- Order use case calls `GetByIDempotencyKey(key)` before insert
+- If key exists: returns `409 Conflict` with existing order in error body
+- If key is new: inserts order, creates outbox event in same DB transaction
 
-**Alternatives Considered:**
-- REST: Simpler but less efficient
-- Thrift: Similar but less ecosystem
-- GraphQL: Flexible but complex
+**Rationale**:
+- Server does not need to track or store idempotency keys separately
+- Existing unique index on `orders.idempotency_key` provides constraint
+- Simpler than server-generated tokens
+- Natural client-side retry with same key
 
-**Rationale:**
-- Binary protocol (efficient)
-- Strong typing with Protocol Buffers
-- Code generation from .proto files
-- Built-in streaming support
-- Excellent performance
-
-**Consequences:**
-
-| Positive | Negative |
-|----------|----------|
-| High performance | Not browser-friendly |
-| Strong typing | Requires .proto files |
-| Code generation | Harder to debug |
-| Streaming support | Learning curve |
-| Efficient serialization | |
+**Consequences**:
+- Client must store and reuse idempotency key on retries
+- Duplicate submissions return 409 with existing order
 
 ---
 
-## Decision Summary
+## ADR-06: JWT-Based Authentication via Traefik ForwardAuth
 
-| Decision | Choice | Key Reason |
-|----------|--------|------------|
-| Architecture | Microservices | Independent scaling and deployment |
-| Event Bus | Kafka | High throughput, persistence |
-| Primary DB | PostgreSQL | ACID compliance |
-| Cache | Redis | Sub-millisecond latency |
-| API Gateway | Traefik | Kubernetes-native |
-| Real-time | WebSocket | Bidirectional communication |
-| Event Publishing | Outbox Pattern | Guaranteed delivery |
-| Distributed TX | Saga Pattern | No 2PC |
-| Read/Write | CQRS | Independent optimization |
-| Primary Keys | UUID v7 | Time-sortable, unique |
-| Logging | Zap | High performance |
-| Observability | OpenTelemetry | Unified approach |
-| Data Isolation | DB per service | Loose coupling |
-| Orchestration | Kubernetes | Industry standard |
-| Internal Comms | gRPC | Performance, typing |
+**Status**: Accepted
+
+**Decision**: Traefik validates JWTs via ForwardAuth middleware pointing to Auth Service.
+
+**Implementation**:
+- Traefik intercepts all `/api/*` requests
+- ForwardAuth sends request to `http://auth-service:8083/validate`
+- Auth Service decodes JWT, validates signature (HMAC-SHA256), issuer (`order-inventory-system`), audience (`order-inventory-api`), expiry
+- On valid JWT: returns `200 OK` with `X-User-Id` and `X-User-Role` headers
+- On invalid JWT: returns `401 Unauthorized`, Traefik blocks request
+
+**Rationale**:
+- Single point of authentication, services trust Traefik-injected headers
+- Auth Service is stateless, no session storage
+- JWT validation at edge prevents unauthenticated traffic from reaching services
+
+**Consequences**:
+- Services must not expose endpoints without Traefik (internal ports)
+- Token refresh must be handled by client
+- Secrets (JWT signing key) managed via environment variables
+
+---
+
+## ADR-07: File Provider for Traefik on Podman
+
+**Status**: Accepted
+
+**Decision**: Use Traefik file provider (not Docker provider) for Podman compatibility.
+
+**Implementation**:
+- Custom Traefik Dockerfile copies baked-in `traefik.yml` and `dynamic.yml`
+- `--providers.file.watch=false` avoids file watching issues in containers
+- All routes defined as static files in `dynamic.yml`
+
+**Rationale**:
+- Traefik Docker provider requires Docker socket, which Podman doesn't expose the same way
+- File provider is runtime-agnostic
+- Config baked into image ensures immutability
+
+**Consequences**:
+- Config changes require image rebuild (not runtime reload)
+- `watch=false` avoids file watcher issues in containers
+
+---
+
+## ADR-08: MessageWriter Interface for Kafka
+
+**Status**: Accepted
+
+**Decision**: Define `MessageWriter` interface to decouple Kafka components from concrete `*kafka.Writer`.
+
+**Implementation**:
+```go
+type MessageWriter interface {
+    WriteMessages(ctx context.Context, msgs ...kafka.Message) error
+}
+```
+
+- Both `*kafka.Writer` and `MockMessageWriter` implement this interface
+- `OutboxPublisher`, `InventoryEventHandler`, and `OrderEventHandler` depend on `MessageWriter`, not `*kafka.Writer`
+- `OutboxPublisher` has `NewOutboxPublisherWithWriter()` constructor for DI
+- Event handlers have `producer` field typed as `MessageWriter`
+
+**Rationale**:
+- Enables unit testing without Kafka infrastructure
+- Decouples event handlers from Kafka client library details
+- Prevents data race from mutating `writer.Topic` on shared writer instances
+
+**Consequences**:
+- Topic is set on each `kafka.Message` (not on the writer) to avoid concurrent mutation
+- Tests inject `MockMessageWriter` instead of real Kafka
+
+---
+
+## ADR-09: ClaimBatch for Outbox Polling
+
+**Status**: Accepted
+
+**Decision**: Use `SELECT FOR UPDATE SKIP LOCKED` for atomic batch claiming of outbox events.
+
+**Implementation**:
+- `ClaimBatch(batchSize)` selects up to `batchSize` PENDING events
+- Row-level lock with `SKIP LOCKED` allows concurrent publishers to claim different batches
+- Status updated to CLAIMED, `published_at` set
+- Returns claimed events for publishing
+
+**Rationale**:
+- `FOR UPDATE SKIP LOCKED` prevents duplicate processing across publisher instances
+- No distributed lock manager needed
+- Atomic claim + status update in single query
+- `SKIP LOCKED` avoids blocking when another publisher claims rows
+
+**Consequences**:
+- PostgreSQL row-level locking
+- Multiple publisher instances can safely process concurrently
+- Missed claims (if publisher crashes after claim) are handled by re-claiming CLAIMED events
+
+---
+
+## ADR-10: Concurrency Control
+
+**Status**: Accepted
+
+**Decision**: Use optimistic locking for inventory updates, row-level locks for outbox processing.
+
+**Implementation**:
+
+**Optimistic Locking (Inventory)**:
+- `UPDATE ... SET quantity_on_hand = $1 WHERE id = $2 AND version = $3`
+- Check `rows affected == 1`, retry on conflict
+
+**Row-Level Locking (Outbox)**:
+- `SELECT ... FOR UPDATE SKIP LOCKED` for batch claiming
+- Prevents duplicate processing across publisher instances
+
+**Rationale**:
+- Optimistic locking suitable for low-contention inventory updates
+- Row-level locking for outbox prevents duplicate processing
+- No distributed locks needed
+
+**Consequences**:
+- Need retry logic for optimistic lock failures
+- `SKIP LOCKED` prevents blocking on lock contention
+
+---
+
+## ADR-11: Real-Time Updates via WebSocket + Redis Pub/Sub
+
+**Status**: Accepted
+
+**Decision**: Use Redis Pub/Sub as the message broker for WebSocket service fan-out.
+
+**Implementation**:
+- WebSocket service subscribes to Redis channels
+- Order/Inventory services publish events to Redis after Kafka processing
+- WebSocket hub maintains connected clients and broadcasts messages
+
+**Rationale**:
+- Redis Pub/Sub provides simple pub/sub without additional infrastructure
+- WebSocket service is stateless (can scale horizontally)
+- Fan-out pattern: one message reaches all subscribers
+
+**Consequences**:
+- Messages lost if no subscribers connected (acceptable for notifications)
+- Redis becomes critical infrastructure for real-time features
+
+---
+
+## ADR-12: Podman as Container Runtime
+
+**Status**: Accepted
+
+**Decision**: Use Podman (rootless) instead of Docker for container management.
+
+**Rationale**:
+- Rootless containers for security
+- daemonless architecture
+- OCI-compatible
+- Docker Compose compatibility via `podman compose`
+
+**Consequences**:
+- Must use `--userns=keep-id` for volume permissions
+- SELinux labels (`:z`) needed for volume mounts
+- File provider for Traefik (not Docker provider)
+
+---
+
+## ADR-13: Observability Stack
+
+**Status**: Accepted
+
+**Decision**: Full observability stack with Prometheus, Grafana, Loki, Jaeger, and OpenTelemetry Collector.
+
+**Implementation**:
+- **Prometheus**: Metrics TSDB, scrapes all services
+- **Grafana**: 9 dashboards (Overview, Order, Inventory, WebSocket, Auth, Kafka, Redis, Infrastructure, API)
+- **Loki**: Log aggregation, receives from Promtail
+- **Promtail**: Log shipping from all containers
+- **Jaeger**: Distributed trace UI
+- **OTel Collector**: Receives OTLP gRPC from services, exports to Jaeger/Prometheus
+
+**Custom Business Metrics (16)**:
+- Order lifecycle: created, completed, cancelled, processing duration
+- Inventory: reservations, releases, movements, stock level
+- WebSocket: connections, messages sent
+- Kafka: published, consumed, errors, DLQ
+- HTTP: requests, duration
+
+**Rationale**:
+- Unified observability across all services
+- Business metrics (not just infra) for domain visibility
+- Distributed tracing for request flow across services
+
+**Consequences**:
+- All services must expose `/metrics` endpoint
+- All services must instrument OpenTelemetry tracer
+- Structured JSON logging via Zap for Loki ingestion
+
+---
+
+## ADR-14: Testing Strategy
+
+**Status**: Accepted
+
+**Decision**: Three-layer testing: Unit → Integration → E2E, with function-field mocks.
+
+**Implementation**:
+
+**Unit Tests (58)**:
+- Domain logic, use cases, HTTP handlers, WebSocket hub, metrics, Kafka event handlers, outbox publisher, consumer
+- Function-field mocks in `tests/mocks/` (no code generation)
+- No infrastructure dependencies
+
+**Integration Tests (43)**:
+- Real PostgreSQL database
+- `testcontainers-go` for DB lifecycle
+- Covers repository layer, use case layer, HTTP handler layer
+- Atomicity and concurrency tests
+
+**E2E Tests (8)**:
+- Full HTTP lifecycle through chi router
+- Idempotency, error handling, edge cases
+
+**Makefile Targets**:
+- `make test-unit`: Unit tests only (no infra)
+- `make test-integration`: Integration tests (starts Postgres)
+- `make test-all`: Unit + Integration
+- `make test`: Runs everything with `-p 1`
+
+**Rationale**:
+- Function-field mocks are simple, no external dependencies
+- Integration tests catch real SQL/schema issues
+- E2E tests verify full request lifecycle
+- `-p 1` prevents race conditions between parallel test packages sharing DB
+
+**Consequences**:
+- Integration tests slower than unit tests (need DB)
+- Mock maintenance is manual (no code generation)
+
+---
+
+## ADR-15: Database Transaction Pattern
+
+**Status**: Accepted
+
+**Decision**: All write operations use explicit DB transactions with `defer tx.Rollback()`.
+
+**Implementation**:
+- `BeginTxx(ctx, nil)` starts transaction
+- `defer tx.Rollback()` ensures cleanup on error
+- `tx.Commit()` on success (Rollback is no-op after commit)
+- Business logic + outbox event write in same transaction
+
+**Rationale**:
+- `defer tx.Rollback()` is safe (no-op after commit)
+- Prevents abandoned transactions on error paths
+- Ensures atomicity: business data + outbox event written together
+
+**Consequences**:
+- All write use cases depend on `DBExecutor` interface
+- `*sqlx.DB` and `*sqlx.Tx` both implement `DBExecutor`
+
+---
+
+## ADR-16: Consumer Retry + DLQ Pattern
+
+**Status**: Accepted
+
+**Decision**: Kafka consumers use manual offset commit, configurable retry, and DLQ publishing on final failure.
+
+**Implementation**:
+- `CommitInterval: 0` — manual offset commit (offsets committed only after successful processing)
+- `MaxRetries: 3` (configurable), `RetryDelay: 1s` (configurable)
+- On exhaustion: publish to DLQ topic (`<topic>.dlq`) with error metadata headers
+- Error metadata headers: `error-message`, `retry-count`, `original-topic`, `original-partition`, `original-offset`, `timestamp`
+
+**Rationale**:
+- Manual offset commit prevents message loss on processing failure
+- DLQ captures failed messages for later inspection
+- Error metadata headers enable debugging without parsing message body
+
+**Consequences**:
+- DLQ topics must be created manually or via kafka-init
+- Failed messages require manual reprocessing or alerting

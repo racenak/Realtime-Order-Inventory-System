@@ -20,8 +20,12 @@
 | `pkg/response/response_test.go` | 5 | JSON success/error, pagination, zero limit edge case |
 | `pkg/websocket/hub_test.go` | 6 | Hub creation, register/unregister, multiple clients, get stats, broadcast, wrong channel, client ID, channel management |
 | `pkg/metrics/metrics_test.go` | 1 | Prometheus metric registration and counter increment |
+| `kafka_outbox_publisher_test.go` | 27 | Topic routing (9 event types), batch publish, partial failure, ClaimBatch error, correct headers |
+| `kafka_inventory_event_handler_test.go` | 6 | inventory.reserved confirms order, reservation_failed cancels, inventory.released, unknown event ignored, bad JSON, ConfirmOrder error |
+| `kafka_order_event_handler_test.go` | 7 | order.created reserves stock, multiple items, reserve fails + publishes failure event, order.cancelled releases, unknown event, bad JSON |
+| `kafka_consumer_test.go` | 7 | Success first attempt, success after retry, exhausts retries, context cancelled, default config, SendToDLQ no writer, DLQ topic config |
 
-**Total unit tests: 31**
+**Total unit tests: 58** (was 31, added 27 Kafka tests)
 
 ### 1.2 Integration Tests (`tests/integration/`)
 
@@ -44,7 +48,7 @@
 
 **Total E2E tests: 8**
 
-### Grand Total: 82 tests
+### Grand Total: 109 tests
 
 ---
 
@@ -58,6 +62,9 @@
 | `MockInventoryRepository` | `tests/mocks/inventory_repo.go` | `domain.InventoryRepository` | Create, CreateInTx, GetByProductAndWarehouse, GetByProductID, UpdateStock, ReserveQuantity, ReleaseQuantity, GetWarehouseByCode, DB |
 | `MockReservationRepository` | `tests/mocks/reservation_repo.go` | `domain.ReservationRepository` | Create, CreateInTx, GetByID, GetByOrderID, UpdateStatus |
 | `MockMovementRepository` | `tests/mocks/movement_repo.go` | `domain.MovementRepository` | Create, CreateInTx, GetByProductID |
+| `MockOrderUseCase` | `tests/mocks/usecases.go` | `OrderUseCase` (kafka) | ConfirmOrder, CancelOrder |
+| `MockInventoryUseCase` | `tests/mocks/usecases.go` | `InventoryUseCase` (kafka) | ReserveStock, ReleaseReservation |
+| `MockMessageWriter` | `tests/mocks/kafka.go` | `pkgkafka.MessageWriter` | WriteMessages |
 
 **Pattern**: Function-field mocks (not code-generated). Each mock has optional `Fn` fields; if nil, returns zero value. Allows per-test behavior injection without frameworks.
 
@@ -92,19 +99,25 @@
 | WebSocket | Client channels | Unit |
 | Metrics | Registration | Unit |
 | Response | JSON/Pagination | Unit |
+| **Kafka** | **OutboxPublisher topic routing** | **Unit (27 subtests)** |
+| **Kafka** | **OutboxPublisher batch orchestration** | **Unit** |
+| **Kafka** | **InventoryEventHandler (confirm/cancel/release)** | **Unit (6 tests)** |
+| **Kafka** | **OrderEventHandler (reserve/cancel/failure)** | **Unit (7 tests)** |
+| **Kafka** | **Consumer retry logic** | **Unit (5 tests)** |
+| **Kafka** | **Consumer DLQ logic** | **Unit (2 tests)** |
 
 ### 3.2 What is NOT Covered
 
 | Component | Reason | Risk |
 |-----------|--------|------|
-| Kafka OutboxPublisher | No Kafka in unit tests, no mock writer | Medium - publish logic untested |
-| Kafka EventHandlers | No Kafka consumer mock | Medium - event processing untested |
-| Kafka Consumer (DLQ/retry) | Requires running Kafka | Medium - retry logic untested |
 | Redis Pub/Sub subscriber | Requires running Redis | Low - straightforward fan-out |
 | Cache adapters | Wrapper-only, delegates to inner | Low - thin layer |
 | OTEL tracing initialization | Requires collector connection | Low - config-only |
 | Traefik file provider | Requires running Traefik | Low - config-only |
 | `database.DBExecutor` interface | Tested implicitly via integration | Low |
+| ConfirmOrder happy path (integration) | Not tested with real DB | Low |
+| Benchmark tests | Not implemented | Low |
+| Fuzz tests | Not implemented | Low |
 
 ---
 
@@ -120,24 +133,22 @@
 6. **Outbox ClaimBatch**: Tests `FOR UPDATE SKIP LOCKED` behavior
 7. **Edge cases**: Empty cart, zero quantity, negative quantity, already released, already cancelled
 8. **E2E flow**: Full HTTP request → DB → response cycle tested
+9. **Kafka unit tests**: Event handler routing, outbox publisher logic, consumer retry/DLQ — all with mocks, no infrastructure needed
+10. **MessageWriter interface**: Clean abstraction enabling testable Kafka components
 
 ### 4.2 Weaknesses
 
-1. **No Kafka tests**: The outbox publisher and event handlers have zero test coverage
-2. **No Redis tests**: WebSocket subscriber untested
-3. **Unit tests skip transactional paths**: Use cases call `DB().BeginTxx()` which panics with nil DB mock. Transaction logic only tested via integration.
-4. **Mock pattern is verbose**: Function-field mocks require manual wiring per test. Generated mocks (mockgen/counterfeiter) would be more maintainable.
-5. **TestMain anti-pattern**: `helpers.SetupTestDB(&testing.T{})` uses zero-value `*testing.T` - `t.Fatalf` won't report properly
-6. **No test for ConfirmOrder with DB**: Only no-op case tested (already processing), not the happy path
-7. **No benchmark tests**: No `testing.B` benchmarks for performance-critical paths
-8. **No fuzz tests**: No `testing.F` fuzzing for domain logic
+1. **No Redis tests**: WebSocket subscriber untested
+2. **Unit tests skip transactional paths**: Use cases call `DB().BeginTxx()` which panics with nil DB mock. Transaction logic only tested via integration.
+3. **Mock pattern is verbose**: Function-field mocks require manual wiring per test. Generated mocks (mockgen/counterfeiter) would be more maintainable.
+4. **No benchmark tests**: No `testing.B` benchmarks for performance-critical paths
+5. **No fuzz tests**: No `testing.F` fuzzing for domain logic
 
 ### 4.3 Correctness Issues
 
 | Issue | Severity | Description |
 |-------|----------|-------------|
-| `TestMain` zero-value `*testing.T` | Medium | `helpers.SetupTestDB(&testing.T{})` - helper calls `t.Fatalf` on connection failure, but zero-value T won't report to test framework |
-| Transaction tests incomplete | Low | Use case write operations (CreateOrder, CancelOrder, ReserveStock) only tested at integration level, not unit |
+| Transaction tests incomplete | Low | Use case write operations only tested at integration level, not unit |
 | Missing ConfirmOrder happy path | Low | `ConfirmOrder` with DB is never tested in integration |
 
 ---
@@ -147,13 +158,17 @@
 ### 5.1 Unit Test Files
 
 ```
-tests/unit/domain/order_test.go         - PASS (5 tests)
-tests/unit/domain/inventory_test.go     - PASS (2 tests)
-tests/unit/usecase/order_test.go        - PASS (7 tests)
-tests/unit/usecase/inventory_test.go    - PASS (5 tests)
-tests/unit/pkg/response/response_test.go - PASS (5 tests)
-tests/unit/pkg/websocket/hub_test.go    - PASS (6 tests)
-tests/unit/pkg/metrics/metrics_test.go  - PASS (1 test)
+tests/unit/domain/order_test.go                   - PASS (5 tests)
+tests/unit/domain/inventory_test.go               - PASS (2 tests)
+tests/unit/usecase/order_test.go                  - PASS (7 tests)
+tests/unit/usecase/inventory_test.go              - PASS (5 tests)
+tests/unit/pkg/response/response_test.go          - PASS (5 tests)
+tests/unit/pkg/websocket/hub_test.go              - PASS (6 tests)
+tests/unit/pkg/metrics/metrics_test.go            - PASS (1 test)
+tests/unit/kafka_outbox_publisher_test.go         - PASS (27 subtests)
+tests/unit/kafka_inventory_event_handler_test.go  - PASS (6 tests)
+tests/unit/kafka_order_event_handler_test.go      - PASS (7 tests)
+tests/unit/kafka_consumer_test.go                 - PASS (7 tests)
 ```
 
 All unit tests pass without infrastructure (no DB, no Kafka, no Redis).
@@ -167,29 +182,22 @@ tests/mocks/outbox_repo.go      - Implements domain.OutboxRepository (6 methods)
 tests/mocks/inventory_repo.go   - Implements domain.InventoryRepository (9 methods)
 tests/mocks/reservation_repo.go - Implements domain.ReservationRepository (5 methods)
 tests/mocks/movement_repo.go    - Implements domain.MovementRepository (3 methods)
+tests/mocks/usecases.go         - MockOrderUseCase + MockInventoryUseCase
+tests/mocks/kafka.go            - MockMessageWriter
 ```
 
-All mocks compile and satisfy their interfaces (verified by `var _ domain.X = (*MockX)(nil)` pattern absent, but verified via use in tests).
+All mocks compile and satisfy their interfaces.
 
 ### 5.3 Integration Test Files
 
 ```
-tests/integration/order/order_repo_test.go      - 12 tests (3 new)
-tests/integration/order/order_usecase_test.go   - 12 tests (4 new)
-tests/integration/inventory/inventory_repo_test.go - 8 tests (unchanged)
-tests/integration/inventory/inventory_usecase_test.go - 6 tests (unchanged)
-tests/integration/http/order_handler_test.go    - 5 tests (unchanged)
-tests/integration/http/inventory_handler_test.go - 3 tests (unchanged)
+tests/integration/order/order_repo_test.go         - 9 tests
+tests/integration/order/order_usecase_test.go      - 12 tests
+tests/integration/inventory/inventory_repo_test.go - 8 tests
+tests/integration/inventory/inventory_usecase_test.go - 6 tests
+tests/integration/http/order_handler_test.go       - 5 tests
+tests/integration/http/inventory_handler_test.go   - 3 tests
 ```
-
-New tests added:
-- `TestOutboxRepository_ClaimBatch` - verifies atomic claim with FOR UPDATE SKIP LOCKED
-- `TestOutboxRepository_MarkFailed` - verifies failed event status
-- `TestOrderRepository_GetByIDempotencyKey` - verifies idempotency key lookup
-- `TestCreateOrder_IdempotencyKey_Duplicate` - verifies duplicate rejection
-- `TestCreateOrder_IdempotencyKey_DifferentKeys` - verifies different keys succeed
-- `TestCreateOrder_OutboxEventCreated` - verifies outbox atomicity
-- `TestCreateOrder_Atomicity_OrderAndItems` - verifies order + items + outbox in one tx
 
 ### 5.4 E2E Test Files
 
@@ -205,7 +213,7 @@ Full HTTP request flow through chi router → handler → usecase → real DB �
 
 When evaluating this test suite, verify:
 
-- [ ] All 31 unit tests pass: `go test ./tests/unit/...`
+- [ ] All 58 unit tests pass: `go test ./tests/unit/...`
 - [ ] Unit tests require zero infrastructure
 - [ ] Mocks implement correct interfaces
 - [ ] Integration tests cover idempotency key flow
@@ -218,15 +226,17 @@ When evaluating this test suite, verify:
 - [ ] Edge cases (empty, zero, negative, duplicate) are covered
 - [ ] No test depends on another test's state
 - [ ] All tests use `t.Cleanup()` or `defer` for teardown
-- [ ] Test names follow `Test_<Component>_<Scenario>` pattern
+- [ ] Kafka event handler routing is tested
+- [ ] Outbox publisher topic routing is tested
+- [ ] Consumer retry/DLQ logic is tested
 
 ---
 
 ## 7. Recommendations
 
 ### Priority 1 (Critical)
-1. Fix `TestMain` to not pass zero-value `*testing.T` to `SetupTestDB`
-2. Add Kafka adapter tests (OutboxPublisher, EventHandlers) with mock writer
+1. ~~Fix `TestMain` to not pass zero-value `*testing.T` to `SetupTestDB`~~ (Fixed)
+2. ~~Add Kafka adapter tests (OutboxPublisher, EventHandlers) with mock writer~~ (Done)
 
 ### Priority 2 (Important)
 3. Add Redis Pub/Sub subscriber tests
@@ -245,13 +255,13 @@ When evaluating this test suite, verify:
 
 | Metric | Value |
 |--------|-------|
-| Total tests | 82 |
-| Unit tests | 31 |
+| Total tests | 109 |
+| Unit tests | 58 |
 | Integration tests | 43 |
 | E2E tests | 8 |
-| Mock files | 6 |
-| Test packages | 9 |
-| Estimated coverage | ~65% (unit) / ~80% (integration) |
+| Mock files | 8 |
+| Test packages | 12 |
+| Estimated coverage | ~70% (unit) / ~80% (integration) |
 | Infrastructure needed | PostgreSQL (integration/E2E) |
-| Known gaps | Kafka, Redis, OTEL |
-| Verdict | **Good foundation with identified gaps** |
+| Known gaps | Redis, OTEL, ConfirmOrder happy path |
+| Verdict | **Strong foundation with comprehensive Kafka coverage** |

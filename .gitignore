@@ -7,9 +7,9 @@
 *.dll
 *.so
 *.dylib
-order-service
-inventory-service
-websocket-service
+/order-service
+/inventory-service
+/websocket-service
 
 # Test binary, built with `go test -c`
 *.test

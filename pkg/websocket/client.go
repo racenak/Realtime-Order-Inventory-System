@@ -63,7 +63,7 @@ func (c *Client) RemoveChannel(channel string) {
 func (c *Client) ReadPump() {
 	defer func() {
 		c.hub.Unregister(c)
-		c.conn.Close()
+		_ = c.conn.Close()
 	}()
 
 	c.conn.SetReadLimit(maxMessageSize)
@@ -90,7 +90,7 @@ func (c *Client) WritePump() {
 	ticker := time.NewTicker(pingPeriod)
 	defer func() {
 		ticker.Stop()
-		c.conn.Close()
+		_ = c.conn.Close()
 	}()
 
 	for {

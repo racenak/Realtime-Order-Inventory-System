@@ -42,7 +42,7 @@ func SetupTestDB(t *testing.T) *sqlx.DB {
 
 	t.Cleanup(func() {
 		CleanDatabase(t, db)
-		db.Close()
+		_ = db.Close()
 	})
 
 	return db
@@ -305,7 +305,7 @@ func SetupTestDBConnection(t *testing.T) *sql.DB {
 	}
 
 	t.Cleanup(func() {
-		db.Close()
+		_ = db.Close()
 	})
 
 	return db

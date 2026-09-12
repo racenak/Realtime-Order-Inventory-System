@@ -243,7 +243,7 @@ func TestCreateOrder_TotalCalculation(t *testing.T) {
 
 func TestCancelOrder_CannotCancelShipped(t *testing.T) {
 	db := helpers.SetupTestDB(t)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	// Create order directly in shipped status
 	orderID := uuid.New().String()

@@ -165,7 +165,7 @@ func (c *Consumer) sendToDLQ(ctx context.Context, originalMsg kafka.Message, han
 
 func (c *Consumer) Close() error {
 	if c.writer != nil {
-		c.writer.Close()
+		_ = c.writer.Close()
 	}
 	return c.reader.Close()
 }

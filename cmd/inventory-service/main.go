@@ -80,7 +80,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to connect to Redis: %v", err)
 	}
-	defer rdb.Close()
+	defer func() { _ = rdb.Close() }()
 
 	inventoryRepo := postgres.NewInventoryRepository(db)
 	reservationRepo := postgres.NewReservationRepository(db)

@@ -33,7 +33,7 @@ func NewSubscriber(rdb *redis.Client, hub *ws.Hub, logger *zap.Logger) *Subscrib
 
 func (s *Subscriber) Start(ctx context.Context) error {
 	pubsub := s.rdb.Subscribe(ctx, "order.events", "inventory.events")
-	defer pubsub.Close()
+	defer func() { _ = pubsub.Close() }()
 
 	ch := pubsub.Channel()
 	s.logger.Info("redis subscriber started",

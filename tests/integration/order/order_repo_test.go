@@ -75,11 +75,12 @@ func TestOrderRepository_List(t *testing.T) {
 
 	for i := 0; i < 3; i++ {
 		order := &domain.Order{
-			ID:          uuid.New().String(),
-			CustomerID:  customerID,
-			Status:      domain.StatusPendingPayment,
-			Currency:    "USD",
-			TotalAmount: 100.00,
+			ID:              uuid.New().String(),
+			CustomerID:      customerID,
+			Status:          domain.StatusPendingPayment,
+			Currency:        "USD",
+			TotalAmount:     100.00,
+			IdempotencyKey:  uuid.New().String(),
 			ShippingAddress: domain.Address{
 				Street: "123 Main St",
 				City:   "New York",

@@ -51,13 +51,18 @@ func TestInventoryHandler_GetStock(t *testing.T) {
 }
 
 func TestInventoryHandler_ReserveStock(t *testing.T) {
-	handler, warehouseID, productID := setupInventoryHandler(t)
+	handler, _, productID := setupInventoryHandler(t)
 
 	body := map[string]interface{}{
-		"order_id":     uuid.New().String(),
-		"product_id":   productID,
-		"warehouse_id": warehouseID,
-		"quantity":     10,
+		"order_id": uuid.New().String(),
+		"items": []map[string]interface{}{
+			{
+				"product_id":    productID,
+				"sku":           "SKU-001",
+				"warehouse_code": "WH-TEST",
+				"quantity":      10,
+			},
+		},
 	}
 
 	jsonBody, _ := json.Marshal(body)
@@ -78,13 +83,18 @@ func TestInventoryHandler_ReserveStock(t *testing.T) {
 }
 
 func TestInventoryHandler_ReserveStock_InsufficientStock(t *testing.T) {
-	handler, warehouseID, productID := setupInventoryHandler(t)
+	handler, _, productID := setupInventoryHandler(t)
 
 	body := map[string]interface{}{
-		"order_id":     uuid.New().String(),
-		"product_id":   productID,
-		"warehouse_id": warehouseID,
-		"quantity":     200,
+		"order_id": uuid.New().String(),
+		"items": []map[string]interface{}{
+			{
+				"product_id":    productID,
+				"sku":           "SKU-001",
+				"warehouse_code": "WH-TEST",
+				"quantity":      200,
+			},
+		},
 	}
 
 	jsonBody, _ := json.Marshal(body)
@@ -100,11 +110,11 @@ func TestInventoryHandler_ReserveStock_InsufficientStock(t *testing.T) {
 }
 
 func TestInventoryHandler_UpdateStock(t *testing.T) {
-	handler, warehouseID, productID := setupInventoryHandler(t)
+	handler, _, productID := setupInventoryHandler(t)
 
 	body := map[string]interface{}{
 		"product_id":   productID,
-		"warehouse_id": warehouseID,
+		"warehouse_id": uuid.New().String(),
 		"quantity":     50,
 	}
 

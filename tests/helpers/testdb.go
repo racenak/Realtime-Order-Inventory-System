@@ -147,7 +147,7 @@ func createTables(t *testing.T, db *sqlx.DB) {
 	CREATE TABLE IF NOT EXISTS inventory_reservations (
 		id UUID PRIMARY KEY DEFAULT uuidv7(),
 		order_id UUID NOT NULL,
-		order_item_id UUID NOT NULL,
+		order_item_id UUID,
 		product_id UUID NOT NULL,
 		sku VARCHAR(100) NOT NULL DEFAULT '',
 		warehouse_id UUID NOT NULL,

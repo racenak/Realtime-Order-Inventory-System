@@ -33,13 +33,13 @@ test-all: test-unit test-integration test-e2e
 
 # Load Tests (requires running services via podman compose up)
 load-test-order:
-	podman compose --profile load-test run --rm k6-loadtester run /scripts/order_create.js
+	JWT_TOKEN=$$(go run tests/load/genjwt.go) podman compose --profile load-test run --rm k6-loadtester run /scripts/order_create.js
 
 load-test-stock:
-	podman compose --profile load-test run --rm k6-loadtester run /scripts/inventory_check.js
+	JWT_TOKEN=$$(go run tests/load/genjwt.go) podman compose --profile load-test run --rm k6-loadtester run /scripts/inventory_check.js
 
 load-test-full:
-	podman compose --profile load-test run --rm k6-loadtester run /scripts/full_workflow.js
+	JWT_TOKEN=$$(go run tests/load/genjwt.go) podman compose --profile load-test run --rm k6-loadtester run /scripts/full_workflow.js
 
 lint:
 	golangci-lint run

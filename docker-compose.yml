@@ -354,14 +354,13 @@ services:
       - label=disable
 
   k6-loadtester:
-    image: grafana/k6:2.2.0-with-browser
+    image: grafana/k6:0.50.0
     container_name: k6-loadtester
     environment:
-      - BASE_URL=http://order-service:8080
+      - BASE_URL=http://traefik:8088
+      - JWT_TOKEN=${JWT_TOKEN}
     volumes:
       - ./tests/load:/scripts:ro,z
-    ports:
-      - "5665:5665"
     depends_on:
       traefik:
         condition: service_started

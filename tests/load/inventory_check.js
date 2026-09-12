@@ -5,15 +5,16 @@ import { Rate, Trend } from 'k6/metrics';
 const stockSuccessRate = new Rate('stock_success_rate');
 const stockDuration = new Trend('stock_check_duration', true);
 
-const BASE_URL = __ENV.BASE_URL || 'http://order-service:8080';
+const BASE_URL = __ENV.BASE_URL || 'http://traefik:8088';
+const JWT_TOKEN = __ENV.JWT_TOKEN;
 
 export const options = {
   stages: [
-    { duration: '30s', target: 15 },   // ramp up
-    { duration: '1m', target: 15 },    // steady state
-    { duration: '30s', target: 30 },   // spike
-    { duration: '1m', target: 30 },    // sustain spike
-    { duration: '30s', target: 0 },    // ramp down
+    { duration: '30s', target: 15 },
+    { duration: '1m', target: 15 },
+    { duration: '30s', target: 30 },
+    { duration: '1m', target: 30 },
+    { duration: '30s', target: 0 },
   ],
   thresholds: {
     http_req_duration: ['p(95)<300'],
@@ -34,6 +35,7 @@ export default function () {
   const params = {
     headers: {
       'Content-Type': 'application/json',
+      'Authorization': `Bearer ${JWT_TOKEN}`,
     },
   };
 

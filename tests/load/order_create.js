@@ -5,15 +5,16 @@ import { Rate, Trend } from 'k6/metrics';
 const orderSuccessRate = new Rate('order_success_rate');
 const orderDuration = new Trend('order_create_duration', true);
 
-const BASE_URL = __ENV.BASE_URL || 'http://order-service:8080';
+const BASE_URL = __ENV.BASE_URL || 'http://traefik:8088';
+const JWT_TOKEN = __ENV.JWT_TOKEN;
 
 export const options = {
   stages: [
-    { duration: '30s', target: 10 },   // ramp up
-    { duration: '1m', target: 10 },    // steady state
-    { duration: '30s', target: 20 },   // spike
-    { duration: '1m', target: 20 },    // sustain spike
-    { duration: '30s', target: 0 },    // ramp down
+    { duration: '30s', target: 10 },
+    { duration: '1m', target: 10 },
+    { duration: '30s', target: 20 },
+    { duration: '1m', target: 20 },
+    { duration: '30s', target: 0 },
   ],
   thresholds: {
     http_req_duration: ['p(95)<500'],
@@ -55,6 +56,7 @@ export default function () {
   const params = {
     headers: {
       'Content-Type': 'application/json',
+      'Authorization': `Bearer ${JWT_TOKEN}`,
       'Idempotency-Key': `idem_${randomId()}_${Date.now()}`,
     },
   };
@@ -66,7 +68,7 @@ export default function () {
     'order has id': (r) => {
       try {
         return JSON.parse(r.body).data.id !== undefined;
-      } catch {
+      } catch (e) {
         return false;
       }
     },

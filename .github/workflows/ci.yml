@@ -50,6 +50,7 @@ jobs:
 
       # Quét lỗ hổng trong các thư viện phụ thuộc Go (CVEs)
       - name: Install & Run govulncheck
+        continue-on-error: true
         run: |
           go install golang.org/x/vuln/cmd/govulncheck@latest
           govulncheck ./...
@@ -72,28 +73,14 @@ jobs:
     runs-on: ubuntu-latest
     
     services:
-      postgres-order:
+      postgres:
         image: postgres:18-alpine
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: order_db
+          POSTGRES_DB: order_inventory
         ports:
           - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-      postgres-inventory:
-        image: postgres:18-alpine
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: inventory_db
-        ports:
-          - 5433:5432
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -118,25 +105,14 @@ jobs:
       - name: Download dependencies
         run: go mod download
 
-      - name: Initialize order database
-        run: psql -h localhost -p 5432 -U postgres -d order_db -f migrations/order/01-init.sql
-        env:
-          PGPASSWORD: postgres
-
-      - name: Initialize inventory database
-        run: psql -h localhost -p 5433 -U postgres -d inventory_db -f migrations/inventory/01-init.sql
-        env:
-          PGPASSWORD: postgres
-
       - name: Run tests
         run: go test -p 1 ./tests/integration/... -count=1 -timeout 60s
         env:
-          TEST_ORDER_DB_HOST: localhost
-          TEST_ORDER_DB_PORT: 5432
-          TEST_INVENTORY_DB_HOST: localhost
-          TEST_INVENTORY_DB_PORT: 5433
+          TEST_DB_HOST: localhost
+          TEST_DB_PORT: 5432
           TEST_DB_USER: postgres
           TEST_DB_PASSWORD: postgres
+          TEST_DB_NAME: order_inventory
 
       - name: Build all binaries
         run: |

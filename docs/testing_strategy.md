@@ -280,6 +280,7 @@ func TestCreateOrder(t *testing.T) {
 | Sustain spike | 1 min @ 20 VUs |
 | Ramp down | 30s → 0 |
 | Thresholds | p95 < 500ms, success > 95% |
+| **Actual results** | **p95 = 4.32ms, 100% success (2700 orders)** |
 
 #### inventory_check.js — Stock Check Read Performance
 

@@ -65,7 +65,7 @@ export default function () {
     'order created (201)': (r) => r.status === 201,
     'order has id': (r) => {
       try {
-        return JSON.parse(r.body).id !== undefined;
+        return JSON.parse(r.body).data.id !== undefined;
       } catch {
         return false;
       }

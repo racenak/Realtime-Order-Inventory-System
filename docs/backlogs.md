@@ -4,9 +4,9 @@
 
 | Metric | Count |
 |--------|-------|
-| Completed | 95 |
-| Remaining | 6 |
-| Total | 101 |
+| Completed | 99 |
+| Remaining | 7 |
+| Total | 106 |
 
 ---
 
@@ -98,6 +98,9 @@
 | B-93 | Fix | Idempotency key (client-sends-key) | GetByIDempotencyKey, 409 Conflict, separate endpoint |
 | B-94 | Refactor | MessageWriter interface | Decouples Kafka components from concrete *kafka.Writer |
 | B-95 | Fix | Broken &kafka.Writer{} in main.go | Properly configured writers passed to event handlers |
+| B-96 | Tests | k6 load test scripts | 3 scenarios: order creation, inventory check, full workflow |
+| B-97 | Infra | k6-loadtester in docker-compose | Profile `load-test`, volume mounts for scripts |
+| B-98 | Infra | Resource limits (1 CPU + 1GB RAM) | Applied to order-db, inventory-db, order-service, inventory-service, websocket-service, auth-service |
 
 ---
 
@@ -113,14 +116,15 @@
 
 | ID | Task | Priority | Depends On |
 |----|------|----------|------------|
-| B-96 | ConfirmOrder integration test (happy path with DB) | Medium | — |
-| B-97 | Benchmark tests for CalculateTotal, outbox polling | Low | — |
-| B-98 | `go test -p 1` → full parallel test support | Low | — |
+| B-99 | ConfirmOrder integration test (happy path with DB) | Medium | — |
+| B-100 | Benchmark tests for CalculateTotal, outbox polling | Low | — |
+| B-101 | `go test -p 1` → full parallel test support | Low | — |
+| B-102 | k6 load test results in Grafana dashboard | Low | — |
 
 ### Security
 
 | ID | Task | Priority | Depends On |
 |----|------|----------|------------|
-| B-99 | Refresh token rotation + revocation | Medium | — |
-| B-100 | Resource-level authorization (order ownership check) | Medium | — |
-| B-101 | Database TLS encryption | Low | — |
+| B-103 | Refresh token rotation + revocation | Medium | — |
+| B-104 | Resource-level authorization (order ownership check) | Medium | — |
+| B-105 | Database TLS encryption | Low | — |

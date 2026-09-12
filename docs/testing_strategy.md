@@ -2,14 +2,15 @@
 
 ## Overview
 
-Three-layer testing approach: Unit → Integration → E2E.
+Four-layer testing approach: Unit → Integration → E2E → Load.
 
 | Layer | Count | Infrastructure | Speed |
 |-------|-------|----------------|-------|
 | Unit | 58 | None | Fast |
 | Integration | 43 | PostgreSQL | Medium |
 | E2E | 8 | PostgreSQL + HTTP | Slow |
-| **Total** | **109** | | |
+| Load | 3 scripts | Full stack (Podman) | ~15 min |
+| **Total** | **109 tests + 3 load scenarios** | | |
 
 ---
 
@@ -26,6 +27,11 @@ tests/
 │   ├── inventory/       # Repository + usecase + handler
 │   └── http/            # HTTP handler integration
 ├── e2e/                 # Full HTTP lifecycle
+├── load/                # k6 load tests
+│   ├── order_create.js  # Order creation throughput
+│   ├── inventory_check.js # Stock check performance
+│   ├── full_workflow.js # Mixed workload scenario
+│   └── README.md        # Load test documentation
 └── mocks/               # Function-field mocks
 ```
 
@@ -253,6 +259,75 @@ func TestCreateOrder(t *testing.T) {
 
 ---
 
+## Load Tests (k6)
+
+### Infrastructure
+
+- **Tool**: k6 (`grafana/k6:0.50.0`)
+- **Execution**: `podman compose --profile load-test run --rm k6-loadtester`
+- **Target**: Traefik gateway (`http://traefik:8088`)
+- **Profiles**: `load-test` (opt-in via `--profile load-test`)
+
+### Test Scenarios
+
+#### order_create.js — Order Creation Throughput
+
+| Parameter | Value |
+|-----------|-------|
+| Ramp up | 30s → 10 VUs |
+| Steady state | 1 min @ 10 VUs |
+| Spike | 30s → 20 VUs |
+| Sustain spike | 1 min @ 20 VUs |
+| Ramp down | 30s → 0 |
+| Thresholds | p95 < 500ms, success > 95% |
+
+#### inventory_check.js — Stock Check Read Performance
+
+| Parameter | Value |
+|-----------|-------|
+| Ramp up | 30s → 15 VUs |
+| Steady state | 1 min @ 15 VUs |
+| Spike | 30s → 30 VUs |
+| Sustain spike | 1 min @ 30 VUs |
+| Ramp down | 30s → 0 |
+| Thresholds | p95 < 300ms, success > 95% |
+
+#### full_workflow.js — Mixed Workload
+
+| Parameter | Value |
+|-----------|-------|
+| Warm up | 30s → 10 VUs |
+| Ramp up | 1 min → 25 VUs |
+| Sustain | 2 min @ 25 VUs |
+| Spike | 30s → 50 VUs |
+| Sustain spike | 1 min @ 50 VUs |
+| Cool down | 30s → 0 |
+| Mix | 40% order create, 30% stock check, 30% order read |
+| Thresholds | p95 < 500ms, success > 90% |
+
+### Running Load Tests
+
+```bash
+# Start full stack first
+podman compose up -d
+
+# Run order creation test
+make load-test-order
+
+# Run inventory check test
+make load-test-stock
+
+# Run full workflow test
+make load-test-full
+
+# Or run directly
+podman compose --profile load-test run --rm k6-loadtester run /scripts/order_create.js
+podman compose --profile load-test run --rm k6-loadtester run /scripts/inventory_check.js
+podman compose --profile load-test run --rm k6-loadtester run /scripts/full_workflow.js
+```
+
+---
+
 ## Test Commands
 
 ```bash
@@ -277,6 +352,11 @@ go tool cover -html=coverage.out
 
 # Race detector
 go test -race ./tests/unit/...
+
+# Load tests (requires running services)
+make load-test-order    # Order creation throughput
+make load-test-stock    # Inventory check performance
+make load-test-full     # Full mixed workload
 ```
 
 ---
@@ -348,12 +428,15 @@ func seedOrder(db *sqlx.DB, order *domain.Order) {
 - [x] 58 unit tests (domain, usecase, kafka, pkg)
 - [x] 43 integration tests (repository, usecase, handler)
 - [x] 8 E2E tests (full HTTP lifecycle)
+- [x] 3 k6 load test scenarios (order, inventory, mixed)
 - [x] 8 mock files (repos, usecases, kafka writer)
 - [x] Testcontainers for PostgreSQL
 - [x] Test helpers (table creation, cleanup, seed)
 - [x] GitHub Actions CI/CD
-- [x] Makefile targets (test-unit, test-integration, test-all)
+- [x] Makefile targets (test-unit, test-integration, test-all, load-test-*)
 - [x] `-p 1` flag for parallel test safety
+- [x] k6 load tester in docker-compose (profile: load-test)
+- [x] Resource limits: 1 CPU + 1GB RAM per main service/DB
 
 ## Not Implemented
 
@@ -363,3 +446,4 @@ func seedOrder(db *sqlx.DB, order *domain.Order) {
 - [ ] Mock generation (mockgen/counterfeiter)
 - [ ] Redis integration tests
 - [ ] WebSocket integration tests
+- [ ] k6 load test results in Grafana dashboard

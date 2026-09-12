@@ -15,6 +15,11 @@ services:
       - "5432:5432"
     volumes:
       - order_db_data:/var/lib/postgresql
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d order_db"]
       interval: 5s
@@ -35,6 +40,11 @@ services:
       - "5433:5432"
     volumes:
       - inventory_db_data:/var/lib/postgresql
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d inventory_db"]
       interval: 5s
@@ -165,6 +175,11 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - HTTP_PORT=8080
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
     depends_on:
       order-db:
         condition: service_healthy
@@ -190,6 +205,11 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - HTTP_PORT=8081
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
     depends_on:
       inventory-db:
         condition: service_healthy
@@ -209,6 +229,11 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - HTTP_PORT=8082
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
     depends_on:
       redis:
         condition: service_healthy
@@ -225,6 +250,11 @@ services:
       - JWT_ISSUER=${JWT_ISSUER:-order-inventory-system}
       - JWT_AUDIENCE=${JWT_AUDIENCE:-order-inventory-api}
       - HTTP_PORT=8083
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
 
   # ========== Observability ==========
   prometheus:
@@ -318,6 +348,19 @@ services:
       - loki
     security_opt:
       - label=disable
+
+  k6-loadtester:
+    image: grafana/k6:0.50.0
+    container_name: k6-loadtester
+    environment:
+      - BASE_URL=http://traefik:8088
+    volumes:
+      - ./tests/load:/scripts:ro,z
+    depends_on:
+      traefik:
+        condition: service_started
+    profiles:
+      - load-test
 
   kafka-exporter:
     image: danielqsj/kafka-exporter:v1.8.0

@@ -55,9 +55,9 @@
 
 | ID | Requirement | Status |
 |----|-------------|--------|
-| NFR-01 | < 100ms response time for order creation | ⚠️ Not measured |
-| NFR-02 | < 50ms response time for stock check | ⚠️ Not measured |
-| NFR-03 | Support 1000+ concurrent connections | ⚠️ Not tested |
+| NFR-01 | < 100ms response time for order creation | ⚠️ Load test scripts ready, thresholds p95 < 500ms |
+| NFR-02 | < 50ms response time for stock check | ⚠️ Load test scripts ready, thresholds p95 < 300ms |
+| NFR-03 | Support 1000+ concurrent connections | ⚠️ Load test scripts ready, max 50 VUs |
 | NFR-04 | Event propagation < 500ms | ⚠️ Not measured |
 
 ### Reliability

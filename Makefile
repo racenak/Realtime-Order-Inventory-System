@@ -1,4 +1,4 @@
-.PHONY: build run test test-unit test-integration test-e2e test-order test-inventory test-http lint db-init db-reset
+.PHONY: build run test test-unit test-integration test-e2e test-order test-inventory test-http load-test-order load-test-stock load-test-full lint db-init db-reset
 
 build:
 	go build -o bin/order-service ./cmd/order-service
@@ -30,6 +30,16 @@ test-http:
 	go test -v -count=1 ./tests/integration/http/...
 
 test-all: test-unit test-integration test-e2e
+
+# Load Tests (requires running services via podman compose up)
+load-test-order:
+	podman compose --profile load-test run --rm k6-loadtester run /scripts/order_create.js
+
+load-test-stock:
+	podman compose --profile load-test run --rm k6-loadtester run /scripts/inventory_check.js
+
+load-test-full:
+	podman compose --profile load-test run --rm k6-loadtester run /scripts/full_workflow.js
 
 lint:
 	golangci-lint run

@@ -110,11 +110,11 @@ func TestInventoryHandler_ReserveStock_InsufficientStock(t *testing.T) {
 }
 
 func TestInventoryHandler_UpdateStock(t *testing.T) {
-	handler, _, productID := setupInventoryHandler(t)
+	handler, warehouseID, productID := setupInventoryHandler(t)
 
 	body := map[string]interface{}{
 		"product_id":   productID,
-		"warehouse_id": uuid.New().String(),
+		"warehouse_id": warehouseID,
 		"quantity":     50,
 	}
 

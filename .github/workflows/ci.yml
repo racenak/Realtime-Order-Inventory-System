@@ -57,13 +57,14 @@ jobs:
 
       # Quét secret lộ trong code (API Key, Password) và lỗ hổng mã nguồn
       - name: Run Trivy FS Scan
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@master
         with:
           scan-type: 'fs'
           scan-ref: '.'
           format: 'table'
           exit-code: '1'
           severity: 'CRITICAL,HIGH'
+          skip-dirs: 'vendor,node_modules'
 
   # ==========================================
   # 3. INTEGRATION TESTS

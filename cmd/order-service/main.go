@@ -38,7 +38,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to initialize logger: %v", err)
 	}
-	defer logger.Sync()
+	defer func() { _ = logger.Sync() }()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -47,7 +47,7 @@ func main() {
 	if err != nil {
 		logger.Warn("Failed to initialize tracer", zap.Error(err))
 	} else {
-		defer shutdownTracer(context.Background())
+		defer func() { _ = shutdownTracer(context.Background()) }()
 	}
 
 	_ = otel.Tracer("order-service")

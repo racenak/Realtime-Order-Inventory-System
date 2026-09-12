@@ -40,7 +40,7 @@ func JSON(w http.ResponseWriter, r *http.Request, status int, data interface{}) 
 		Data:    data,
 	}
 
-	json.NewEncoder(w).Encode(resp)
+	_ = json.NewEncoder(w).Encode(resp)
 }
 
 func Error(w http.ResponseWriter, r *http.Request, status int, code, message string) {
@@ -55,7 +55,7 @@ func Error(w http.ResponseWriter, r *http.Request, status int, code, message str
 		},
 	}
 
-	json.NewEncoder(w).Encode(resp)
+	_ = json.NewEncoder(w).Encode(resp)
 }
 
 func JSONWithPagination(w http.ResponseWriter, r *http.Request, status int, data interface{}, total, limit, offset int) {
@@ -75,5 +75,5 @@ func JSONWithPagination(w http.ResponseWriter, r *http.Request, status int, data
 		},
 	}
 
-	json.NewEncoder(w).Encode(resp)
+	_ = json.NewEncoder(w).Encode(resp)
 }

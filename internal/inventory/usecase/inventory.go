@@ -77,7 +77,7 @@ func (uc *inventoryUseCase) ReserveStock(ctx context.Context, req ReserveStockRe
 	if err != nil {
 		return nil, fmt.Errorf("failed to begin transaction: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	err = uc.inventoryRepo.ReserveQuantity(ctx, req.ProductID, warehouseID, req.Quantity, inv.Version)
 	if err == domain.ErrConcurrentModification {
@@ -139,7 +139,7 @@ func (uc *inventoryUseCase) ReleaseReservation(ctx context.Context, reservationI
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	err = uc.reservationRepo.UpdateStatus(ctx, reservationID, "released")
 	if err != nil {

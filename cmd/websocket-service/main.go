@@ -31,7 +31,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to initialize logger: %v", err)
 	}
-	defer appLogger.Sync()
+	defer func() { _ = appLogger.Sync() }()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -40,7 +40,7 @@ func main() {
 	if err != nil {
 		appLogger.Warn("Failed to initialize tracer", zap.Error(err))
 	} else {
-		defer shutdownTracer(context.Background())
+		defer func() { _ = shutdownTracer(context.Background()) }()
 	}
 
 	_ = otel.Tracer("websocket-service")

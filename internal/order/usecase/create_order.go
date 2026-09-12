@@ -110,7 +110,7 @@ func (uc *createOrderUseCase) CreateOrder(ctx context.Context, req CreateOrderRe
 	if err != nil {
 		return nil, fmt.Errorf("failed to begin transaction: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	if err := uc.orderRepo.CreateInTx(ctx, tx, order); err != nil {
 		return nil, fmt.Errorf("failed to create order: %w", err)
@@ -182,7 +182,7 @@ func (uc *createOrderUseCase) CancelOrder(ctx context.Context, id string, reason
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	if err := uc.orderRepo.UpdateStatusInTx(ctx, tx, id, domain.StatusCancelled); err != nil {
 		return fmt.Errorf("failed to cancel order: %w", err)
@@ -230,7 +230,7 @@ func (uc *createOrderUseCase) ConfirmOrder(ctx context.Context, id string) error
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	if err := uc.orderRepo.UpdateStatusInTx(ctx, tx, id, domain.StatusProcessing); err != nil {
 		return fmt.Errorf("failed to confirm order: %w", err)

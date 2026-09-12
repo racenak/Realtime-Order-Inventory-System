@@ -2,7 +2,6 @@ package kafka
 
 import (
 	"context"
-	"encoding/json"
 	"time"
 
 	"github.com/google/uuid"
@@ -158,12 +157,4 @@ func (p *OutboxPublisher) PublishBatch(ctx context.Context, batchSize int) error
 
 func (p *OutboxPublisher) PublishEvent(ctx context.Context, event domain.OutboxEvent) error {
 	return p.publishEvent(ctx, event)
-}
-
-func marshalEvent(data interface{}) (string, error) {
-	b, err := json.Marshal(data)
-	if err != nil {
-		return "", err
-	}
-	return string(b), nil
 }

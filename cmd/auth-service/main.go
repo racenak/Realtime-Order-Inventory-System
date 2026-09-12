@@ -87,13 +87,13 @@ func handleVerify(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("X-User-Role", claims.Role)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(fmt.Sprintf(`{"user_id":"%s","role":"%s"}`, claims.UserID, claims.Role)))
+	_, _ = w.Write([]byte(fmt.Sprintf(`{"user_id":"%s","role":"%s"}`, claims.UserID, claims.Role)))
 }
 
 func handleHealth(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(`{"status":"ok"}`))
+	_, _ = w.Write([]byte(`{"status":"ok"}`))
 }
 
 func getEnv(key, fallback string) string {

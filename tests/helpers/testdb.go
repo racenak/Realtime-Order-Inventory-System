@@ -208,7 +208,7 @@ func CleanDatabase(t *testing.T, db *sqlx.DB) {
 	}
 
 	for _, table := range tables {
-		db.Exec(fmt.Sprintf("TRUNCATE TABLE %s CASCADE", table))
+		_, _ = db.Exec(fmt.Sprintf("TRUNCATE TABLE %s CASCADE", table))
 	}
 }
 
@@ -274,7 +274,7 @@ func getEnv(key, defaultValue string) string {
 
 func CleanupRows(t *testing.T, db *sqlx.DB, query string, args ...interface{}) {
 	t.Helper()
-	db.Exec(query, args...)
+	_, _ = db.Exec(query, args...)
 }
 
 func TestUUID() string {

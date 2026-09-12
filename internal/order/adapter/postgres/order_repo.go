@@ -170,7 +170,7 @@ func (r *orderRepository) UpdateStatusInTx(ctx context.Context, tx *sqlx.Tx, id 
 
 func (r *orderRepository) rowToOrder(row *orderRow) *domain.Order {
 	var shippingAddr domain.Address
-	json.Unmarshal([]byte(row.ShippingAddress), &shippingAddr)
+	_ = json.Unmarshal([]byte(row.ShippingAddress), &shippingAddr)
 
 	return &domain.Order{
 		ID:              row.ID,
@@ -344,7 +344,7 @@ func (r *outboxRepository) ClaimBatch(ctx context.Context, limit int) ([]domain.
 	if err != nil {
 		return nil, fmt.Errorf("failed to begin transaction: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	query := `
 		SELECT id, aggregate_type, aggregate_id, event_type, payload, status, created_at::text

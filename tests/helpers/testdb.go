@@ -29,7 +29,7 @@ func SetupTestDB(t *testing.T) *sqlx.DB {
 		t.Fatalf("Failed to connect to test database: %v", err)
 	}
 
-	db.SetMaxOpenConns(1)
+	db.SetMaxOpenConns(5)
 
 	if err := db.Ping(); err != nil {
 		t.Fatalf("Failed to ping test database: %v", err)

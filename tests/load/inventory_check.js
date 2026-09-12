@@ -39,7 +39,7 @@ export default function () {
     },
   };
 
-  const res = http.get(`${BASE_URL}/api/inventory/${productId}`, params);
+  const res = http.get(`${BASE_URL}/api/inventory/stock/${productId}`, params);
 
   check(res, {
     'stock check ok (200 or 404)': (r) => r.status === 200 || r.status === 404,

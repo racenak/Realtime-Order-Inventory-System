@@ -84,7 +84,7 @@ export default function () {
       ordersCreated.add(1);
       successRate.add(true);
       sleep(0.5);
-      const stockRes = http.get(`${BASE_URL}/api/inventory/${productId}`, {
+      const stockRes = http.get(`${BASE_URL}/api/inventory/stock/${productId}`, {
         headers: { 'Authorization': `Bearer ${JWT_TOKEN}` },
       });
       check(stockRes, { 'stock check ok': (r) => r.status === 200 || r.status === 404 });
@@ -99,7 +99,7 @@ export default function () {
 
   } else if (scenario < 0.7) {
     const productId = uuidv4();
-    const res = http.get(`${BASE_URL}/api/inventory/${productId}`, {
+    const res = http.get(`${BASE_URL}/api/inventory/stock/${productId}`, {
       headers: { 'Authorization': `Bearer ${JWT_TOKEN}` },
     });
 

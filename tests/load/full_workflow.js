@@ -112,7 +112,7 @@ export default function () {
     successRate.add(true);
 
   } else {
-    const orderId = randomId();
+    const orderId = uuidv4();
     const res = http.get(`${BASE_URL}/api/orders/${orderId}`, {
       headers: { 'Authorization': `Bearer ${JWT_TOKEN}` },
     });

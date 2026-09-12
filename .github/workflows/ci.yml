@@ -23,13 +23,13 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
+          go-version: '1.23'
           cache: true
 
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v6
         with:
-          version: v1.56
+          version: v1.62
           args: --timeout=5m
 
   # ==========================================
@@ -45,7 +45,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
+          go-version: '1.23'
           cache: true
 
       # Quét lỗ hổng trong các thư viện phụ thuộc Go (CVEs)
@@ -107,7 +107,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
+          go-version: '1.23'
           cache: true
 
       - name: Install PostgreSQL client
@@ -119,12 +119,12 @@ jobs:
         run: go mod download
 
       - name: Initialize order database
-        run: psql -h localhost -p 5432 -U postgres -d order_db -f schema/order/01-init.sql
+        run: psql -h localhost -p 5432 -U postgres -d order_db -f migrations/order/01-init.sql
         env:
           PGPASSWORD: postgres
 
       - name: Initialize inventory database
-        run: psql -h localhost -p 5433 -U postgres -d inventory_db -f schema/inventory/01-init.sql
+        run: psql -h localhost -p 5433 -U postgres -d inventory_db -f migrations/inventory/01-init.sql
         env:
           PGPASSWORD: postgres
 

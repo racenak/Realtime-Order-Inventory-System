@@ -86,6 +86,7 @@ Idempotency-Key: unique-key-from-client
 
 **Idempotency:**
 - Client sends `Idempotency-Key` header with a unique value
+- If header is omitted, server auto-generates a UUID v4 key
 - Order is looked up by idempotency key before insert (`GetByIDempotencyKey`)
 - If key exists: returns `409 Conflict` with existing order in error body
 - If key is new: inserts order, creates outbox event in same DB transaction
@@ -187,7 +188,7 @@ Cancels a pending order. Cannot cancel orders with status `shipped` or `delivere
 ### Get Stock
 
 ```http
-GET /api/inventory/{product_id}
+GET /api/inventory/stock/{product_id}
 ```
 
 Returns stock for a product across all warehouses.

@@ -6,7 +6,7 @@
 |------|---------|---------|
 | Podman | 4.x+ | Container runtime (rootless) |
 | Podman Compose | 1.x+ | Multi-container orchestration |
-| Go | 1.22+ | Building services |
+| Go | 1.25+ | Building services |
 
 ---
 

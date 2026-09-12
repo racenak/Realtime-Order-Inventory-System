@@ -254,7 +254,7 @@ Cache decorators for Order and Inventory repos. Writes invalidate cache. Read-th
 
 | Layer          | Technology                          |
 | -------------- | ----------------------------------- |
-| Language       | Go 1.22                             |
+| Language       | Go 1.25                             |
 | API Gateway    | Traefik v2.11.57 (file provider)   |
 | HTTP Router    | Chi (per-service)                   |
 | Database       | PostgreSQL 18 (2 instances)         |
@@ -268,7 +268,7 @@ Cache decorators for Order and Inventory repos. Writes invalidate cache. Read-th
 | Log Aggregation| Loki + Promtail                     |
 | Testing        | Go testing + function-field mocks   |
 | Container      | Podman + Podman Compose             |
-| CI/CD          | GitHub Actions                      |
+| CI/CD          | GitHub Actions (lint, security, tests, build) |
 
 ## Security
 

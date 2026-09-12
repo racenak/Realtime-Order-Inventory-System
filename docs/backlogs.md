@@ -4,9 +4,9 @@
 
 | Metric | Count |
 |--------|-------|
-| Completed | 99 |
+| Completed | 111 |
 | Remaining | 7 |
-| Total | 106 |
+| Total | 118 |
 
 ---
 
@@ -101,6 +101,14 @@
 | B-96 | Tests | k6 load test scripts | 3 scenarios: order creation, inventory check, full workflow |
 | B-97 | Infra | k6-loadtester in docker-compose | Profile `load-test`, volume mounts for scripts |
 | B-98 | Infra | Resource limits (1 CPU + 1GB RAM) | Applied to order-db, inventory-db, order-service, inventory-service, websocket-service, auth-service |
+| B-99 | Tests | k6 load tests through Traefik with JWT auth | order_create: p95=4.43ms, inventory_check: p95=5.84ms, 100% success |
+| B-100 | Bugfix | Idempotency key auto-generation | Server generates UUID v4 when client omits `Idempotency-Key` header |
+| B-101 | Fix | golangci-lint v2.13 + Go 1.25 + dep upgrades | Resolves all errcheck violations (27 → 0), CVE fixes (otel, grpc, x/net) |
+| B-102 | Infra | CI pipeline — 4 stages | Lint (golangci-lint v2.13), Security (govulncheck + Trivy), Tests (PostgreSQL), Build (GHCR) |
+| B-103 | Bugfix | pq.Array fix for ClaimBatch | PostgreSQL array args require `pq.Array(ids)` wrapper |
+| B-104 | Fix | Test isolation fixes | MaxOpenConns(5), nullable order_item_id, unique idempotency keys |
+| B-105 | Fix | .gitignore anchored paths | Binary patterns `/order-service` only match root, not `cmd/*/Dockerfile` |
+| B-106 | Fix | CI expression escaping | Fixed GitHub Actions expression syntax for Docker image tags |
 
 ---
 

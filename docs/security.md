@@ -162,9 +162,21 @@ volumes:
 
 - Go modules with checksum verification
 - `go.sum` committed for reproducibility
+- **govulncheck** in CI (Go vulnerability database, stdlib focus)
+- **Trivy** FS scan in CI (CVE database, transitive dependencies, `CRITICAL` + `HIGH` severity)
+
+### Key Dependency Upgrades (CVE Fixes)
+
+| Dependency | Old | New | CVE Fixed |
+|-----------|-----|-----|-----------|
+| Go | 1.22 | 1.25 | Multiple stdlib CVEs |
+| `go.opentelemetry.io/otel` | v1.35.0 | v1.46.0 | CVE-2026-24051 |
+| `google.golang.org/grpc` | v1.61.2 | v1.83.2 | CVE-2026-33186 |
+| `golang.org/x/net` | v0.36.0 | v0.58.0 | CVE-2025-3503 |
 
 ### Container Scanning
 
+- Multi-stage Dockerfiles (golang:1.25-alpine → alpine:3.19)
 - Scan images before deployment
 - Update base images regularly
 

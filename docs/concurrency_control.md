@@ -95,7 +95,7 @@ func (r *OutboxRepository) ClaimBatch(ctx context.Context, batchSize int) ([]dom
     if err != nil {
         return nil, err
     }
-    defer tx.Rollback()
+    defer func() { _ = tx.Rollback() }()
 
     query := `
         SELECT id, aggregate_type, aggregate_id, event_type, payload, status, created_at
@@ -207,7 +207,7 @@ tx, err := r.db.BeginTxx(ctx, nil)
 if err != nil {
     return err
 }
-defer tx.Rollback()  // No-op after commit
+defer func() { _ = tx.Rollback() }()  // No-op after commit
 
 // ... business logic ...
 
@@ -216,7 +216,7 @@ if err := tx.Commit(); err != nil {
 }
 ```
 
-**Guarantee**: `defer tx.Rollback()` ensures cleanup on error. After `Commit()`, `Rollback()` is a no-op.
+**Guarantee**: `defer func() { _ = tx.Rollback() }()` ensures cleanup on error. After `Commit()`, `Rollback()` is a no-op.
 
 ---
 

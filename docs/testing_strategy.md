@@ -280,7 +280,7 @@ func TestCreateOrder(t *testing.T) {
 | Sustain spike | 1 min @ 20 VUs |
 | Ramp down | 30s → 0 |
 | Thresholds | p95 < 500ms, success > 95% |
-| **Actual results** | **p95 = 4.32ms, 100% success (2700 orders)** |
+| **Actual results** | **p95 = 4.43ms, 100% success (2700 orders)** |
 
 #### inventory_check.js — Stock Check Read Performance
 
@@ -292,6 +292,7 @@ func TestCreateOrder(t *testing.T) {
 | Sustain spike | 1 min @ 30 VUs |
 | Ramp down | 30s → 0 |
 | Thresholds | p95 < 300ms, success > 95% |
+| **Actual results** | **p95 = 5.84ms, 100% success (8062 requests)** |
 
 #### full_workflow.js — Mixed Workload
 
@@ -326,6 +327,23 @@ podman compose --profile load-test run --rm k6-loadtester run /scripts/order_cre
 podman compose --profile load-test run --rm k6-loadtester run /scripts/inventory_check.js
 podman compose --profile load-test run --rm k6-loadtester run /scripts/full_workflow.js
 ```
+
+---
+
+## Test Isolation
+
+Tests run with `-p 1` (single package at a time) due to shared database across packages. Each test package uses TRUNCATE for cleanup:
+
+```go
+func cleanupTables(db *sqlx.DB) {
+    db.Exec("TRUNCATE order_status_history, order_items, outbox_events, orders CASCADE")
+}
+```
+
+**Key fixes:**
+- `MaxOpenConns(5)` in test DB setup (was 1, caused tx deadlock in `ReserveStock`)
+- `inventory_reservations.order_item_id` made nullable (handler doesn't always provide it)
+- Unique `idempotency_key` values per test case in `TestOrderRepository_List`
 
 ---
 
@@ -366,24 +384,49 @@ make load-test-full     # Full mixed workload
 
 ### GitHub Actions Workflow
 
+4-stage pipeline: Lint → Security Scan → Integration Tests → Build & Push Images.
+
 ```yaml
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+      - uses: golangci/golangci-lint-action@v7
+        with:
+          version: v2.13
+          args: --timeout=5m
+
+  security-scan:
+    steps:
+      - name: Run govulncheck
+      - name: Run Trivy FS Scan (exit-code: 1, CRITICAL+HIGH)
+
   test:
     services:
       postgres:
         image: postgres:18-alpine
         env:
-          POSTGRES_DB: order_db
+          POSTGRES_DB: order_inventory
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
         ports:
           - 5432:5432
     steps:
-      - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
+          go-version: '1.25'
       - run: go test -v -p 1 ./...
+
+  build-and-push:
+    needs: [lint, security-scan, test]
+    strategy:
+      matrix:
+        service: [order-service, inventory-service, websocket-service]
+    steps:
+      - uses: docker/build-push-action@v5
 ```
 
 ---

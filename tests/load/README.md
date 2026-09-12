@@ -42,16 +42,19 @@ k6 run tests/load/full_workflow.js
 ## Test Scenarios
 
 ### order_create.js
+
 - **Goal**: Measure order creation throughput
 - **Load**: 10 → 20 VUs over 3.5 min
 - **Thresholds**: p95 < 500ms, success rate > 95%
 
 ### inventory_check.js
+
 - **Goal**: Measure stock check read performance
 - **Load**: 15 → 30 VUs over 3.5 min
 - **Thresholds**: p95 < 300ms, success rate > 95%
 
 ### full_workflow.js
+
 - **Goal**: Realistic mixed workload
 - **Load**: 10 → 25 → 50 VUs over 5.5 min
 - **Mix**: 40% order creation, 30% stock checks, 30% order reads

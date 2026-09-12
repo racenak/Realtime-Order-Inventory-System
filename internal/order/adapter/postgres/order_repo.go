@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/lib/pq"
 	"github.com/racenak/Realtime-Order-Inventory-System/internal/order/domain"
 	"github.com/racenak/Realtime-Order-Inventory-System/pkg/database"
 )
@@ -368,7 +369,7 @@ func (r *outboxRepository) ClaimBatch(ctx context.Context, limit int) ([]domain.
 	}
 
 	updateQuery := `UPDATE outbox_events SET status = 'CLAIMED' WHERE id = ANY($1)`
-	if _, err := tx.ExecContext(ctx, updateQuery, ids); err != nil {
+	if _, err := tx.ExecContext(ctx, updateQuery, pq.Array(ids)); err != nil {
 		return nil, fmt.Errorf("failed to mark events as claimed: %w", err)
 	}
 

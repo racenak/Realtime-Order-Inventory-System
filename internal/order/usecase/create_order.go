@@ -39,11 +39,13 @@ func (uc *createOrderUseCase) CreateOrder(ctx context.Context, req CreateOrderRe
 		}
 	}
 
-	if req.IdempotencyKey != "" {
-		existing, err := uc.orderRepo.GetByIDempotencyKey(ctx, req.IdempotencyKey)
-		if err == nil && existing != nil {
-			return existing, domain.ErrDuplicateIdempotencyKey
-		}
+	if req.IdempotencyKey == "" {
+		req.IdempotencyKey = uuid.New().String()
+	}
+
+	existing, err := uc.orderRepo.GetByIDempotencyKey(ctx, req.IdempotencyKey)
+	if err == nil && existing != nil {
+		return existing, domain.ErrDuplicateIdempotencyKey
 	}
 
 	currency := req.Currency

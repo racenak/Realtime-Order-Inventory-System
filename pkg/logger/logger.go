@@ -25,17 +25,17 @@ func (l *Logger) Zap() *zap.Logger {
 
 // InfoContext ghi log Info kèm theo TraceID/SpanID tự động từ context (nếu có)
 func (l *Logger) InfoContext(ctx context.Context, msg string, fields ...zap.Field) {
-	l.Logger.Info(msg, append(fields, traceFields(ctx)...)...)
+	l.Info(msg, append(fields, traceFields(ctx)...)...)
 }
 
 // WarnContext ghi log Warn kèm theo TraceID/SpanID tự động từ context (nếu có)
 func (l *Logger) WarnContext(ctx context.Context, msg string, fields ...zap.Field) {
-	l.Logger.Warn(msg, append(fields, traceFields(ctx)...)...)
+	l.Warn(msg, append(fields, traceFields(ctx)...)...)
 }
 
 // ErrorContext ghi log Error kèm theo TraceID/SpanID tự động từ context (nếu có)
 func (l *Logger) ErrorContext(ctx context.Context, msg string, fields ...zap.Field) {
-	l.Logger.Error(msg, append(fields, traceFields(ctx)...)...)
+	l.Error(msg, append(fields, traceFields(ctx)...)...)
 }
 
 // traceFields extracts TraceID and SpanID from context if available

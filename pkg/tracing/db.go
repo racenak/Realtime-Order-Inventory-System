@@ -14,9 +14,8 @@ import (
 const dbSpanName = "db.query"
 
 type TracedDB struct {
-	db      *sqlx.DB
-	tracer  trace.Tracer
-	version string
+	db     *sqlx.DB
+	tracer trace.Tracer
 }
 
 func NewTracedDB(db *sqlx.DB, serviceName string) *TracedDB {

@@ -7,7 +7,7 @@
 | Prometheus | 9090 | Metrics TSDB + scraping |
 | Grafana | 3000 | 9 dashboards |
 | Loki | 3100 | Log aggregation |
-| Jaeger | 16686 | Distributed trace UI |
+| Tempo | 3200 | Distributed trace UI |
 | OTel Collector | 8888 | Telemetry pipeline |
 | Promtail | 9080 | Log shipping |
 | kafka-exporter | 9308 | Kafka metrics |
@@ -92,7 +92,7 @@ func Init(serviceName, endpoint string) (*sdktrace.TracerProvider, error) {
 
 **Flow**:
 ```
-Service → OTLP gRPC → OTel Collector → Jaeger (traces)
+Service → OTLP gRPC → OTel Collector → Tempo (traces)
                                        → Prometheus (metrics)
 ```
 
@@ -225,7 +225,7 @@ healthcheck:
 
 ## What's Implemented
 
-- [x] Full observability stack (Prometheus, Grafana, Loki, Jaeger, OTel Collector, Promtail)
+- [x] Full observability stack (Prometheus, Grafana, Loki, Tempo, OTel Collector, Promtail)
 - [x] 9 Grafana dashboards
 - [x] 16 custom business metrics (pkg/metrics/)
 - [x] OTEL tracing with OTLP gRPC exporter

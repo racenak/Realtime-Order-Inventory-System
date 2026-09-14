@@ -84,7 +84,7 @@
 |----|-------------|--------|
 | NFR-13 | Structured logging | ✅ Implemented (Zap JSON) |
 | NFR-14 | Metrics collection | ✅ Implemented (Prometheus) |
-| NFR-15 | Distributed tracing | ✅ Implemented (OTEL + Jaeger) |
+| NFR-15 | Distributed tracing | ✅ Implemented (OTEL + Tempo) |
 | NFR-16 | Health checks | ✅ Implemented |
 
 ### Security

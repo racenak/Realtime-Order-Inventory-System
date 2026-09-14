@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -52,51 +51,58 @@ func (a *inventoryUseCaseAdapter) ReleaseReservation(ctx context.Context, orderI
 func main() {
 	cfg := config.Load()
 
-	logger, err := logger.New("inventory-service")
-	if err != nil {
-		log.Fatalf("Failed to initialize logger: %v", err)
-	}
-	defer func() { _ = logger.Sync() }()
-
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	shutdownTracer, err := tracing.InitTracer(ctx, "inventory-service", "otel-collector:4317")
+	// 1. Khởi tạo Logger mới (Chuẩn OTLP/gRPC + Zap Stdout)
+	otelCollectorAddr := getEnv("OTEL_EXPORTER_OTLP_ENDPOINT", "otel-collector:4317")
+	logClient, cleanupLogger, err := logger.InitLogger(ctx, "inventory-service", otelCollectorAddr)
 	if err != nil {
-		logger.Warn("Failed to initialize tracer", zap.Error(err))
+		fmt.Printf("Failed to initialize logger: %v\n", err)
+		os.Exit(1)
+	}
+	defer cleanupLogger()
+
+	// 2. Khởi tạo OpenTelemetry Tracer
+	shutdownTracer, err := tracing.InitTracer(ctx, "inventory-service", otelCollectorAddr)
+	if err != nil {
+		logClient.Warn("Failed to initialize tracer", zap.Error(err))
 	} else {
 		defer func() { _ = shutdownTracer(context.Background()) }()
 	}
 
 	_ = otel.Tracer("inventory-service")
 
+	// 3. Kết nối Database PostgreSQL
 	db, err := database.NewPostgresConnection(cfg.Database)
 	if err != nil {
-		log.Fatalf("Failed to connect to database: %v", err)
+		logClient.Fatal("Failed to connect to database", zap.Error(err))
 	}
 	defer func() { _ = db.Close() }()
 
+	// 4. Kết nối Redis Cache
 	rdb, err := pkgcache.NewRedisClient(cfg.Redis)
 	if err != nil {
-		log.Fatalf("Failed to connect to Redis: %v", err)
+		logClient.Fatal("Failed to connect to Redis", zap.Error(err))
 	}
 	defer func() { _ = rdb.Close() }()
 
+	// 5. Khởi tạo các Repositories & Cache Layer
 	inventoryRepo := postgres.NewInventoryRepository(db)
 	reservationRepo := postgres.NewReservationRepository(db)
 	movementRepo := postgres.NewMovementRepository(db)
 
-	invCache := pkgcache.New(rdb, "inventory", 30*time.Second, logger)
-	whCache := pkgcache.New(rdb, "inventory", 10*time.Minute, logger)
+	invCache := pkgcache.New(rdb, "inventory", 30*time.Second, logClient.Zap())
+	whCache := pkgcache.New(rdb, "inventory", 10*time.Minute, logClient.Zap())
 
 	cachedInventoryRepo := cache.NewInventoryCache(inventoryRepo, invCache, whCache)
 
+	// 6. Khởi tạo UseCase & Handlers
 	inventoryUC := usecase.NewInventoryUseCase(cachedInventoryRepo, reservationRepo, movementRepo)
-
 	inventoryHandler := httpd.NewInventoryHandler(inventoryUC)
-
 	adapter := &inventoryUseCaseAdapter{uc: inventoryUC}
 
+	// 7. Khởi tạo Kafka Writer & Consumer
 	failedEventWriter := &kafka.Writer{
 		Addr:         kafka.TCP(cfg.Kafka.Brokers...),
 		Topic:        "inventory.reservation_failed",
@@ -111,37 +117,47 @@ func main() {
 			GroupID:  "inventory-service-orders",
 			MinBytes: 1,
 			MaxBytes: 10e6,
+			Service:  "inventory-service",
 		},
-		inventorykafka.NewOrderEventHandler(adapter, failedEventWriter, logger).Handle,
-		logger,
+		inventorykafka.NewOrderEventHandler(adapter, failedEventWriter, logClient.Zap()).Handle,
+		logClient.Zap(),
 	)
 	go func() {
 		if err := orderConsumer.Start(ctx); err != nil && err != context.Canceled {
-			logger.Error("order consumer error", zap.Error(err))
+			logClient.Error("order consumer error", zap.Error(err))
 		}
 	}()
 
+	// 8. Định nghĩa Chi Router
 	router := chi.NewRouter()
 	router.Use(middleware.Logger)
 	router.Use(middleware.Recoverer)
 	router.Use(middleware.RequestID)
 	router.Use(metrics.Middleware("inventory-service"))
+	router.Use(tracing.Middleware("inventory-service"))
 
 	router.Mount("/api/inventory", inventoryHandler.Routes())
 
 	router.Get("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(`{"status":"ok"}`))
 	})
 
 	router.Handle("/metrics", promhttp.Handler())
 
+	// 9. Lắng nghe HTTP Server & Graceful Shutdown
 	addr := fmt.Sprintf(":%s", cfg.Server.HTTPPort)
-	logger.Info("Starting inventory service", zap.String("addr", addr))
+	server := &http.Server{
+		Addr:    addr,
+		Handler: router,
+	}
+
+	logClient.Info("Starting inventory service", zap.String("addr", addr))
 
 	go func() {
-		if err := http.ListenAndServe(addr, router); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("Failed to start server: %v", err)
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			logClient.Fatal("Failed to start server", zap.Error(err))
 		}
 	}()
 
@@ -149,12 +165,25 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	logger.Info("Shutting down inventory service...")
-	cancel()
+	logClient.Info("Shutting down inventory service...")
 
-	if err := orderConsumer.Close(); err != nil {
-		logger.Error("failed to close order consumer", zap.Error(err))
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer shutdownCancel()
+
+	if err := server.Shutdown(shutdownCtx); err != nil {
+		logClient.Error("Server forced to shutdown", zap.Error(err))
 	}
 
-	logger.Info("Inventory service stopped")
+	if err := orderConsumer.Close(); err != nil {
+		logClient.Error("Failed to close order consumer", zap.Error(err))
+	}
+
+	logClient.Info("Inventory service stopped cleanly")
+}
+
+func getEnv(key, fallback string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return fallback
 }

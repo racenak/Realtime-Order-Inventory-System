@@ -6,6 +6,10 @@ import (
 	"fmt"
 
 	"github.com/segmentio/kafka-go"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 
 	pkgkafka "github.com/racenak/Realtime-Order-Inventory-System/pkg/kafka"
@@ -74,20 +78,46 @@ func NewOrderEventHandler(
 
 func (h *OrderEventHandler) Handle(ctx context.Context, msg kafka.Message) error {
 	eventType := getEventType(msg)
+
+	if extractedCtx := pkgkafka.ExtractTraceContext(msg.Headers); extractedCtx != nil {
+		ctx = extractedCtx
+	}
+
+	_, span := otel.Tracer("order-event-handler").Start(ctx, "kafka.handle_order_event",
+		trace.WithSpanKind(trace.SpanKindConsumer),
+		trace.WithAttributes(
+			attribute.String("messaging.system", "kafka"),
+			attribute.String("messaging.operation", "process"),
+			attribute.String("event.type", eventType),
+			attribute.Int64("messaging.kafka.message.offset", msg.Offset),
+		),
+	)
+	defer span.End()
+
 	h.logger.Info("processing order event",
 		zap.String("event_type", eventType),
 		zap.Int64("offset", msg.Offset),
 	)
 
+	var err error
 	switch eventType {
 	case "order.created":
-		return h.handleOrderCreated(ctx, msg)
+		err = h.handleOrderCreated(ctx, msg)
 	case "order.cancelled":
-		return h.handleOrderCancelled(ctx, msg)
+		err = h.handleOrderCancelled(ctx, msg)
 	default:
 		h.logger.Debug("ignoring event type", zap.String("event_type", eventType))
 		return nil
 	}
+
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+	} else {
+		span.SetStatus(codes.Ok, "")
+	}
+
+	return err
 }
 
 func (h *OrderEventHandler) handleOrderCreated(ctx context.Context, msg kafka.Message) error {
@@ -171,6 +201,8 @@ func (h *OrderEventHandler) publishInventoryReservationFailed(ctx context.Contex
 			{Key: "event_type", Value: []byte("inventory.reservation_failed")},
 		},
 	}
+
+	pkgkafka.InjectTraceHeaders(ctx, &msg)
 
 	return h.producer.WriteMessages(ctx, msg)
 }

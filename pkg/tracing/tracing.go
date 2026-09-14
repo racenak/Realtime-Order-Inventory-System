@@ -9,7 +9,7 @@ import (
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
-	semconv "go.opentelemetry.io/otel/semconv/v1.24.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 )
 
 func InitTracer(ctx context.Context, serviceName, collectorURL string) (func(context.Context) error, error) {
@@ -21,10 +21,8 @@ func InitTracer(ctx context.Context, serviceName, collectorURL string) (func(con
 		return nil, err
 	}
 
-	res, err := resource.Merge(
-		resource.Default(),
-		resource.NewWithAttributes(
-			semconv.SchemaURL,
+	res, err := resource.New(ctx,
+		resource.WithAttributes(
 			semconv.ServiceNameKey.String(serviceName),
 		),
 	)

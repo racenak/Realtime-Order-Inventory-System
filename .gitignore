@@ -34,5 +34,8 @@ go.work.sum
 # .idea/
 # .vscode/
 
+# Agents
+.opencode
+
 # Binaries
 /auth-service

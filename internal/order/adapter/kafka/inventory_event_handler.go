@@ -6,6 +6,10 @@ import (
 	"fmt"
 
 	"github.com/segmentio/kafka-go"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 
 	pkgkafka "github.com/racenak/Realtime-Order-Inventory-System/pkg/kafka"
@@ -61,22 +65,48 @@ func NewInventoryEventHandler(
 
 func (h *InventoryEventHandler) Handle(ctx context.Context, msg kafka.Message) error {
 	eventType := getOrderEventType(msg)
+
+	if extractedCtx := pkgkafka.ExtractTraceContext(msg.Headers); extractedCtx != nil {
+		ctx = extractedCtx
+	}
+
+	_, span := otel.Tracer("inventory-event-handler").Start(ctx, "kafka.handle_inventory_event",
+		trace.WithSpanKind(trace.SpanKindConsumer),
+		trace.WithAttributes(
+			attribute.String("messaging.system", "kafka"),
+			attribute.String("messaging.operation", "process"),
+			attribute.String("event.type", eventType),
+			attribute.Int64("messaging.kafka.message.offset", msg.Offset),
+		),
+	)
+	defer span.End()
+
 	h.logger.Info("processing inventory event",
 		zap.String("event_type", eventType),
 		zap.Int64("offset", msg.Offset),
 	)
 
+	var err error
 	switch eventType {
 	case "inventory.reserved":
-		return h.handleInventoryReserved(ctx, msg)
+		err = h.handleInventoryReserved(ctx, msg)
 	case "inventory.reservation_failed":
-		return h.handleReservationFailed(ctx, msg)
+		err = h.handleReservationFailed(ctx, msg)
 	case "inventory.released":
-		return h.handleInventoryReleased(ctx, msg)
+		err = h.handleInventoryReleased(ctx, msg)
 	default:
 		h.logger.Debug("ignoring event type", zap.String("event_type", eventType))
 		return nil
 	}
+
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+	} else {
+		span.SetStatus(codes.Ok, "")
+	}
+
+	return err
 }
 
 func (h *InventoryEventHandler) handleInventoryReserved(ctx context.Context, msg kafka.Message) error {

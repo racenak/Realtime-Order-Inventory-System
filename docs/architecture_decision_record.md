@@ -279,15 +279,15 @@ type MessageWriter interface {
 
 **Status**: Accepted
 
-**Decision**: Full observability stack with Prometheus, Grafana, Loki, Jaeger, and OpenTelemetry Collector.
+**Decision**: Full observability stack with Prometheus, Grafana, Loki, Tempo, and OpenTelemetry Collector.
 
 **Implementation**:
 - **Prometheus**: Metrics TSDB, scrapes all services
 - **Grafana**: 9 dashboards (Overview, Order, Inventory, WebSocket, Auth, Kafka, Redis, Infrastructure, API)
 - **Loki**: Log aggregation, receives from Promtail
 - **Promtail**: Log shipping from all containers
-- **Jaeger**: Distributed trace UI
-- **OTel Collector**: Receives OTLP gRPC from services, exports to Jaeger/Prometheus
+- **Tempo**: Distributed trace UI
+- **OTel Collector**: Receives OTLP gRPC from services, exports to Tempo/Prometheus
 
 **Custom Business Metrics (16)**:
 - Order lifecycle: created, completed, cancelled, processing duration

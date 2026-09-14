@@ -81,6 +81,8 @@ services:
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
     ports:
       - "9092:9092"
+    logging:
+      driver: journald
     healthcheck:
       test: ["CMD-SHELL", "nc -z localhost 9092 || exit 1"]
       interval: 10s
@@ -138,6 +140,11 @@ services:
       context: .
       dockerfile: cmd/traefik/Dockerfile
     container_name: traefik
+    logging:
+      driver: k8s-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     command:
       - "--api.dashboard=true"
       - "--api.insecure=true"
@@ -169,6 +176,11 @@ services:
     container_name: order-service
     ports:
       - "8080:8080"
+    logging:
+      driver: k8s-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     environment:
       - DB_HOST=order-db
       - DB_PORT=5432
@@ -179,6 +191,7 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - HTTP_PORT=8080
+      - OTEL_ENDPOINT=otel-collector:4317
     deploy:
       resources:
         limits:
@@ -199,6 +212,11 @@ services:
     container_name: inventory-service
     ports:
       - "8081:8081"
+    logging:
+      driver: k8s-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     environment:
       - DB_HOST=inventory-db
       - DB_PORT=5432
@@ -209,6 +227,7 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - HTTP_PORT=8081
+      - OTEL_ENDPOINT=otel-collector:4317
     deploy:
       resources:
         limits:
@@ -229,10 +248,16 @@ services:
     container_name: websocket-service
     ports:
       - "8082:8082"
+    logging:
+      driver: k8s-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     environment:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - HTTP_PORT=8082
+      - OTEL_ENDPOINT=otel-collector:4317
     deploy:
       resources:
         limits:
@@ -249,11 +274,17 @@ services:
     container_name: auth-service
     ports:
       - "8083:8083"
+    logging:
+      driver: k8s-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     environment:
       - JWT_SECRET=${JWT_SECRET:-changeme}
       - JWT_ISSUER=${JWT_ISSUER:-order-inventory-system}
       - JWT_AUDIENCE=${JWT_AUDIENCE:-order-inventory-api}
       - HTTP_PORT=8083
+      - OTEL_ENDPOINT=otel-collector:4317
     deploy:
       resources:
         limits:
@@ -298,6 +329,7 @@ services:
     depends_on:
       - prometheus
       - loki
+      - tempo
 
   loki:
     image: grafana/loki:3.1.0
@@ -309,20 +341,25 @@ services:
       - ./config/loki/loki.yml:/etc/loki/loki.yml:ro,z
       - loki_data:/loki
 
-  jaeger:
-    image: jaegertracing/all-in-one:1.59
-    container_name: jaeger
-    environment:
-      - COLLECTOR_OTLP_ENABLED=true
+  tempo:
+    image: grafana/tempo:2.3.0
+    container_name: tempo
+    command: ["--config.file=/etc/tempo/tempo.yaml"]
     ports:
-      - "16686:16686"
       - "4317:4317"
-      - "4318:4318"
+      - "3200:3200"
     volumes:
-      - jaeger_data:/badger
-
+      - ./config/tempo/tempo.yaml:/etc/tempo/tempo.yaml:ro,z
+      - tempo_data:/var/tempo
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:3200/ready || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+  
   otel-collector:
-    image: otel/opentelemetry-collector-contrib:0.104.0
+    image: otel/opentelemetry-collector-contrib:0.160.0
     container_name: otel-collector
     command: ["--config=/etc/otel/otel-collector.yml"]
     ports:
@@ -332,26 +369,6 @@ services:
       - "8889:8889"
     volumes:
       - ./config/otel/otel-collector.yml:/etc/otel/otel-collector.yml:ro,z
-    depends_on:
-      - jaeger
-      - loki
-      - prometheus
-
-  promtail:
-    image: grafana/promtail:3.1.0
-    container_name: promtail
-    command: ["-config.file=/etc/promtail/promtail.yml"]
-    ports:
-      - "9080:9080"
-    volumes:
-      - ./config/promtail/promtail.yml:/etc/promtail/promtail.yml:ro
-      - /var/lib/containers/storage:/var/lib/containers/storage:ro
-      - ${XDG_RUNTIME_DIR}/podman/podman.sock:/var/run/docker.sock:ro
-      - promtail_data:/tmp
-    depends_on:
-      - loki
-    security_opt:
-      - label=disable
 
   k6-loadtester:
     image: grafana/k6:0.50.0
@@ -366,29 +383,6 @@ services:
         condition: service_started
     profiles:
       - load-test
-
-  kafka-exporter:
-    image: danielqsj/kafka-exporter:v1.8.0
-    container_name: kafka-exporter
-    command:
-      - "--kafka.server=kafka:9092"
-      - "--kafka.version=3.3.1"
-    ports:
-      - "9308:9308"
-    depends_on:
-      kafka:
-        condition: service_healthy
-
-  redis-exporter:
-    image: oliver006/redis_exporter:v1.61.0
-    container_name: redis-exporter
-    environment:
-      - REDIS_ADDR=redis://redis:6379
-    ports:
-      - "9121:9121"
-    depends_on:
-      redis:
-        condition: service_healthy
 
   order-db-exporter:
     image: prometheuscommunity/postgres-exporter:v0.15.0
@@ -418,5 +412,5 @@ volumes:
   prometheus_data:
   grafana_data:
   loki_data:
-  jaeger_data:
+  tempo_data:
   promtail_data:

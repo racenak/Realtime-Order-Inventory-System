@@ -44,7 +44,7 @@ Realtime Order Inventory System is a distributed microservices-based application
 │  ┌──────────────┐  ┌────────────────────────────────────────────┐  │
 │  │ Auth Service │  │ Observability Stack                         │  │
 │  │   (:8083)    │  │ Prometheus :9090, Grafana :3000            │  │
-│  │ JWT via      │  │ Loki :3100, Jaeger :16686                   │  │
+│  │ JWT via      │  │ Loki :3100, Tempo :3200                   │  │
 │  │ ForwardAuth  │  │ OTel Collector :8888, Promtail :9080        │  │
 │  └──────────────┘  └────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────────────┘
@@ -113,7 +113,7 @@ Realtime Order Inventory System is a distributed microservices-based application
 | Prometheus | 9090 | Metrics TSDB + scraping |
 | Grafana | 3000 | 9 dashboards (Overview, Order, Inventory, WebSocket, Auth, Kafka, Redis, Infra, API) |
 | Loki | 3100 | Log aggregation |
-| Jaeger | 16686 | Distributed trace UI |
+| Tempo | 3200 | Distributed trace UI |
 | OTel Collector | 8888 | Telemetry pipeline |
 | Promtail | 9080 | Log shipping |
 | kafka-exporter | 9308 | Kafka metrics |
@@ -264,7 +264,7 @@ Cache decorators for Order and Inventory repos. Writes invalidate cache. Read-th
 | Config         | envconfig                           |
 | Logging        | Zap (structured JSON)               |
 | Metrics        | Prometheus + custom (16 metrics)    |
-| Tracing        | OpenTelemetry (OTLP gRPC → Jaeger)  |
+| Tracing        | OpenTelemetry (OTLP gRPC → Tempo)  |
 | Log Aggregation| Loki + Promtail                     |
 | Testing        | Go testing + function-field mocks   |
 | Container      | Podman + Podman Compose             |

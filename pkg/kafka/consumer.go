@@ -4,7 +4,12 @@ import (
 	"context"
 	"time"
 
+	"github.com/racenak/Realtime-Order-Inventory-System/pkg/metrics"
 	"github.com/segmentio/kafka-go"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 )
 
@@ -16,6 +21,8 @@ type Consumer struct {
 	handler MessageHandler
 	logger  *zap.Logger
 	config  ConsumerConfig
+	service string
+	tracer  trace.Tracer
 }
 
 type ConsumerConfig struct {
@@ -28,16 +35,16 @@ type ConsumerConfig struct {
 	MaxRetries  int
 	RetryDelay  time.Duration
 	DLQTopic    string
+	Service     string
 }
 
 func NewConsumer(cfg ConsumerConfig, handler MessageHandler, logger *zap.Logger) *Consumer {
 	r := kafka.NewReader(kafka.ReaderConfig{
-		Brokers:  cfg.Brokers,
-		Topic:    cfg.Topic,
-		GroupID:  cfg.GroupID,
-		MinBytes: cfg.MinBytes,
-		MaxBytes: cfg.MaxBytes,
-		// Disable auto-commit — we commit manually after successful processing
+		Brokers:        cfg.Brokers,
+		Topic:          cfg.Topic,
+		GroupID:        cfg.GroupID,
+		MinBytes:       cfg.MinBytes,
+		MaxBytes:       cfg.MaxBytes,
 		CommitInterval: 0,
 	})
 
@@ -63,6 +70,8 @@ func NewConsumer(cfg ConsumerConfig, handler MessageHandler, logger *zap.Logger)
 		handler: handler,
 		logger:  logger,
 		config:  cfg,
+		service: cfg.Service,
+		tracer:  otel.Tracer("kafka.consumer"),
 	}
 }
 
@@ -84,19 +93,43 @@ func (c *Consumer) Start(ctx context.Context) error {
 			continue
 		}
 
-		if err := c.handleWithRetry(ctx, msg); err != nil {
+		topic := msg.Topic
+
+		metrics.KafkaMessagesConsumedTotal.WithLabelValues(c.service, topic).Inc()
+
+		consumerCtx, span := c.tracer.Start(ctx, "kafka.consume",
+			trace.WithSpanKind(trace.SpanKindConsumer),
+			trace.WithAttributes(
+				attribute.String("messaging.system", "kafka"),
+				attribute.String("messaging.operation", "process"),
+				attribute.String("messaging.destination.name", topic),
+				attribute.Int64("messaging.kafka.message.offset", msg.Offset),
+				attribute.String("messaging.kafka.message.key", string(msg.Key)),
+			),
+		)
+
+		if extractedCtx := ExtractTraceContext(msg.Headers); extractedCtx != nil {
+			consumerCtx = extractedCtx
+		}
+
+		if err := c.handleWithRetry(consumerCtx, msg); err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, err.Error())
 			c.logger.Error("message failed after all retries, sending to DLQ",
 				zap.Error(err),
 				zap.Int64("offset", msg.Offset),
 				zap.String("topic", msg.Topic),
 			)
-			if dlqErr := c.sendToDLQ(ctx, msg, err); dlqErr != nil {
+			if dlqErr := c.sendToDLQ(consumerCtx, msg, err); dlqErr != nil {
 				c.logger.Error("failed to send to DLQ",
 					zap.Error(dlqErr),
 					zap.Int64("offset", msg.Offset),
 				)
 			}
+		} else {
+			span.SetStatus(codes.Ok, "")
 		}
+		span.End()
 
 		if err := c.reader.CommitMessages(ctx, msg); err != nil {
 			c.logger.Error("failed to commit offset",

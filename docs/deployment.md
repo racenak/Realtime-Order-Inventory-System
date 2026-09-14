@@ -23,7 +23,7 @@ podman compose ps
 # Traefik:    http://localhost:8088
 # Dashboard:  http://localhost:8090
 # Grafana:    http://localhost:3000 (admin/admin)
-# Jaeger:     http://localhost:16686
+# Tempo:      http://localhost:3200
 # Prometheus: http://localhost:9090
 ```
 
@@ -46,7 +46,7 @@ podman compose ps
 | Prometheus | prometheus | 9090 | `http://prometheus:9090/-/healthy` |
 | Grafana | grafana | 3000 | `http://grafana:3000/api/health` |
 | Loki | loki | 3100 | `http://loki:3100/ready` |
-| Jaeger | jaeger | 16686 | `http://jaeger:16686/` |
+| Tempo | tempo | 3200 | `http://tempo:3200/` |
 | OTel Collector | otel-collector | 8888 | `http://otel-collector:8888/metrics` |
 | Promtail | promtail | 9080 | `http://promtail:9080/` |
 | kafka-exporter | kafka-exporter | 9308 | `http://kafka-exporter:9308/metrics` |

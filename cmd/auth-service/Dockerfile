@@ -1,3 +1,4 @@
+# Build stage
 FROM golang:1.25-alpine AS builder
 
 WORKDIR /app
@@ -5,18 +6,19 @@ WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
 
-COPY cmd/auth-service/main.go ./
-RUN CGO_ENABLED=0 GOOS=linux go build -o auth-service main.go
+COPY . .
 
+RUN CGO_ENABLED=0 GOOS=linux go build -o /auth-service ./cmd/auth-service/
+
+# Runtime stage
 FROM alpine:3.19
 
-RUN apk --no-cache add ca-certificates
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+RUN apk --no-cache add ca-certificates tzdata
 
-COPY --from=builder /app/auth-service /auth-service
+WORKDIR /app
 
-USER appuser
+COPY --from=builder /auth-service .
 
 EXPOSE 8083
 
-ENTRYPOINT ["./auth-service"]
+CMD ["./auth-service"]

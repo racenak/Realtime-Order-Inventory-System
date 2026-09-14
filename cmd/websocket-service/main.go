@@ -3,11 +3,11 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -27,63 +27,88 @@ import (
 func main() {
 	cfg := config.Load()
 
-	appLogger, err := logger.New("websocket-service")
-	if err != nil {
-		log.Fatalf("Failed to initialize logger: %v", err)
-	}
-	defer func() { _ = appLogger.Sync() }()
-
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	shutdownTracer, err := tracing.InitTracer(ctx, "websocket-service", "otel-collector:4317")
+	// 1. Khởi tạo Logger mới (Xuất Stdout + Gửi OTLP về otel-collector)
+	otelCollectorAddr := getEnv("OTEL_EXPORTER_OTLP_ENDPOINT", "otel-collector:4317")
+	logClient, cleanupLogger, err := logger.InitLogger(ctx, "websocket-service", otelCollectorAddr)
 	if err != nil {
-		appLogger.Warn("Failed to initialize tracer", zap.Error(err))
+		fmt.Printf("Failed to initialize logger: %v\n", err)
+		os.Exit(1)
+	}
+	defer cleanupLogger()
+
+	// 2. Khởi tạo OpenTelemetry Tracer
+	shutdownTracer, err := tracing.InitTracer(ctx, "websocket-service", otelCollectorAddr)
+	if err != nil {
+		logClient.Warn("Failed to initialize tracer", zap.Error(err))
 	} else {
 		defer func() { _ = shutdownTracer(context.Background()) }()
 	}
 
 	_ = otel.Tracer("websocket-service")
 
+	// 3. Kết nối Redis Client
 	rdb := redis.NewClient(&redis.Options{
 		Addr:     fmt.Sprintf("%s:%d", cfg.Redis.Host, cfg.Redis.Port),
 		Password: cfg.Redis.Password,
 		DB:       0,
 	})
 
-	hub := ws.NewHub(appLogger)
-	go hub.Run()
-
-	subscriber := wsinternal.NewSubscriber(rdb, hub, appLogger)
-	go func() {
-		if err := subscriber.Start(ctx); err != nil && err != context.Canceled {
-			appLogger.Error("subscriber error", zap.Error(err))
+	// Test kết nối Redis
+	if err := rdb.Ping(ctx).Err(); err != nil {
+		logClient.Fatal("Failed to connect to Redis", zap.Error(err))
+	}
+	defer func() {
+		if err := rdb.Close(); err != nil {
+			logClient.Error("Failed to close redis client", zap.Error(err))
 		}
 	}()
 
-	handler := wsinternal.NewHandler(hub, appLogger)
+	// 4. Khởi tạo WebSocket Hub & Subscriber
+	hub := ws.NewHub(logClient.Zap())
+	go hub.Run()
 
+	subscriber := wsinternal.NewSubscriber(rdb, hub, logClient.Zap())
+	go func() {
+		if err := subscriber.Start(ctx); err != nil && err != context.Canceled {
+			logClient.Error("Subscriber error", zap.Error(err))
+		}
+	}()
+
+	handler := wsinternal.NewHandler(hub, logClient.Zap())
+
+	// 5. Định nghĩa Chi Router
 	router := chi.NewRouter()
 	router.Use(middleware.Logger)
 	router.Use(middleware.Recoverer)
 	router.Use(middleware.RequestID)
 	router.Use(metrics.Middleware("websocket-service"))
+	router.Use(tracing.Middleware("websocket-service"))
 
 	router.Mount("/ws", handler.Routes())
 
 	router.Get("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(`{"status":"ok"}`))
 	})
 
 	router.Handle("/metrics", promhttp.Handler())
 
+	// 6. Lắng nghe HTTP Server & Graceful Shutdown
 	addr := fmt.Sprintf(":%s", cfg.Server.HTTPPort)
-	appLogger.Info("Starting websocket service", zap.String("addr", addr))
+	server := &http.Server{
+		Addr:    addr,
+		Handler: router,
+	}
+
+	logClient.Info("Starting websocket service", zap.String("addr", addr))
 
 	go func() {
-		if err := http.ListenAndServe(addr, router); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("Failed to start server: %v", err)
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			logClient.Fatal("Failed to start server", zap.Error(err))
 		}
 	}()
 
@@ -91,12 +116,22 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	appLogger.Info("Shutting down websocket service...")
-	cancel()
+	logClient.Info("Shutting down websocket service...")
+	cancel() // Cancel context để dừng subscriber goroutine
 
-	if err := rdb.Close(); err != nil {
-		appLogger.Error("failed to close redis client", zap.Error(err))
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer shutdownCancel()
+
+	if err := server.Shutdown(shutdownCtx); err != nil {
+		logClient.Error("Server forced to shutdown", zap.Error(err))
 	}
 
-	appLogger.Info("Websocket service stopped")
+	logClient.Info("Websocket service stopped cleanly")
+}
+
+func getEnv(key, fallback string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return fallback
 }

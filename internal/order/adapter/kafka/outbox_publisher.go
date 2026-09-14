@@ -6,6 +6,10 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/segmentio/kafka-go"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 
 	"github.com/racenak/Realtime-Order-Inventory-System/internal/order/domain"
@@ -115,6 +119,18 @@ func (p *OutboxPublisher) publishBatch(ctx context.Context, batchSize int) error
 func (p *OutboxPublisher) publishEvent(ctx context.Context, event domain.OutboxEvent) error {
 	topic := p.getTopicForEvent(event.EventType)
 
+	_, span := otel.Tracer("outbox").Start(ctx, "kafka.publish_event",
+		trace.WithSpanKind(trace.SpanKindProducer),
+		trace.WithAttributes(
+			attribute.String("messaging.system", "kafka"),
+			attribute.String("messaging.operation", "publish"),
+			attribute.String("messaging.destination.name", topic),
+			attribute.String("event.type", event.EventType),
+			attribute.String("event.id", event.ID),
+		),
+	)
+	defer span.End()
+
 	msg := kafka.Message{
 		Topic: topic,
 		Key:   []byte(event.AggregateID),
@@ -126,7 +142,16 @@ func (p *OutboxPublisher) publishEvent(ctx context.Context, event domain.OutboxE
 		},
 	}
 
-	return p.writer.WriteMessages(ctx, msg)
+	pkgkafka.InjectTraceHeaders(ctx, &msg)
+
+	if err := p.writer.WriteMessages(ctx, msg); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return err
+	}
+
+	span.SetStatus(codes.Ok, "")
+	return nil
 }
 
 func (p *OutboxPublisher) getTopicForEvent(eventType string) string {

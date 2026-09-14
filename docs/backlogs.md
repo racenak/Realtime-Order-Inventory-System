@@ -81,7 +81,7 @@
 | B-78 | Security | Traefik gateway security spec | Middleware chain, gateway vs service responsibilities |
 | B-79 | Security | Resource-level authorization spec | Order ownership, inventory invariants |
 | B-80 | Docs | Auth Service docs (architecture, deployment, API spec) | Added Auth Service to 3 docs, fixed WebSocket port |
-| B-69 | Obs | Prometheus + Grafana + Loki + Jaeger + OTEL Collector | Full observability stack, 9 Grafana dashboards |
+| B-69 | Obs | Prometheus + Grafana + Loki + Tempo + OTEL Collector | Full observability stack, 9 Grafana dashboards |
 | B-70 | Obs | /metrics endpoint in all Go services | promhttp.Handler() added to order, inventory, websocket, auth services |
 | B-81 | Tests | Unit tests — Order domain/usecase | 5 domain + 7 usecase tests |
 | B-82 | Tests | Unit tests — Inventory domain/usecase | 2 domain + 5 usecase tests |

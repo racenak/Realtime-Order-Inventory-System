@@ -19,7 +19,7 @@
       },
       "targets": [
         {
-          "expr": "max(up{service=\"websocket-service\"})",
+          "expr": "max(otel_up{service=\"websocket-service\"})",
           "legendFormat": "up"
         }
       ],

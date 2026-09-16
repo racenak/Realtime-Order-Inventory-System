@@ -19,7 +19,7 @@
       },
       "targets": [
         {
-          "expr": "max(up{service=\"inventory-service\"})",
+          "expr": "max(otel_up{service=\"inventory-service\"})",
           "legendFormat": "up"
         }
       ],

@@ -19,7 +19,7 @@
       },
       "targets": [
         {
-          "expr": "max(up{service=\"traefik\"})",
+          "expr": "max(otel_up{service=\"traefik\"})",
           "legendFormat": "up"
         }
       ],

@@ -19,7 +19,7 @@
       },
       "targets": [
         {
-          "expr": "max(up{job=\"order-service\"})",
+          "expr": "max(up{service=\"order-service\"})",
           "legendFormat": "up"
         }
       ],
@@ -66,7 +66,7 @@
       },
       "targets": [
         {
-          "expr": "sum(rate(otel_http_requests_total{job=\"order-service\"}[5m]))",
+          "expr": "sum(rate(otel_http_requests_total{service=\"order-service\"}[5m]))",
           "legendFormat": "req/s"
         }
       ],
@@ -87,7 +87,7 @@
       },
       "targets": [
         {
-          "expr": "(sum(rate(otel_http_requests_total{job=\"order-service\",status=~\"5..\"}[5m])) / sum(rate(otel_http_requests_total{job=\"order-service\"}[5m]))) * 100",
+          "expr": "(sum(rate(otel_http_requests_total{service=\"order-service\",status=~\"5..\"}[5m])) / sum(rate(otel_http_requests_total{service=\"order-service\"}[5m]))) * 100",
           "legendFormat": "%"
         }
       ],
@@ -124,7 +124,7 @@
       },
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum(rate(otel_http_request_duration_seconds_bucket{job=\"order-service\"}[5m])) by (le))",
+          "expr": "histogram_quantile(0.95, sum(rate(otel_http_request_duration_seconds_bucket{service=\"order-service\"}[5m])) by (le))",
           "legendFormat": "P95"
         }
       ],
@@ -145,7 +145,7 @@
       },
       "targets": [
         {
-          "expr": "histogram_quantile(0.99, sum(rate(otel_http_request_duration_seconds_bucket{job=\"order-service\"}[5m])) by (le))",
+          "expr": "histogram_quantile(0.99, sum(rate(otel_http_request_duration_seconds_bucket{service=\"order-service\"}[5m])) by (le))",
           "legendFormat": "P99"
         }
       ],
@@ -166,11 +166,11 @@
       },
       "targets": [
         {
-          "expr": "sum(rate(otel_orders_created_total{job=\"order-service\"}[5m]))",
+          "expr": "sum(rate(otel_orders_created_total{service=\"order-service\"}[5m]))",
           "legendFormat": "created/s"
         },
         {
-          "expr": "sum(increase(otel_orders_created_total{job=\"order-service\"}[1h]))",
+          "expr": "sum(increase(otel_orders_created_total{service=\"order-service\"}[1h]))",
           "legendFormat": "last 1h"
         }
       ]
@@ -186,11 +186,11 @@
       },
       "targets": [
         {
-          "expr": "sum(rate(otel_orders_cancelled_total{job=\"order-service\"}[5m]))",
+          "expr": "sum(rate(otel_orders_cancelled_total{service=\"order-service\"}[5m]))",
           "legendFormat": "cancelled/s"
         },
         {
-          "expr": "sum(increase(otel_orders_cancelled_total{job=\"order-service\"}[1h]))",
+          "expr": "sum(increase(otel_orders_cancelled_total{service=\"order-service\"}[1h]))",
           "legendFormat": "last 1h"
         }
       ]
@@ -206,7 +206,7 @@
       },
       "targets": [
         {
-          "expr": "sum(rate(otel_orders_failed_total{job=\"order-service\"}[5m])) by (reason)",
+          "expr": "sum(rate(otel_orders_failed_total{service=\"order-service\"}[5m])) by (reason)",
           "legendFormat": "{{reason}}"
         }
       ]
@@ -222,7 +222,7 @@
       },
       "targets": [
         {
-          "expr": "sum(rate(otel_http_requests_total{job=\"order-service\"}[5m])) by (method, path)",
+          "expr": "sum(rate(otel_http_requests_total{service=\"order-service\"}[5m])) by (method, path)",
           "legendFormat": "{{method}} {{path}}"
         }
       ]
@@ -238,7 +238,7 @@
       },
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum(rate(otel_http_request_duration_seconds_bucket{job=\"order-service\"}[5m])) by (le, path))",
+          "expr": "histogram_quantile(0.95, sum(rate(otel_http_request_duration_seconds_bucket{service=\"order-service\"}[5m])) by (le, path))",
           "legendFormat": "P95 {{path}}"
         }
       ],
@@ -259,7 +259,7 @@
       },
       "targets": [
         {
-          "expr": "sum(rate(otel_http_requests_total{job=\"order-service\"}[5m])) by (status)",
+          "expr": "sum(rate(otel_http_requests_total{service=\"order-service\"}[5m])) by (status)",
           "legendFormat": "{{status}}"
         }
       ]
@@ -275,11 +275,11 @@
       },
       "targets": [
         {
-          "expr": "sum(otel_go_memstats_alloc_bytes{job=\"order-service\"})",
+          "expr": "sum(otel_go_memstats_alloc_bytes{service=\"order-service\"})",
           "legendFormat": "alloc"
         },
         {
-          "expr": "sum(otel_go_goroutines{job=\"order-service\"})",
+          "expr": "sum(otel_go_goroutines{service=\"order-service\"})",
           "legendFormat": "goroutines"
         }
       ]

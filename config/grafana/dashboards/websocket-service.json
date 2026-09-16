@@ -19,7 +19,7 @@
       },
       "targets": [
         {
-          "expr": "max(up{job=\"websocket-service\"})",
+          "expr": "max(up{service=\"websocket-service\"})",
           "legendFormat": "up"
         }
       ],
@@ -66,7 +66,7 @@
       },
       "targets": [
         {
-          "expr": "sum(rate(otel_http_requests_total{job=\"websocket-service\"}[5m]))",
+          "expr": "sum(rate(otel_http_requests_total{service=\"websocket-service\"}[5m]))",
           "legendFormat": "req/s"
         }
       ],
@@ -87,7 +87,7 @@
       },
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum(rate(otel_http_request_duration_seconds_bucket{job=\"websocket-service\"}[5m])) by (le))",
+          "expr": "histogram_quantile(0.95, sum(rate(otel_http_request_duration_seconds_bucket{service=\"websocket-service\"}[5m])) by (le))",
           "legendFormat": "P95"
         }
       ],
@@ -108,7 +108,7 @@
       },
       "targets": [
         {
-          "expr": "sum(otel_ws_connections_active{job=\"websocket-service\"})",
+          "expr": "sum(otel_ws_connections_active{service=\"websocket-service\"})",
           "legendFormat": "active"
         }
       ],
@@ -147,7 +147,7 @@
       },
       "targets": [
         {
-          "expr": "sum(increase(otel_ws_connections_total{job=\"websocket-service\"}[1h]))",
+          "expr": "sum(increase(otel_ws_connections_total{service=\"websocket-service\"}[1h]))",
           "legendFormat": "1h"
         }
       ],
@@ -178,11 +178,11 @@
       },
       "targets": [
         {
-          "expr": "sum(otel_ws_connections_active{job=\"websocket-service\"})",
+          "expr": "sum(otel_ws_connections_active{service=\"websocket-service\"})",
           "legendFormat": "active"
         },
         {
-          "expr": "sum(rate(otel_ws_connections_total{job=\"websocket-service\"}[5m]))",
+          "expr": "sum(rate(otel_ws_connections_total{service=\"websocket-service\"}[5m]))",
           "legendFormat": "new/s"
         }
       ]
@@ -198,7 +198,7 @@
       },
       "targets": [
         {
-          "expr": "sum(rate(otel_ws_messages_sent_total{job=\"websocket-service\"}[5m])) by (channel)",
+          "expr": "sum(rate(otel_ws_messages_sent_total{service=\"websocket-service\"}[5m])) by (channel)",
           "legendFormat": "{{channel}}"
         }
       ]
@@ -214,7 +214,7 @@
       },
       "targets": [
         {
-          "expr": "sum(rate(otel_http_requests_total{job=\"websocket-service\"}[5m])) by (status)",
+          "expr": "sum(rate(otel_http_requests_total{service=\"websocket-service\"}[5m])) by (status)",
           "legendFormat": "{{status}}"
         }
       ]
@@ -230,7 +230,7 @@
       },
       "targets": [
         {
-          "expr": "sum(rate(otel_http_requests_total{job=\"websocket-service\"}[5m])) by (method, path)",
+          "expr": "sum(rate(otel_http_requests_total{service=\"websocket-service\"}[5m])) by (method, path)",
           "legendFormat": "{{method}} {{path}}"
         }
       ]
@@ -246,11 +246,11 @@
       },
       "targets": [
         {
-          "expr": "sum(otel_go_memstats_alloc_bytes{job=\"websocket-service\"})",
+          "expr": "sum(otel_go_memstats_alloc_bytes{service=\"websocket-service\"})",
           "legendFormat": "alloc"
         },
         {
-          "expr": "sum(otel_go_goroutines{job=\"websocket-service\"})",
+          "expr": "sum(otel_go_goroutines{service=\"websocket-service\"})",
           "legendFormat": "goroutines"
         }
       ]

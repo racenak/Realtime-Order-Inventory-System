@@ -202,7 +202,7 @@
           "legendFormat": "alloc"
         },
         {
-          "expr": "sum(otel_go_goroutines{job=\"auth-service\"})",
+          "expr": "sum(otel_go_goroutines{service=\"auth-service\"})",
           "legendFormat": "goroutines"
         }
       ]

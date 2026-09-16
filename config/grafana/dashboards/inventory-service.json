@@ -19,7 +19,7 @@
       },
       "targets": [
         {
-          "expr": "max(up{job=\"inventory-service\"})",
+          "expr": "max(up{service=\"inventory-service\"})",
           "legendFormat": "up"
         }
       ],
@@ -66,7 +66,7 @@
       },
       "targets": [
         {
-          "expr": "sum(rate(otel_http_requests_total{job=\"inventory-service\"}[5m]))",
+          "expr": "sum(rate(otel_http_requests_total{service=\"inventory-service\"}[5m]))",
           "legendFormat": "req/s"
         }
       ],
@@ -87,7 +87,7 @@
       },
       "targets": [
         {
-          "expr": "(sum(rate(otel_http_requests_total{job=\"inventory-service\",status=~\"5..\"}[5m])) / sum(rate(otel_http_requests_total{job=\"inventory-service\"}[5m]))) * 100",
+          "expr": "(sum(rate(otel_http_requests_total{service=\"inventory-service\",status=~\"5..\"}[5m])) / sum(rate(otel_http_requests_total{service=\"inventory-service\"}[5m]))) * 100",
           "legendFormat": "%"
         }
       ],
@@ -124,7 +124,7 @@
       },
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum(rate(otel_http_request_duration_seconds_bucket{job=\"inventory-service\"}[5m])) by (le))",
+          "expr": "histogram_quantile(0.95, sum(rate(otel_http_request_duration_seconds_bucket{service=\"inventory-service\"}[5m])) by (le))",
           "legendFormat": "P95"
         }
       ],
@@ -145,7 +145,7 @@
       },
       "targets": [
         {
-          "expr": "histogram_quantile(0.99, sum(rate(otel_http_request_duration_seconds_bucket{job=\"inventory-service\"}[5m])) by (le))",
+          "expr": "histogram_quantile(0.99, sum(rate(otel_http_request_duration_seconds_bucket{service=\"inventory-service\"}[5m])) by (le))",
           "legendFormat": "P99"
         }
       ],
@@ -166,11 +166,11 @@
       },
       "targets": [
         {
-          "expr": "sum(rate(otel_inventory_reservations_total{job=\"inventory-service\",status=\"success\"}[5m]))",
+          "expr": "sum(rate(otel_inventory_reservations_total{service=\"inventory-service\",status=\"success\"}[5m]))",
           "legendFormat": "reserved/s"
         },
         {
-          "expr": "sum(rate(otel_inventory_reservations_total{job=\"inventory-service\",status!=\"success\"}[5m]))",
+          "expr": "sum(rate(otel_inventory_reservations_total{service=\"inventory-service\",status!=\"success\"}[5m]))",
           "legendFormat": "failed/s"
         }
       ]
@@ -186,7 +186,7 @@
       },
       "targets": [
         {
-          "expr": "sum(rate(otel_inventory_releases_total{job=\"inventory-service\"}[5m]))",
+          "expr": "sum(rate(otel_inventory_releases_total{service=\"inventory-service\"}[5m]))",
           "legendFormat": "releases/s"
         }
       ]
@@ -202,7 +202,7 @@
       },
       "targets": [
         {
-          "expr": "sum(rate(otel_inventory_updates_total{job=\"inventory-service\"}[5m]))",
+          "expr": "sum(rate(otel_inventory_updates_total{service=\"inventory-service\"}[5m]))",
           "legendFormat": "updates/s"
         }
       ]
@@ -218,7 +218,7 @@
       },
       "targets": [
         {
-          "expr": "sum(rate(otel_inventory_failed_total{job=\"inventory-service\"}[5m])) by (reason)",
+          "expr": "sum(rate(otel_inventory_failed_total{service=\"inventory-service\"}[5m])) by (reason)",
           "legendFormat": "{{reason}}"
         }
       ]
@@ -234,7 +234,7 @@
       },
       "targets": [
         {
-          "expr": "sum(rate(otel_http_requests_total{job=\"inventory-service\"}[5m])) by (method, path)",
+          "expr": "sum(rate(otel_http_requests_total{service=\"inventory-service\"}[5m])) by (method, path)",
           "legendFormat": "{{method}} {{path}}"
         }
       ]
@@ -250,7 +250,7 @@
       },
       "targets": [
         {
-          "expr": "sum(rate(otel_http_requests_total{job=\"inventory-service\"}[5m])) by (status)",
+          "expr": "sum(rate(otel_http_requests_total{service=\"inventory-service\"}[5m])) by (status)",
           "legendFormat": "{{status}}"
         }
       ]
@@ -266,11 +266,11 @@
       },
       "targets": [
         {
-          "expr": "sum(otel_go_memstats_alloc_bytes{job=\"inventory-service\"})",
+          "expr": "sum(otel_go_memstats_alloc_bytes{service=\"inventory-service\"})",
           "legendFormat": "alloc"
         },
         {
-          "expr": "sum(otel_go_goroutines{job=\"inventory-service\"})",
+          "expr": "sum(otel_go_goroutines{service=\"inventory-service\"})",
           "legendFormat": "goroutines"
         }
       ]

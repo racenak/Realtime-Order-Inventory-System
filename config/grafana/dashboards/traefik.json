@@ -19,7 +19,7 @@
       },
       "targets": [
         {
-          "expr": "max(up{job=\"traefik\"})",
+          "expr": "max(up{service=\"traefik\"})",
           "legendFormat": "up"
         }
       ],
@@ -66,7 +66,7 @@
       },
       "targets": [
         {
-          "expr": "sum(rate(otel_traefik_entrypoint_requests_total{job=\"traefik\"}[5m]))",
+          "expr": "sum(rate(otel_traefik_entrypoint_requests_total{service=\"traefik\"}[5m]))",
           "legendFormat": "req/s"
         }
       ],
@@ -87,7 +87,7 @@
       },
       "targets": [
         {
-          "expr": "(sum(rate(otel_traefik_entrypoint_requests_total{job=\"traefik\",code=~\"5..\"}[5m])) / sum(rate(otel_traefik_entrypoint_requests_total{job=\"traefik\"}[5m]))) * 100",
+          "expr": "(sum(rate(otel_traefik_entrypoint_requests_total{service=\"traefik\",code=~\"5..\"}[5m])) / sum(rate(otel_traefik_entrypoint_requests_total{service=\"traefik\"}[5m]))) * 100",
           "legendFormat": "%"
         }
       ],
@@ -124,7 +124,7 @@
       },
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum(rate(otel_traefik_entrypoint_request_duration_seconds_bucket{job=\"traefik\"}[5m])) by (le))",
+          "expr": "histogram_quantile(0.95, sum(rate(otel_traefik_entrypoint_request_duration_seconds_bucket{service=\"traefik\"}[5m])) by (le))",
           "legendFormat": "P95"
         }
       ],
@@ -145,7 +145,7 @@
       },
       "targets": [
         {
-          "expr": "sum(otel_traefik_entrypoint_open_connections{job=\"traefik\"})",
+          "expr": "sum(otel_traefik_entrypoint_open_connections{service=\"traefik\"})",
           "legendFormat": "open"
         }
       ],
@@ -184,7 +184,7 @@
       },
       "targets": [
         {
-          "expr": "sum(rate(otel_traefik_entrypoint_requests_total{job=\"traefik\"}[5m])) by (router)",
+          "expr": "sum(rate(otel_traefik_entrypoint_requests_total{service=\"traefik\"}[5m])) by (router)",
           "legendFormat": "{{router}}"
         }
       ]
@@ -200,7 +200,7 @@
       },
       "targets": [
         {
-          "expr": "sum(rate(otel_traefik_entrypoint_requests_total{job=\"traefik\"}[5m])) by (entrypoint)",
+          "expr": "sum(rate(otel_traefik_entrypoint_requests_total{service=\"traefik\"}[5m])) by (entrypoint)",
           "legendFormat": "{{entrypoint}}"
         }
       ]
@@ -216,7 +216,7 @@
       },
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum(rate(otel_traefik_entrypoint_request_duration_seconds_bucket{job=\"traefik\"}[5m])) by (le, router))",
+          "expr": "histogram_quantile(0.95, sum(rate(otel_traefik_entrypoint_request_duration_seconds_bucket{service=\"traefik\"}[5m])) by (le, router))",
           "legendFormat": "P95 {{router}}"
         }
       ],
@@ -237,7 +237,7 @@
       },
       "targets": [
         {
-          "expr": "sum(rate(otel_traefik_entrypoint_requests_total{job=\"traefik\"}[5m])) by (code)",
+          "expr": "sum(rate(otel_traefik_entrypoint_requests_total{service=\"traefik\"}[5m])) by (code)",
           "legendFormat": "{{code}}"
         }
       ]
@@ -253,7 +253,7 @@
       },
       "targets": [
         {
-          "expr": "sum(otel_traefik_entrypoint_open_connections{job=\"traefik\"}) by (entrypoint)",
+          "expr": "sum(otel_traefik_entrypoint_open_connections{service=\"traefik\"}) by (entrypoint)",
           "legendFormat": "{{entrypoint}}"
         }
       ]
@@ -269,7 +269,7 @@
       },
       "targets": [
         {
-          "expr": "max(otel_traefik_config_last_reload_success{job=\"traefik\"})",
+          "expr": "max(otel_traefik_config_last_reload_success{service=\"traefik\"})",
           "legendFormat": "last reload"
         }
       ],

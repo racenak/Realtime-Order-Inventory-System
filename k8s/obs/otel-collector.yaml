@@ -1,0 +1,90 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: otel-collector
+  namespace: order-inventory
+  labels:
+    app: otel-collector
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: otel-collector
+  template:
+    metadata:
+      labels:
+        app: otel-collector
+    spec:
+      containers:
+        - name: otel-collector
+          image: otel/opentelemetry-collector-contrib:0.160.0
+          command: ["--config=/etc/otel/otel-collector.yml"]
+          ports:
+            - containerPort: 4317
+              name: otlp-grpc
+              protocol: TCP
+            - containerPort: 4318
+              name: otlp-http
+              protocol: TCP
+            - containerPort: 8888
+              name: self-telemetry
+              protocol: TCP
+            - containerPort: 8889
+              name: prometheus-exporter
+              protocol: TCP
+          resources:
+            requests:
+              cpu: "1"
+              memory: 1Gi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          volumeMounts:
+            - name: otel-collector-config
+              mountPath: /etc/otel/
+      volumes:
+        - name: otel-collector-config
+          configMap:
+            name: otel-collector-config
+            items:
+              - key: otel-collector.yml
+                path: otel-collector.yml
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: node-role.kubernetes.io/observability
+                    operator: In
+                    values:
+                      - "true"
+      restartPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: otel-collector
+  namespace: order-inventory
+  labels:
+    app: otel-collector
+spec:
+  type: ClusterIP
+  selector:
+    app: otel-collector
+  ports:
+    - name: otlp-grpc
+      port: 4317
+      targetPort: 4317
+      protocol: TCP
+    - name: otlp-http
+      port: 4318
+      targetPort: 4318
+      protocol: TCP
+    - name: self-telemetry
+      port: 8888
+      targetPort: 8888
+      protocol: TCP
+    - name: prometheus-exporter
+      port: 8889
+      targetPort: 8889
+      protocol: TCP

@@ -1,0 +1,822 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards
+  namespace: order-inventory
+data:
+  auth-service.json: "{\n  \"annotations\": {\n    \"list\": []\n  },\n  \"editable\"\
+    : true,\n  \"fiscalYearStartMonth\": 0,\n  \"graphTooltip\": 1,\n  \"id\": null,\n\
+    \  \"links\": [],\n  \"panels\": [\n    {\n      \"title\": \"Status\",\n    \
+    \  \"type\": \"stat\",\n      \"gridPos\": {\n        \"h\": 4,\n        \"w\"\
+    : 6,\n        \"x\": 0,\n        \"y\": 0\n      },\n      \"targets\": [\n  \
+    \      {\n          \"expr\": \"max(otel_up{service=\\\"auth-service\\\"})\",\n\
+    \          \"legendFormat\": \"up\"\n        }\n      ],\n      \"fieldConfig\"\
+    : {\n        \"defaults\": {\n          \"mappings\": [\n            {\n     \
+    \         \"options\": {\n                \"0\": {\n                  \"text\"\
+    : \"DOWN\",\n                  \"color\": \"red\"\n                },\n      \
+    \          \"1\": {\n                  \"text\": \"UP\",\n                  \"\
+    color\": \"green\"\n                }\n              },\n              \"type\"\
+    : \"value\"\n            }\n          ],\n          \"thresholds\": {\n      \
+    \      \"steps\": [\n              {\n                \"value\": 0,\n        \
+    \        \"color\": \"red\"\n              },\n              {\n             \
+    \   \"value\": 1,\n                \"color\": \"green\"\n              }\n   \
+    \         ]\n          }\n        }\n      }\n    },\n    {\n      \"title\":\
+    \ \"Request Rate\",\n      \"type\": \"stat\",\n      \"gridPos\": {\n       \
+    \ \"h\": 4,\n        \"w\": 6,\n        \"x\": 6,\n        \"y\": 0\n      },\n\
+    \      \"targets\": [\n        {\n          \"expr\": \"sum(rate(otel_http_requests_total{service=\\\
+    \"order-service\\\"}[5m]))\",\n          \"legendFormat\": \"req/s\"\n       \
+    \ }\n      ],\n      \"fieldConfig\": {\n        \"defaults\": {\n          \"\
+    unit\": \"reqps\"\n        }\n      }\n    },\n    {\n      \"title\": \"Error\
+    \ Rate\",\n      \"type\": \"stat\",\n      \"gridPos\": {\n        \"h\": 4,\n\
+    \        \"w\": 6,\n        \"x\": 12,\n        \"y\": 0\n      },\n      \"targets\"\
+    : [\n        {\n          \"expr\": \"(sum(rate(otel_http_requests_total{service=\\\
+    \"auth-service\\\",status=~\\\"5..\\\"}[5m])) / sum(rate(otel_http_requests_total{service=\\\
+    \"auth-service\\\"}[5m]))) * 100\",\n          \"legendFormat\": \"%\"\n     \
+    \   }\n      ],\n      \"fieldConfig\": {\n        \"defaults\": {\n         \
+    \ \"unit\": \"percent\",\n          \"thresholds\": {\n            \"steps\":\
+    \ [\n              {\n                \"value\": 0,\n                \"color\"\
+    : \"green\"\n              },\n              {\n                \"value\": 1,\n\
+    \                \"color\": \"yellow\"\n              },\n              {\n  \
+    \              \"value\": 5,\n                \"color\": \"red\"\n           \
+    \   }\n            ]\n          }\n        }\n      }\n    },\n    {\n      \"\
+    title\": \"Latency P95\",\n      \"type\": \"stat\",\n      \"gridPos\": {\n \
+    \       \"h\": 4,\n        \"w\": 6,\n        \"x\": 18,\n        \"y\": 0\n \
+    \     },\n      \"targets\": [\n        {\n          \"expr\": \"histogram_quantile(0.95,\
+    \ sum(rate(otel_http_request_duration_seconds_bucket{service=\\\"auth-service\\\
+    \"}[5m])) by (le))\",\n          \"legendFormat\": \"P95\"\n        }\n      ],\n\
+    \      \"fieldConfig\": {\n        \"defaults\": {\n          \"unit\": \"s\"\n\
+    \        }\n      }\n    },\n    {\n      \"title\": \"Request Rate by Endpoint\"\
+    ,\n      \"type\": \"timeseries\",\n      \"gridPos\": {\n        \"h\": 8,\n\
+    \        \"w\": 12,\n        \"x\": 0,\n        \"y\": 4\n      },\n      \"targets\"\
+    : [\n        {\n          \"expr\": \"sum(rate(otel_http_requests_total{service=\\\
+    \"auth-service\\\"}[5m])) by (method, path)\",\n          \"legendFormat\": \"\
+    {{method}} {{path}}\"\n        }\n      ]\n    },\n    {\n      \"title\": \"\
+    Request Latency by Endpoint\",\n      \"type\": \"timeseries\",\n      \"gridPos\"\
+    : {\n        \"h\": 8,\n        \"w\": 12,\n        \"x\": 12,\n        \"y\"\
+    : 4\n      },\n      \"targets\": [\n        {\n          \"expr\": \"histogram_quantile(0.95,\
+    \ sum(rate(otel_http_request_duration_seconds_bucket{service=\\\"auth-service\\\
+    \"}[5m])) by (le, path))\",\n          \"legendFormat\": \"P95 {{path}}\"\n  \
+    \      }\n      ],\n      \"fieldConfig\": {\n        \"defaults\": {\n      \
+    \    \"unit\": \"s\"\n        }\n      }\n    },\n    {\n      \"title\": \"HTTP\
+    \ Status Codes\",\n      \"type\": \"timeseries\",\n      \"gridPos\": {\n   \
+    \     \"h\": 8,\n        \"w\": 12,\n        \"x\": 0,\n        \"y\": 12\n  \
+    \    },\n      \"targets\": [\n        {\n          \"expr\": \"sum(rate(otel_http_requests_total{service=\\\
+    \"auth-service\\\"}[5m])) by (status)\",\n          \"legendFormat\": \"{{status}}\"\
+    \n        }\n      ]\n    },\n    {\n      \"title\": \"Go Runtime\",\n      \"\
+    type\": \"timeseries\",\n      \"gridPos\": {\n        \"h\": 8,\n        \"w\"\
+    : 12,\n        \"x\": 12,\n        \"y\": 12\n      },\n      \"targets\": [\n\
+    \        {\n          \"expr\": \"sum(otel_go_memstats_alloc_bytes{service=\\\"\
+    auth-service\\\"})\",\n          \"legendFormat\": \"alloc\"\n        },\n   \
+    \     {\n          \"expr\": \"sum(otel_go_goroutines{service=\\\"auth-service\\\
+    \"})\",\n          \"legendFormat\": \"goroutines\"\n        }\n      ]\n    }\n\
+    \  ],\n  \"schemaVersion\": 39,\n  \"tags\": [\n    \"auth-service\"\n  ],\n \
+    \ \"templating\": {\n    \"list\": []\n  },\n  \"time\": {\n    \"from\": \"now-1h\"\
+    ,\n    \"to\": \"now\"\n  },\n  \"title\": \"Auth Service\",\n  \"uid\": \"auth-service\"\
+    ,\n  \"version\": 2\n}"
+  inventory-service.json: "{\n  \"annotations\": {\n    \"list\": []\n  },\n  \"editable\"\
+    : true,\n  \"fiscalYearStartMonth\": 0,\n  \"graphTooltip\": 1,\n  \"id\": null,\n\
+    \  \"links\": [],\n  \"panels\": [\n    {\n      \"title\": \"Status\",\n    \
+    \  \"type\": \"stat\",\n      \"gridPos\": {\n        \"h\": 4,\n        \"w\"\
+    : 4,\n        \"x\": 0,\n        \"y\": 0\n      },\n      \"targets\": [\n  \
+    \      {\n          \"expr\": \"max(otel_up{service=\\\"inventory-service\\\"\
+    })\",\n          \"legendFormat\": \"up\"\n        }\n      ],\n      \"fieldConfig\"\
+    : {\n        \"defaults\": {\n          \"mappings\": [\n            {\n     \
+    \         \"options\": {\n                \"0\": {\n                  \"text\"\
+    : \"DOWN\",\n                  \"color\": \"red\"\n                },\n      \
+    \          \"1\": {\n                  \"text\": \"UP\",\n                  \"\
+    color\": \"green\"\n                }\n              },\n              \"type\"\
+    : \"value\"\n            }\n          ],\n          \"thresholds\": {\n      \
+    \      \"steps\": [\n              {\n                \"value\": 0,\n        \
+    \        \"color\": \"red\"\n              },\n              {\n             \
+    \   \"value\": 1,\n                \"color\": \"green\"\n              }\n   \
+    \         ]\n          }\n        }\n      }\n    },\n    {\n      \"title\":\
+    \ \"Request Rate\",\n      \"type\": \"stat\",\n      \"gridPos\": {\n       \
+    \ \"h\": 4,\n        \"w\": 5,\n        \"x\": 4,\n        \"y\": 0\n      },\n\
+    \      \"targets\": [\n        {\n          \"expr\": \"sum(rate(otel_http_requests_total{service=\\\
+    \"inventory-service\\\"}[5m]))\",\n          \"legendFormat\": \"req/s\"\n   \
+    \     }\n      ],\n      \"fieldConfig\": {\n        \"defaults\": {\n       \
+    \   \"unit\": \"reqps\"\n        }\n      }\n    },\n    {\n      \"title\": \"\
+    Error Rate\",\n      \"type\": \"stat\",\n      \"gridPos\": {\n        \"h\"\
+    : 4,\n        \"w\": 5,\n        \"x\": 9,\n        \"y\": 0\n      },\n     \
+    \ \"targets\": [\n        {\n          \"expr\": \"(sum(rate(otel_http_requests_total{service=\\\
+    \"inventory-service\\\",status=~\\\"5..\\\"}[5m])) / sum(rate(otel_http_requests_total{service=\\\
+    \"inventory-service\\\"}[5m]))) * 100\",\n          \"legendFormat\": \"%\"\n\
+    \        }\n      ],\n      \"fieldConfig\": {\n        \"defaults\": {\n    \
+    \      \"unit\": \"percent\",\n          \"thresholds\": {\n            \"steps\"\
+    : [\n              {\n                \"value\": 0,\n                \"color\"\
+    : \"green\"\n              },\n              {\n                \"value\": 1,\n\
+    \                \"color\": \"yellow\"\n              },\n              {\n  \
+    \              \"value\": 5,\n                \"color\": \"red\"\n           \
+    \   }\n            ]\n          }\n        }\n      }\n    },\n    {\n      \"\
+    title\": \"Latency P95\",\n      \"type\": \"stat\",\n      \"gridPos\": {\n \
+    \       \"h\": 4,\n        \"w\": 5,\n        \"x\": 14,\n        \"y\": 0\n \
+    \     },\n      \"targets\": [\n        {\n          \"expr\": \"histogram_quantile(0.95,\
+    \ sum(rate(otel_http_request_duration_seconds_bucket{service=\\\"inventory-service\\\
+    \"}[5m])) by (le))\",\n          \"legendFormat\": \"P95\"\n        }\n      ],\n\
+    \      \"fieldConfig\": {\n        \"defaults\": {\n          \"unit\": \"s\"\n\
+    \        }\n      }\n    },\n    {\n      \"title\": \"Latency P99\",\n      \"\
+    type\": \"stat\",\n      \"gridPos\": {\n        \"h\": 4,\n        \"w\": 5,\n\
+    \        \"x\": 19,\n        \"y\": 0\n      },\n      \"targets\": [\n      \
+    \  {\n          \"expr\": \"histogram_quantile(0.99, sum(rate(otel_http_request_duration_seconds_bucket{service=\\\
+    \"inventory-service\\\"}[5m])) by (le))\",\n          \"legendFormat\": \"P99\"\
+    \n        }\n      ],\n      \"fieldConfig\": {\n        \"defaults\": {\n   \
+    \       \"unit\": \"s\"\n        }\n      }\n    },\n    {\n      \"title\": \"\
+    Stock Reservations\",\n      \"type\": \"timeseries\",\n      \"gridPos\": {\n\
+    \        \"h\": 8,\n        \"w\": 8,\n        \"x\": 0,\n        \"y\": 4\n \
+    \     },\n      \"targets\": [\n        {\n          \"expr\": \"sum(rate(otel_inventory_reservations_total{service=\\\
+    \"inventory-service\\\",status=\\\"success\\\"}[5m]))\",\n          \"legendFormat\"\
+    : \"reserved/s\"\n        },\n        {\n          \"expr\": \"sum(rate(otel_inventory_reservations_total{service=\\\
+    \"inventory-service\\\",status!=\\\"success\\\"}[5m]))\",\n          \"legendFormat\"\
+    : \"failed/s\"\n        }\n      ]\n    },\n    {\n      \"title\": \"Reservation\
+    \ Releases\",\n      \"type\": \"timeseries\",\n      \"gridPos\": {\n       \
+    \ \"h\": 8,\n        \"w\": 8,\n        \"x\": 8,\n        \"y\": 4\n      },\n\
+    \      \"targets\": [\n        {\n          \"expr\": \"sum(rate(otel_inventory_releases_total{service=\\\
+    \"inventory-service\\\"}[5m]))\",\n          \"legendFormat\": \"releases/s\"\n\
+    \        }\n      ]\n    },\n    {\n      \"title\": \"Stock Updates\",\n    \
+    \  \"type\": \"timeseries\",\n      \"gridPos\": {\n        \"h\": 8,\n      \
+    \  \"w\": 8,\n        \"x\": 16,\n        \"y\": 4\n      },\n      \"targets\"\
+    : [\n        {\n          \"expr\": \"sum(rate(otel_inventory_updates_total{service=\\\
+    \"inventory-service\\\"}[5m]))\",\n          \"legendFormat\": \"updates/s\"\n\
+    \        }\n      ]\n    },\n    {\n      \"title\": \"Failed Operations\",\n\
+    \      \"type\": \"timeseries\",\n      \"gridPos\": {\n        \"h\": 8,\n  \
+    \      \"w\": 12,\n        \"x\": 0,\n        \"y\": 12\n      },\n      \"targets\"\
+    : [\n        {\n          \"expr\": \"sum(rate(otel_inventory_failed_total{service=\\\
+    \"inventory-service\\\"}[5m])) by (reason)\",\n          \"legendFormat\": \"\
+    {{reason}}\"\n        }\n      ]\n    },\n    {\n      \"title\": \"Request Rate\
+    \ by Endpoint\",\n      \"type\": \"timeseries\",\n      \"gridPos\": {\n    \
+    \    \"h\": 8,\n        \"w\": 12,\n        \"x\": 12,\n        \"y\": 12\n  \
+    \    },\n      \"targets\": [\n        {\n          \"expr\": \"sum(rate(otel_http_requests_total{service=\\\
+    \"inventory-service\\\"}[5m])) by (method, path)\",\n          \"legendFormat\"\
+    : \"{{method}} {{path}}\"\n        }\n      ]\n    },\n    {\n      \"title\"\
+    : \"HTTP Status Codes\",\n      \"type\": \"timeseries\",\n      \"gridPos\":\
+    \ {\n        \"h\": 8,\n        \"w\": 12,\n        \"x\": 0,\n        \"y\":\
+    \ 20\n      },\n      \"targets\": [\n        {\n          \"expr\": \"sum(rate(otel_http_requests_total{service=\\\
+    \"inventory-service\\\"}[5m])) by (status)\",\n          \"legendFormat\": \"\
+    {{status}}\"\n        }\n      ]\n    },\n    {\n      \"title\": \"Go Runtime\"\
+    ,\n      \"type\": \"timeseries\",\n      \"gridPos\": {\n        \"h\": 8,\n\
+    \        \"w\": 12,\n        \"x\": 12,\n        \"y\": 20\n      },\n      \"\
+    targets\": [\n        {\n          \"expr\": \"sum(otel_go_memstats_alloc_bytes{service=\\\
+    \"inventory-service\\\"})\",\n          \"legendFormat\": \"alloc\"\n        },\n\
+    \        {\n          \"expr\": \"sum(otel_go_goroutines{service=\\\"inventory-service\\\
+    \"})\",\n          \"legendFormat\": \"goroutines\"\n        }\n      ]\n    }\n\
+    \  ],\n  \"schemaVersion\": 39,\n  \"tags\": [\n    \"inventory-service\"\n  ],\n\
+    \  \"templating\": {\n    \"list\": []\n  },\n  \"time\": {\n    \"from\": \"\
+    now-1h\",\n    \"to\": \"now\"\n  },\n  \"title\": \"Inventory Service\",\n  \"\
+    uid\": \"inventory-service\",\n  \"version\": 2\n}"
+  kafka.json: "{\n  \"annotations\": {\n    \"list\": []\n  },\n  \"editable\": true,\n\
+    \  \"fiscalYearStartMonth\": 0,\n  \"graphTooltip\": 1,\n  \"id\": null,\n  \"\
+    links\": [],\n  \"panels\": [\n    {\n      \"title\": \"Status\",\n      \"type\"\
+    : \"stat\",\n      \"gridPos\": {\n        \"h\": 4,\n        \"w\": 4,\n    \
+    \    \"x\": 0,\n        \"y\": 0\n      },\n      \"targets\": [\n        {\n\
+    \          \"expr\": \"up\",\n          \"legendFormat\": \"Collector Status\"\
+    \n        }\n      ],\n      \"fieldConfig\": {\n        \"defaults\": {\n   \
+    \       \"mappings\": [\n            {\n              \"options\": {\n       \
+    \         \"0\": {\n                  \"text\": \"DOWN\",\n                  \"\
+    color\": \"red\"\n                },\n                \"1\": {\n             \
+    \     \"text\": \"UP\",\n                  \"color\": \"green\"\n            \
+    \    }\n              },\n              \"type\": \"value\"\n            }\n \
+    \         ],\n          \"thresholds\": {\n            \"steps\": [\n        \
+    \      {\n                \"value\": 0,\n                \"color\": \"red\"\n\
+    \              },\n              {\n                \"value\": 1,\n          \
+    \      \"color\": \"green\"\n              }\n            ]\n          }\n   \
+    \     }\n      }\n    },\n    {\n      \"title\": \"Brokers\",\n      \"type\"\
+    : \"stat\",\n      \"gridPos\": {\n        \"h\": 4,\n        \"w\": 5,\n    \
+    \    \"x\": 4,\n        \"y\": 0\n      },\n      \"targets\": [\n        {\n\
+    \          \"expr\": \"sum(otel_kafka_brokers)\",\n          \"legendFormat\"\
+    : \"brokers\"\n        }\n      ],\n      \"fieldConfig\": {\n        \"defaults\"\
+    : {\n          \"color\": {\n            \"mode\": \"thresholds\"\n          },\n\
+    \          \"thresholds\": {\n            \"steps\": [\n              {\n    \
+    \            \"value\": 0,\n                \"color\": \"red\"\n             \
+    \ },\n              {\n                \"value\": 1,\n                \"color\"\
+    : \"green\"\n              }\n            ]\n          }\n        }\n      }\n\
+    \    },\n    {\n      \"title\": \"Topics\",\n      \"type\": \"stat\",\n    \
+    \  \"gridPos\": {\n        \"h\": 4,\n        \"w\": 5,\n        \"x\": 9,\n \
+    \       \"y\": 0\n      },\n      \"targets\": [\n        {\n          \"expr\"\
+    : \"count(count by (topic) (otel_kafka_topic_partitions))\",\n          \"legendFormat\"\
+    : \"topics\"\n        }\n      ],\n      \"fieldConfig\": {\n        \"defaults\"\
+    : {\n          \"color\": {\n            \"mode\": \"thresholds\"\n          },\n\
+    \          \"thresholds\": {\n            \"steps\": [\n              {\n    \
+    \            \"value\": 0,\n                \"color\": \"blue\"\n            \
+    \  }\n            ]\n          }\n        }\n      }\n    },\n    {\n      \"\
+    title\": \"Partitions\",\n      \"type\": \"stat\",\n      \"gridPos\": {\n  \
+    \      \"h\": 4,\n        \"w\": 5,\n        \"x\": 14,\n        \"y\": 0\n  \
+    \    },\n      \"targets\": [\n        {\n          \"expr\": \"sum(otel_kafka_topic_partitions)\"\
+    ,\n          \"legendFormat\": \"partitions\"\n        }\n      ],\n      \"fieldConfig\"\
+    : {\n        \"defaults\": {\n          \"color\": {\n            \"mode\": \"\
+    thresholds\"\n          },\n          \"thresholds\": {\n            \"steps\"\
+    : [\n              {\n                \"value\": 0,\n                \"color\"\
+    : \"blue\"\n              }\n            ]\n          }\n        }\n      }\n\
+    \    },\n    {\n      \"title\": \"Consumer Groups\",\n      \"type\": \"stat\"\
+    ,\n      \"gridPos\": {\n        \"h\": 4,\n        \"w\": 5,\n        \"x\":\
+    \ 19,\n        \"y\": 0\n      },\n      \"targets\": [\n        {\n         \
+    \ \"expr\": \"count(count by (group) (otel_kafka_consumer_group_members))\",\n\
+    \          \"legendFormat\": \"groups\"\n        }\n      ],\n      \"fieldConfig\"\
+    : {\n        \"defaults\": {\n          \"color\": {\n            \"mode\": \"\
+    thresholds\"\n          },\n          \"thresholds\": {\n            \"steps\"\
+    : [\n              {\n                \"value\": 0,\n                \"color\"\
+    : \"blue\"\n              }\n            ]\n          }\n        }\n      }\n\
+    \    },\n    {\n      \"title\": \"Messages In/sec by Topic\",\n      \"type\"\
+    : \"timeseries\",\n      \"gridPos\": {\n        \"h\": 8,\n        \"w\": 12,\n\
+    \        \"x\": 0,\n        \"y\": 4\n      },\n      \"targets\": [\n       \
+    \ {\n          \"expr\": \"sum(rate(otel_kafka_topic_partition_current_offset[5m]))\
+    \ by (topic)\",\n          \"legendFormat\": \"{{topic}}\"\n        }\n      ]\n\
+    \    },\n    {\n      \"title\": \"Bytes In/sec by Topic\",\n      \"type\": \"\
+    timeseries\",\n      \"gridPos\": {\n        \"h\": 8,\n        \"w\": 12,\n \
+    \       \"x\": 12,\n        \"y\": 4\n      },\n      \"targets\": [\n       \
+    \ {\n          \"expr\": \"sum(rate(otel_kafka_topic_partition_current_offset[5m]))\
+    \ by (topic) * 1024\",\n          \"legendFormat\": \"{{topic}}\"\n        }\n\
+    \      ],\n      \"fieldConfig\": {\n        \"defaults\": {\n          \"unit\"\
+    : \"Bps\"\n        }\n      }\n    },\n    {\n      \"title\": \"Consumer Group\
+    \ Lag\",\n      \"type\": \"timeseries\",\n      \"gridPos\": {\n        \"h\"\
+    : 8,\n        \"w\": 12,\n        \"x\": 0,\n        \"y\": 12\n      },\n   \
+    \   \"targets\": [\n        {\n          \"expr\": \"sum(otel_kafka_consumer_group_lag)\
+    \ by (group, topic)\",\n          \"legendFormat\": \"{{group}} - {{topic}}\"\n\
+    \        }\n      ]\n    },\n    {\n      \"title\": \"Partition Offset Lag\"\
+    ,\n      \"type\": \"timeseries\",\n      \"gridPos\": {\n        \"h\": 8,\n\
+    \        \"w\": 12,\n        \"x\": 12,\n        \"y\": 12\n      },\n      \"\
+    targets\": [\n        {\n          \"expr\": \"otel_kafka_consumer_group_lag\"\
+    ,\n          \"legendFormat\": \"{{group}} - {{topic}} [p-{{partition}}]\"\n \
+    \       }\n      ]\n    },\n    {\n      \"title\": \"Partitions per Topic\",\n\
+    \      \"type\": \"timeseries\",\n      \"gridPos\": {\n        \"h\": 8,\n  \
+    \      \"w\": 0,\n        \"x\": 0,\n        \"y\": 20\n      },\n      \"targets\"\
+    : [\n        {\n          \"expr\": \"otel_kafka_topic_partitions\",\n       \
+    \   \"legendFormat\": \"{{topic}}\"\n        }\n      ]\n    },\n    {\n     \
+    \ \"title\": \"Consumer Group Members\",\n      \"type\": \"timeseries\",\n  \
+    \    \"gridPos\": {\n        \"h\": 8,\n        \"w\": 12,\n        \"x\": 12,\n\
+    \        \"y\": 20\n      },\n      \"targets\": [\n        {\n          \"expr\"\
+    : \"sum(otel_kafka_consumer_group_members) by (group)\",\n          \"legendFormat\"\
+    : \"{{group}}\"\n        }\n      ]\n    }\n  ],\n  \"schemaVersion\": 39,\n \
+    \ \"tags\": [\n    \"kafka\",\n    \"opentelemetry\"\n  ],\n  \"templating\":\
+    \ {\n    \"list\": []\n  },\n  \"time\": {\n    \"from\": \"now-1h\",\n    \"\
+    to\": \"now\"\n  },\n  \"title\": \"Kafka (OTel Metrics)\",\n  \"uid\": \"kafka-otel\"\
+    ,\n  \"version\": 1\n}"
+  order-service.json: "{\n  \"annotations\": {\n    \"list\": []\n  },\n  \"editable\"\
+    : true,\n  \"fiscalYearStartMonth\": 0,\n  \"graphTooltip\": 1,\n  \"id\": null,\n\
+    \  \"links\": [],\n  \"panels\": [\n    {\n      \"title\": \"Status\",\n    \
+    \  \"type\": \"stat\",\n      \"gridPos\": {\n        \"h\": 4,\n        \"w\"\
+    : 4,\n        \"x\": 0,\n        \"y\": 0\n      },\n      \"targets\": [\n  \
+    \      {\n          \"expr\": \"max(otel_up{service=\\\"order-service\\\"})\"\
+    ,\n          \"legendFormat\": \"up\"\n        }\n      ],\n      \"fieldConfig\"\
+    : {\n        \"defaults\": {\n          \"mappings\": [\n            {\n     \
+    \         \"options\": {\n                \"0\": {\n                  \"text\"\
+    : \"DOWN\",\n                  \"color\": \"red\"\n                },\n      \
+    \          \"1\": {\n                  \"text\": \"UP\",\n                  \"\
+    color\": \"green\"\n                }\n              },\n              \"type\"\
+    : \"value\"\n            }\n          ],\n          \"thresholds\": {\n      \
+    \      \"steps\": [\n              {\n                \"value\": 0,\n        \
+    \        \"color\": \"red\"\n              },\n              {\n             \
+    \   \"value\": 1,\n                \"color\": \"green\"\n              }\n   \
+    \         ]\n          }\n        }\n      }\n    },\n    {\n      \"title\":\
+    \ \"Request Rate\",\n      \"type\": \"stat\",\n      \"gridPos\": {\n       \
+    \ \"h\": 4,\n        \"w\": 5,\n        \"x\": 4,\n        \"y\": 0\n      },\n\
+    \      \"targets\": [\n        {\n          \"expr\": \"sum(rate(otel_http_requests_total{service=\\\
+    \"order-service\\\"}[5m]))\",\n          \"legendFormat\": \"req/s\"\n       \
+    \ }\n      ],\n      \"fieldConfig\": {\n        \"defaults\": {\n          \"\
+    unit\": \"reqps\"\n        }\n      }\n    },\n    {\n      \"title\": \"Error\
+    \ Rate\",\n      \"type\": \"stat\",\n      \"gridPos\": {\n        \"h\": 4,\n\
+    \        \"w\": 5,\n        \"x\": 9,\n        \"y\": 0\n      },\n      \"targets\"\
+    : [\n        {\n          \"expr\": \"(sum(rate(otel_http_requests_total{service=\\\
+    \"order-service\\\",status=~\\\"5..\\\"}[5m])) / sum(rate(otel_http_requests_total{service=\\\
+    \"order-service\\\"}[5m]))) * 100\",\n          \"legendFormat\": \"%\"\n    \
+    \    }\n      ],\n      \"fieldConfig\": {\n        \"defaults\": {\n        \
+    \  \"unit\": \"percent\",\n          \"thresholds\": {\n            \"steps\"\
+    : [\n              {\n                \"value\": 0,\n                \"color\"\
+    : \"green\"\n              },\n              {\n                \"value\": 1,\n\
+    \                \"color\": \"yellow\"\n              },\n              {\n  \
+    \              \"value\": 5,\n                \"color\": \"red\"\n           \
+    \   }\n            ]\n          }\n        }\n      }\n    },\n    {\n      \"\
+    title\": \"Latency P95\",\n      \"type\": \"stat\",\n      \"gridPos\": {\n \
+    \       \"h\": 4,\n        \"w\": 5,\n        \"x\": 14,\n        \"y\": 0\n \
+    \     },\n      \"targets\": [\n        {\n          \"expr\": \"histogram_quantile(0.95,\
+    \ sum(rate(otel_http_request_duration_seconds_bucket{service=\\\"order-service\\\
+    \"}[5m])) by (le))\",\n          \"legendFormat\": \"P95\"\n        }\n      ],\n\
+    \      \"fieldConfig\": {\n        \"defaults\": {\n          \"unit\": \"s\"\n\
+    \        }\n      }\n    },\n    {\n      \"title\": \"Latency P99\",\n      \"\
+    type\": \"stat\",\n      \"gridPos\": {\n        \"h\": 4,\n        \"w\": 5,\n\
+    \        \"x\": 19,\n        \"y\": 0\n      },\n      \"targets\": [\n      \
+    \  {\n          \"expr\": \"histogram_quantile(0.99, sum(rate(otel_http_request_duration_seconds_bucket{service=\\\
+    \"order-service\\\"}[5m])) by (le))\",\n          \"legendFormat\": \"P99\"\n\
+    \        }\n      ],\n      \"fieldConfig\": {\n        \"defaults\": {\n    \
+    \      \"unit\": \"s\"\n        }\n      }\n    },\n    {\n      \"title\": \"\
+    Orders Created\",\n      \"type\": \"timeseries\",\n      \"gridPos\": {\n   \
+    \     \"h\": 8,\n        \"w\": 8,\n        \"x\": 0,\n        \"y\": 4\n    \
+    \  },\n      \"targets\": [\n        {\n          \"expr\": \"sum(rate(otel_orders_created_total{service=\\\
+    \"order-service\\\"}[5m]))\",\n          \"legendFormat\": \"created/s\"\n   \
+    \     },\n        {\n          \"expr\": \"sum(increase(otel_orders_created_total{service=\\\
+    \"order-service\\\"}[1h]))\",\n          \"legendFormat\": \"last 1h\"\n     \
+    \   }\n      ]\n    },\n    {\n      \"title\": \"Orders Cancelled\",\n      \"\
+    type\": \"timeseries\",\n      \"gridPos\": {\n        \"h\": 8,\n        \"w\"\
+    : 8,\n        \"x\": 8,\n        \"y\": 4\n      },\n      \"targets\": [\n  \
+    \      {\n          \"expr\": \"sum(rate(otel_orders_cancelled_total{service=\\\
+    \"order-service\\\"}[5m]))\",\n          \"legendFormat\": \"cancelled/s\"\n \
+    \       },\n        {\n          \"expr\": \"sum(increase(otel_orders_cancelled_total{service=\\\
+    \"order-service\\\"}[1h]))\",\n          \"legendFormat\": \"last 1h\"\n     \
+    \   }\n      ]\n    },\n    {\n      \"title\": \"Failed Orders\",\n      \"type\"\
+    : \"timeseries\",\n      \"gridPos\": {\n        \"h\": 8,\n        \"w\": 8,\n\
+    \        \"x\": 16,\n        \"y\": 4\n      },\n      \"targets\": [\n      \
+    \  {\n          \"expr\": \"sum(rate(otel_orders_failed_total{service=\\\"order-service\\\
+    \"}[5m])) by (reason)\",\n          \"legendFormat\": \"{{reason}}\"\n       \
+    \ }\n      ]\n    },\n    {\n      \"title\": \"Request Rate by Endpoint\",\n\
+    \      \"type\": \"timeseries\",\n      \"gridPos\": {\n        \"h\": 8,\n  \
+    \      \"w\": 12,\n        \"x\": 0,\n        \"y\": 12\n      },\n      \"targets\"\
+    : [\n        {\n          \"expr\": \"sum(rate(otel_http_requests_total{service=\\\
+    \"order-service\\\"}[5m])) by (method, path)\",\n          \"legendFormat\": \"\
+    {{method}} {{path}}\"\n        }\n      ]\n    },\n    {\n      \"title\": \"\
+    Request Latency by Endpoint\",\n      \"type\": \"timeseries\",\n      \"gridPos\"\
+    : {\n        \"h\": 8,\n        \"w\": 12,\n        \"x\": 12,\n        \"y\"\
+    : 12\n      },\n      \"targets\": [\n        {\n          \"expr\": \"histogram_quantile(0.95,\
+    \ sum(rate(otel_http_request_duration_seconds_bucket{service=\\\"order-service\\\
+    \"}[5m])) by (le, path))\",\n          \"legendFormat\": \"P95 {{path}}\"\n  \
+    \      }\n      ],\n      \"fieldConfig\": {\n        \"defaults\": {\n      \
+    \    \"unit\": \"s\"\n        }\n      }\n    },\n    {\n      \"title\": \"HTTP\
+    \ Status Codes\",\n      \"type\": \"timeseries\",\n      \"gridPos\": {\n   \
+    \     \"h\": 8,\n        \"w\": 12,\n        \"x\": 0,\n        \"y\": 20\n  \
+    \    },\n      \"targets\": [\n        {\n          \"expr\": \"sum(rate(otel_http_requests_total{service=\\\
+    \"order-service\\\"}[5m])) by (status)\",\n          \"legendFormat\": \"{{status}}\"\
+    \n        }\n      ]\n    },\n    {\n      \"title\": \"Go Runtime\",\n      \"\
+    type\": \"timeseries\",\n      \"gridPos\": {\n        \"h\": 8,\n        \"w\"\
+    : 12,\n        \"x\": 12,\n        \"y\": 20\n      },\n      \"targets\": [\n\
+    \        {\n          \"expr\": \"sum(otel_go_memstats_alloc_bytes{service=\\\"\
+    order-service\\\"})\",\n          \"legendFormat\": \"alloc\"\n        },\n  \
+    \      {\n          \"expr\": \"sum(otel_go_goroutines{service=\\\"order-service\\\
+    \"})\",\n          \"legendFormat\": \"goroutines\"\n        }\n      ]\n    }\n\
+    \  ],\n  \"schemaVersion\": 39,\n  \"tags\": [\n    \"order-service\"\n  ],\n\
+    \  \"templating\": {\n    \"list\": []\n  },\n  \"time\": {\n    \"from\": \"\
+    now-1h\",\n    \"to\": \"now\"\n  },\n  \"title\": \"Order Service\",\n  \"uid\"\
+    : \"order-service\",\n  \"version\": 2\n}"
+  overview.json: "{\n  \"annotations\": {\n    \"list\": []\n  },\n  \"editable\"\
+    : true,\n  \"fiscalYearStartMonth\": 0,\n  \"graphTooltip\": 1,\n  \"id\": null,\n\
+    \  \"links\": [],\n  \"panels\": [\n    {\n      \"title\": \"Request Rate (req/s)\"\
+    ,\n      \"type\": \"timeseries\",\n      \"gridPos\": {\n        \"h\": 8,\n\
+    \        \"w\": 12,\n        \"x\": 0,\n        \"y\": 0\n      },\n      \"targets\"\
+    : [\n        {\n          \"expr\": \"sum(rate(otel_http_requests_total[5m]))\
+    \ by (service)\",\n          \"legendFormat\": \"{{service}}\"\n        }\n  \
+    \    ],\n      \"fieldConfig\": {\n        \"defaults\": {\n          \"unit\"\
+    : \"reqps\"\n        }\n      }\n    },\n    {\n      \"title\": \"Error Rate\
+    \ (%)\",\n      \"type\": \"timeseries\",\n      \"gridPos\": {\n        \"h\"\
+    : 8,\n        \"w\": 12,\n        \"x\": 12,\n        \"y\": 0\n      },\n   \
+    \   \"targets\": [\n        {\n          \"expr\": \"(sum(rate(otel_http_requests_total{status=~\\\
+    \"5..\\\"}[5m])) by (service) / sum(rate(otel_http_requests_total[5m])) by (service))\
+    \ * 100\",\n          \"legendFormat\": \"{{service}}\"\n        }\n      ],\n\
+    \      \"fieldConfig\": {\n        \"defaults\": {\n          \"unit\": \"percent\"\
+    ,\n          \"thresholds\": {\n            \"steps\": [\n              {\n  \
+    \              \"value\": 0,\n                \"color\": \"green\"\n         \
+    \     },\n              {\n                \"value\": 1,\n                \"color\"\
+    : \"yellow\"\n              },\n              {\n                \"value\": 5,\n\
+    \                \"color\": \"red\"\n              }\n            ]\n        \
+    \  }\n        }\n      }\n    },\n    {\n      \"title\": \"Latency P95 (ms)\"\
+    ,\n      \"type\": \"timeseries\",\n      \"gridPos\": {\n        \"h\": 8,\n\
+    \        \"w\": 12,\n        \"x\": 0,\n        \"y\": 8\n      },\n      \"targets\"\
+    : [\n        {\n          \"expr\": \"histogram_quantile(0.95, sum(rate(otel_http_request_duration_seconds_bucket[5m]))\
+    \ by (le, service)) * 1000\",\n          \"legendFormat\": \"{{service}}\"\n \
+    \       }\n      ],\n      \"fieldConfig\": {\n        \"defaults\": {\n     \
+    \     \"unit\": \"ms\"\n        }\n      }\n    },\n    {\n      \"title\": \"\
+    Service Up\",\n      \"type\": \"stat\",\n      \"gridPos\": {\n        \"h\"\
+    : 8,\n        \"w\": 12,\n        \"x\": 12,\n        \"y\": 8\n      },\n   \
+    \   \"targets\": [\n        {\n          \"expr\": \"max by (job) (up)\",\n  \
+    \        \"legendFormat\": \"{{job}}\"\n        }\n      ],\n      \"fieldConfig\"\
+    : {\n        \"defaults\": {\n          \"mappings\": [\n            {\n     \
+    \         \"options\": {\n                \"0\": {\n                  \"text\"\
+    : \"DOWN\",\n                  \"color\": \"red\"\n                },\n      \
+    \          \"1\": {\n                  \"text\": \"UP\",\n                  \"\
+    color\": \"green\"\n                }\n              },\n              \"type\"\
+    : \"value\"\n            }\n          ],\n          \"thresholds\": {\n      \
+    \      \"steps\": [\n              {\n                \"value\": 0,\n        \
+    \        \"color\": \"red\"\n              },\n              {\n             \
+    \   \"value\": 1,\n                \"color\": \"green\"\n              }\n   \
+    \         ]\n          }\n        }\n      }\n    },\n    {\n      \"title\":\
+    \ \"Orders Created\",\n      \"type\": \"stat\",\n      \"gridPos\": {\n     \
+    \   \"h\": 8,\n        \"w\": 6,\n        \"x\": 0,\n        \"y\": 16\n     \
+    \ },\n      \"targets\": [\n        {\n          \"expr\": \"sum(increase(otel_orders_created_total[1h]))\"\
+    \n        }\n      ],\n      \"fieldConfig\": {\n        \"defaults\": {\n   \
+    \       \"unit\": \"short\",\n          \"color\": {\n            \"mode\": \"\
+    thresholds\"\n          },\n          \"thresholds\": {\n            \"steps\"\
+    : [\n              {\n                \"value\": 0,\n                \"color\"\
+    : \"green\"\n              }\n            ]\n          }\n        }\n      }\n\
+    \    },\n    {\n      \"title\": \"Orders Cancelled\",\n      \"type\": \"stat\"\
+    ,\n      \"gridPos\": {\n        \"h\": 8,\n        \"w\": 6,\n        \"x\":\
+    \ 6,\n        \"y\": 16\n      },\n      \"targets\": [\n        {\n         \
+    \ \"expr\": \"sum(increase(otel_orders_cancelled_total[1h]))\"\n        }\n  \
+    \    ],\n      \"fieldConfig\": {\n        \"defaults\": {\n          \"unit\"\
+    : \"short\",\n          \"color\": {\n            \"mode\": \"thresholds\"\n \
+    \         },\n          \"thresholds\": {\n            \"steps\": [\n        \
+    \      {\n                \"value\": 0,\n                \"color\": \"yellow\"\
+    \n              }\n            ]\n          }\n        }\n      }\n    },\n  \
+    \  {\n      \"title\": \"Inventory Reservations\",\n      \"type\": \"stat\",\n\
+    \      \"gridPos\": {\n        \"h\": 8,\n        \"w\": 6,\n        \"x\": 12,\n\
+    \        \"y\": 16\n      },\n      \"targets\": [\n        {\n          \"expr\"\
+    : \"sum(increase(otel_inventory_reservations_total{status=\\\"success\\\"}[1h]))\"\
+    \n        }\n      ],\n      \"fieldConfig\": {\n        \"defaults\": {\n   \
+    \       \"unit\": \"short\",\n          \"color\": {\n            \"mode\": \"\
+    thresholds\"\n          },\n          \"thresholds\": {\n            \"steps\"\
+    : [\n              {\n                \"value\": 0,\n                \"color\"\
+    : \"green\"\n              }\n            ]\n          }\n        }\n      }\n\
+    \    },\n    {\n      \"title\": \"Inventory Updates\",\n      \"type\": \"stat\"\
+    ,\n      \"gridPos\": {\n        \"h\": 8,\n        \"w\": 6,\n        \"x\":\
+    \ 18,\n        \"y\": 16\n      },\n      \"targets\": [\n        {\n        \
+    \  \"expr\": \"sum(increase(otel_inventory_updates_total[1h]))\"\n        }\n\
+    \      ],\n      \"fieldConfig\": {\n        \"defaults\": {\n          \"unit\"\
+    : \"short\",\n          \"color\": {\n            \"mode\": \"thresholds\"\n \
+    \         },\n          \"thresholds\": {\n            \"steps\": [\n        \
+    \      {\n                \"value\": 0,\n                \"color\": \"blue\"\n\
+    \              }\n            ]\n          }\n        }\n      }\n    },\n   \
+    \ {\n      \"title\": \"Failed Operations\",\n      \"type\": \"timeseries\",\n\
+    \      \"gridPos\": {\n        \"h\": 8,\n        \"w\": 12,\n        \"x\": 0,\n\
+    \        \"y\": 24\n      },\n      \"targets\": [\n        {\n          \"expr\"\
+    : \"sum(rate(otel_orders_failed_total[5m])) by (reason)\",\n          \"legendFormat\"\
+    : \"Order: {{reason}}\"\n        },\n        {\n          \"expr\": \"sum(rate(otel_inventory_failed_total[5m]))\
+    \ by (reason)\",\n          \"legendFormat\": \"Inventory: {{reason}}\"\n    \
+    \    }\n      ],\n      \"fieldConfig\": {\n        \"defaults\": {\n        \
+    \  \"unit\": \"short\"\n        }\n      }\n    },\n    {\n      \"title\": \"\
+    WebSocket Connections\",\n      \"type\": \"timeseries\",\n      \"gridPos\":\
+    \ {\n        \"h\": 8,\n        \"w\": 12,\n        \"x\": 12,\n        \"y\"\
+    : 24\n      },\n      \"targets\": [\n        {\n          \"expr\": \"sum(otel_ws_connections_active{service=\\\
+    \"websocket-service\\\"})\",\n          \"legendFormat\": \"Active Connections\"\
+    \n        },\n        {\n          \"expr\": \"sum(rate(otel_ws_connections_total{service=\\\
+    \"websocket-service\\\"}[5m]))\",\n          \"legendFormat\": \"New Connections/s\"\
+    \n        }\n      ],\n      \"fieldConfig\": {\n        \"defaults\": {\n   \
+    \       \"unit\": \"short\"\n        }\n      }\n    },\n    {\n      \"title\"\
+    : \"Kafka Messages\",\n      \"type\": \"timeseries\",\n      \"gridPos\": {\n\
+    \        \"h\": 8,\n        \"w\": 12,\n        \"x\": 0,\n        \"y\": 32\n\
+    \      },\n      \"targets\": [\n        {\n          \"expr\": \"sum(rate(otel_kafka_messages_produced_total[5m]))\
+    \ by (topic)\",\n          \"legendFormat\": \"Produced: {{topic}}\"\n       \
+    \ },\n        {\n          \"expr\": \"sum(rate(otel_kafka_messages_consumed_total[5m]))\
+    \ by (topic)\",\n          \"legendFormat\": \"Consumed: {{topic}}\"\n       \
+    \ }\n      ],\n      \"fieldConfig\": {\n        \"defaults\": {\n          \"\
+    unit\": \"short\"\n        }\n      }\n    },\n    {\n      \"title\": \"Kafka\
+    \ Processing Duration (P95)\",\n      \"type\": \"timeseries\",\n      \"gridPos\"\
+    : {\n        \"h\": 8,\n        \"w\": 12,\n        \"x\": 12,\n        \"y\"\
+    : 32\n      },\n      \"targets\": [\n        {\n          \"expr\": \"histogram_quantile(0.95,\
+    \ sum(rate(otel_kafka_processing_duration_seconds_bucket[5m])) by (le, topic))\"\
+    ,\n          \"legendFormat\": \"{{topic}}\"\n        }\n      ],\n      \"fieldConfig\"\
+    : {\n        \"defaults\": {\n          \"unit\": \"s\"\n        }\n      }\n\
+    \    }\n  ],\n  \"schemaVersion\": 39,\n  \"tags\": [\n    \"order-inventory\"\
+    \n  ],\n  \"templating\": {\n    \"list\": []\n  },\n  \"time\": {\n    \"from\"\
+    : \"now-1h\",\n    \"to\": \"now\"\n  },\n  \"title\": \"Order Inventory System\"\
+    ,\n  \"uid\": \"order-inventory-main\",\n  \"version\": 2\n}"
+  postgresql.json: "{\n  \"annotations\": {\n    \"list\": []\n  },\n  \"editable\"\
+    : true,\n  \"fiscalYearStartMonth\": 0,\n  \"graphTooltip\": 1,\n  \"id\": null,\n\
+    \  \"links\": [],\n  \"panels\": [\n    {\n      \"title\": \"Order DB Backends\"\
+    ,\n      \"type\": \"stat\",\n      \"gridPos\": {\n        \"h\": 4,\n      \
+    \  \"w\": 4,\n        \"x\": 0,\n        \"y\": 0\n      },\n      \"targets\"\
+    : [\n        {\n          \"expr\": \"max(otel_postgresql_backends{exported_instance=~\\\
+    \"order-db.*\\\"})\",\n          \"legendFormat\": \"backends\"\n        }\n \
+    \     ],\n      \"fieldConfig\": {\n        \"defaults\": {\n          \"thresholds\"\
+    : {\n            \"steps\": [\n              {\n                \"value\": 0,\n\
+    \                \"color\": \"green\"\n              },\n              {\n   \
+    \             \"value\": 50,\n                \"color\": \"yellow\"\n        \
+    \      },\n              {\n                \"value\": 80,\n                \"\
+    color\": \"red\"\n              }\n            ]\n          }\n        }\n   \
+    \   }\n    },\n    {\n      \"title\": \"Inventory DB Backends\",\n      \"type\"\
+    : \"stat\",\n      \"gridPos\": {\n        \"h\": 4,\n        \"w\": 4,\n    \
+    \    \"x\": 4,\n        \"y\": 0\n      },\n      \"targets\": [\n        {\n\
+    \          \"expr\": \"max(otel_postgresql_backends{exported_instance=~\\\"inventory-db.*\\\
+    \"})\",\n          \"legendFormat\": \"backends\"\n        }\n      ],\n     \
+    \ \"fieldConfig\": {\n        \"defaults\": {\n          \"thresholds\": {\n \
+    \           \"steps\": [\n              {\n                \"value\": 0,\n   \
+    \             \"color\": \"green\"\n              },\n              {\n      \
+    \          \"value\": 50,\n                \"color\": \"yellow\"\n           \
+    \   },\n              {\n                \"value\": 80,\n                \"color\"\
+    : \"red\"\n              }\n            ]\n          }\n        }\n      }\n \
+    \   },\n    {\n      \"title\": \"Max Connections (Order)\",\n      \"type\":\
+    \ \"stat\",\n      \"gridPos\": {\n        \"h\": 4,\n        \"w\": 4,\n    \
+    \    \"x\": 8,\n        \"y\": 0\n      },\n      \"targets\": [\n        {\n\
+    \          \"expr\": \"max(otel_postgresql_connection_max{exported_instance=~\\\
+    \"order-db.*\\\"})\",\n          \"legendFormat\": \"max\"\n        }\n      ],\n\
+    \      \"fieldConfig\": {\n        \"defaults\": {\n          \"color\": {\n \
+    \           \"mode\": \"thresholds\"\n          },\n          \"thresholds\":\
+    \ {\n            \"steps\": [\n              {\n                \"value\": 0,\n\
+    \                \"color\": \"blue\"\n              }\n            ]\n       \
+    \   }\n        }\n      }\n    },\n    {\n      \"title\": \"Max Connections (Inventory)\"\
+    ,\n      \"type\": \"stat\",\n      \"gridPos\": {\n        \"h\": 4,\n      \
+    \  \"w\": 4,\n        \"x\": 12,\n        \"y\": 0\n      },\n      \"targets\"\
+    : [\n        {\n          \"expr\": \"max(otel_postgresql_connection_max{exported_instance=~\\\
+    \"inventory-db.*\\\"})\",\n          \"legendFormat\": \"max\"\n        }\n  \
+    \    ],\n      \"fieldConfig\": {\n        \"defaults\": {\n          \"color\"\
+    : {\n            \"mode\": \"thresholds\"\n          },\n          \"thresholds\"\
+    : {\n            \"steps\": [\n              {\n                \"value\": 0,\n\
+    \                \"color\": \"blue\"\n              }\n            ]\n       \
+    \   }\n        }\n      }\n    },\n    {\n      \"title\": \"Database Size (Order)\"\
+    ,\n      \"type\": \"stat\",\n      \"gridPos\": {\n        \"h\": 4,\n      \
+    \  \"w\": 4,\n        \"x\": 16,\n        \"y\": 0\n      },\n      \"targets\"\
+    : [\n        {\n          \"expr\": \"max(otel_postgresql_db_size_bytes{exported_instance=~\\\
+    \"order-db.*\\\"})\",\n          \"legendFormat\": \"size\"\n        }\n     \
+    \ ],\n      \"fieldConfig\": {\n        \"defaults\": {\n          \"unit\": \"\
+    bytes\"\n        }\n      }\n    },\n    {\n      \"title\": \"Database Size (Inventory)\"\
+    ,\n      \"type\": \"stat\",\n      \"gridPos\": {\n        \"h\": 4,\n      \
+    \  \"w\": 4,\n        \"x\": 20,\n        \"y\": 0\n      },\n      \"targets\"\
+    : [\n        {\n          \"expr\": \"max(otel_postgresql_db_size_bytes{exported_instance=~\\\
+    \"inventory-db.*\\\"})\",\n          \"legendFormat\": \"size\"\n        }\n \
+    \     ],\n      \"fieldConfig\": {\n        \"defaults\": {\n          \"unit\"\
+    : \"bytes\"\n        }\n      }\n    },\n    {\n      \"title\": \"Transactions\
+    \ / sec (Order DB)\",\n      \"type\": \"timeseries\",\n      \"gridPos\": {\n\
+    \        \"h\": 8,\n        \"w\": 12,\n        \"x\": 0,\n        \"y\": 4\n\
+    \      },\n      \"targets\": [\n        {\n          \"expr\": \"sum(rate(otel_postgresql_commits_total{exported_instance=~\\\
+    \"order-db.*\\\"}[5m]))\",\n          \"legendFormat\": \"commits/s\"\n      \
+    \  },\n        {\n          \"expr\": \"sum(rate(otel_postgresql_rollbacks_total{exported_instance=~\\\
+    \"order-db.*\\\"}[5m]))\",\n          \"legendFormat\": \"rollbacks/s\"\n    \
+    \    }\n      ]\n    },\n    {\n      \"title\": \"Transactions / sec (Inventory\
+    \ DB)\",\n      \"type\": \"timeseries\",\n      \"gridPos\": {\n        \"h\"\
+    : 8,\n        \"w\": 12,\n        \"x\": 12,\n        \"y\": 4\n      },\n   \
+    \   \"targets\": [\n        {\n          \"expr\": \"sum(rate(otel_postgresql_commits_total{exported_instance=~\\\
+    \"inventory-db.*\\\"}[5m]))\",\n          \"legendFormat\": \"commits/s\"\n  \
+    \      },\n        {\n          \"expr\": \"sum(rate(otel_postgresql_rollbacks_total{exported_instance=~\\\
+    \"inventory-db.*\\\"}[5m]))\",\n          \"legendFormat\": \"rollbacks/s\"\n\
+    \        }\n      ]\n    },\n    {\n      \"title\": \"Buffer Writes by Source\
+    \ (Order DB)\",\n      \"type\": \"timeseries\",\n      \"gridPos\": {\n     \
+    \   \"h\": 8,\n        \"w\": 12,\n        \"x\": 0,\n        \"y\": 12\n    \
+    \  },\n      \"targets\": [\n        {\n          \"expr\": \"sum(rate(otel_postgresql_bgwriter_buffers_writes_total{exported_instance=~\\\
+    \"order-db.*\\\"}[5m])) by (source)\",\n          \"legendFormat\": \"{{source}}\"\
+    \n        }\n      ]\n    },\n    {\n      \"title\": \"Buffer Writes by Source\
+    \ (Inventory DB)\",\n      \"type\": \"timeseries\",\n      \"gridPos\": {\n \
+    \       \"h\": 8,\n        \"w\": 12,\n        \"x\": 12,\n        \"y\": 12\n\
+    \      },\n      \"targets\": [\n        {\n          \"expr\": \"sum(rate(otel_postgresql_bgwriter_buffers_writes_total{exported_instance=~\\\
+    \"inventory-db.*\\\"}[5m])) by (source)\",\n          \"legendFormat\": \"{{source}}\"\
+    \n        }\n      ]\n    },\n    {\n      \"title\": \"Checkpoints Per Minute\"\
+    ,\n      \"type\": \"timeseries\",\n      \"gridPos\": {\n        \"h\": 8,\n\
+    \        \"w\": 12,\n        \"x\": 0,\n        \"y\": 20\n      },\n      \"\
+    targets\": [\n        {\n          \"expr\": \"sum(rate(otel_postgresql_bgwriter_checkpoint_count_total{exported_instance=~\\\
+    \"order-db.*\\\"}[5m])) by (type)\",\n          \"legendFormat\": \"Order: {{type}}\"\
+    \n        },\n        {\n          \"expr\": \"sum(rate(otel_postgresql_bgwriter_checkpoint_count_total{exported_instance=~\\\
+    \"inventory-db.*\\\"}[5m])) by (type)\",\n          \"legendFormat\": \"Inventory:\
+    \ {{type}}\"\n        }\n      ]\n    },\n    {\n      \"title\": \"Checkpoint\
+    \ Duration (ms)\",\n      \"type\": \"timeseries\",\n      \"gridPos\": {\n  \
+    \      \"h\": 8,\n        \"w\": 12,\n        \"x\": 12,\n        \"y\": 20\n\
+    \      },\n      \"targets\": [\n        {\n          \"expr\": \"sum(rate(otel_postgresql_bgwriter_duration_milliseconds_total{exported_instance=~\\\
+    \"order-db.*\\\"}[5m])) by (type)\",\n          \"legendFormat\": \"Order: {{type}}\"\
+    \n        },\n        {\n          \"expr\": \"sum(rate(otel_postgresql_bgwriter_duration_milliseconds_total{exported_instance=~\\\
+    \"inventory-db.*\\\"}[5m])) by (type)\",\n          \"legendFormat\": \"Inventory:\
+    \ {{type}}\"\n        }\n      ],\n      \"fieldConfig\": {\n        \"defaults\"\
+    : {\n          \"unit\": \"ms\"\n        }\n      }\n    },\n    {\n      \"title\"\
+    : \"Total Database Size Over Time\",\n      \"type\": \"timeseries\",\n      \"\
+    gridPos\": {\n        \"h\": 8,\n        \"w\": 24,\n        \"x\": 0,\n     \
+    \   \"y\": 28\n      },\n      \"targets\": [\n        {\n          \"expr\":\
+    \ \"sum(otel_postgresql_db_size_bytes{exported_instance=~\\\"order-db.*\\\"})\"\
+    ,\n          \"legendFormat\": \"order-db\"\n        },\n        {\n         \
+    \ \"expr\": \"sum(otel_postgresql_db_size_bytes{exported_instance=~\\\"inventory-db.*\\\
+    \"})\",\n          \"legendFormat\": \"inventory-db\"\n        }\n      ],\n \
+    \     \"fieldConfig\": {\n        \"defaults\": {\n          \"unit\": \"bytes\"\
+    \n        }\n      }\n    }\n  ],\n  \"schemaVersion\": 39,\n  \"tags\": [\n \
+    \   \"postgresql\",\n    \"opentelemetry\"\n  ],\n  \"templating\": {\n    \"\
+    list\": []\n  },\n  \"time\": {\n    \"from\": \"now-1h\",\n    \"to\": \"now\"\
+    \n  },\n  \"title\": \"PostgreSQL\",\n  \"uid\": \"postgresql\",\n  \"version\"\
+    : 3\n}"
+  redis.json: "{\n  \"annotations\": {\n    \"list\": []\n  },\n  \"editable\": true,\n\
+    \  \"fiscalYearStartMonth\": 0,\n  \"graphTooltip\": 1,\n  \"id\": null,\n  \"\
+    links\": [],\n  \"panels\": [\n    {\n      \"title\": \"Status\",\n      \"type\"\
+    : \"stat\",\n      \"gridPos\": {\n        \"h\": 4,\n        \"w\": 4,\n    \
+    \    \"x\": 0,\n        \"y\": 0\n      },\n      \"targets\": [\n        {\n\
+    \          \"expr\": \"max(otel_up{job=\\\"redis\\\"})\",\n          \"legendFormat\"\
+    : \"up\"\n        }\n      ],\n      \"fieldConfig\": {\n        \"defaults\"\
+    : {\n          \"mappings\": [\n            {\n              \"options\": {\n\
+    \                \"0\": {\n                  \"text\": \"DOWN\",\n           \
+    \       \"color\": \"red\"\n                },\n                \"1\": {\n   \
+    \               \"text\": \"UP\",\n                  \"color\": \"green\"\n  \
+    \              }\n              },\n              \"type\": \"value\"\n      \
+    \      }\n          ],\n          \"thresholds\": {\n            \"steps\": [\n\
+    \              {\n                \"value\": 0,\n                \"color\": \"\
+    red\"\n              },\n              {\n                \"value\": 1,\n    \
+    \            \"color\": \"green\"\n              }\n            ]\n          }\n\
+    \        }\n      }\n    },\n    {\n      \"title\": \"Connected Clients\",\n\
+    \      \"type\": \"stat\",\n      \"gridPos\": {\n        \"h\": 4,\n        \"\
+    w\": 5,\n        \"x\": 4,\n        \"y\": 0\n      },\n      \"targets\": [\n\
+    \        {\n          \"expr\": \"sum(otel_redis_clients_connected{job=\\\"redis\\\
+    \"})\",\n          \"legendFormat\": \"clients\"\n        }\n      ],\n      \"\
+    fieldConfig\": {\n        \"defaults\": {\n          \"color\": {\n          \
+    \  \"mode\": \"thresholds\"\n          },\n          \"thresholds\": {\n     \
+    \       \"steps\": [\n              {\n                \"value\": 0,\n       \
+    \         \"color\": \"green\"\n              },\n              {\n          \
+    \      \"value\": 50,\n                \"color\": \"yellow\"\n              },\n\
+    \              {\n                \"value\": 100,\n                \"color\":\
+    \ \"red\"\n              }\n            ]\n          }\n        }\n      }\n \
+    \   },\n    {\n      \"title\": \"Memory Used\",\n      \"type\": \"stat\",\n\
+    \      \"gridPos\": {\n        \"h\": 4,\n        \"w\": 5,\n        \"x\": 9,\n\
+    \        \"y\": 0\n      },\n      \"targets\": [\n        {\n          \"expr\"\
+    : \"sum(otel_redis_memory_used_bytes{job=\\\"redis\\\"})\",\n          \"legendFormat\"\
+    : \"used\"\n        }\n      ],\n      \"fieldConfig\": {\n        \"defaults\"\
+    : {\n          \"unit\": \"bytes\"\n        }\n      }\n    },\n    {\n      \"\
+    title\": \"Memory Peak\",\n      \"type\": \"stat\",\n      \"gridPos\": {\n \
+    \       \"h\": 4,\n        \"w\": 5,\n        \"x\": 14,\n        \"y\": 0\n \
+    \     },\n      \"targets\": [\n        {\n          \"expr\": \"max(otel_redis_memory_used_bytes{job=\\\
+    \"redis\\\"})\",\n          \"legendFormat\": \"max\"\n        }\n      ],\n \
+    \     \"fieldConfig\": {\n        \"defaults\": {\n          \"unit\": \"bytes\"\
+    \n        }\n      }\n    },\n    {\n      \"title\": \"Uptime\",\n      \"type\"\
+    : \"stat\",\n      \"gridPos\": {\n        \"h\": 4,\n        \"w\": 5,\n    \
+    \    \"x\": 19,\n        \"y\": 0\n      },\n      \"targets\": [\n        {\n\
+    \          \"expr\": \"max(otel_redis_uptime_seconds_total{job=\\\"redis\\\"})\"\
+    ,\n          \"legendFormat\": \"uptime\"\n        }\n      ],\n      \"fieldConfig\"\
+    : {\n        \"defaults\": {\n          \"unit\": \"s\"\n        }\n      }\n\
+    \    },\n    {\n      \"title\": \"Commands/sec\",\n      \"type\": \"timeseries\"\
+    ,\n      \"gridPos\": {\n        \"h\": 8,\n        \"w\": 12,\n        \"x\"\
+    : 0,\n        \"y\": 4\n      },\n      \"targets\": [\n        {\n          \"\
+    expr\": \"sum(rate(otel_redis_commands_processed_total{job=\\\"redis\\\"}[5m]))\"\
+    ,\n          \"legendFormat\": \"commands/s\"\n        }\n      ]\n    },\n  \
+    \  {\n      \"title\": \"Hit Rate\",\n      \"type\": \"timeseries\",\n      \"\
+    gridPos\": {\n        \"h\": 8,\n        \"w\": 12,\n        \"x\": 12,\n    \
+    \    \"y\": 4\n      },\n      \"targets\": [\n        {\n          \"expr\":\
+    \ \"(sum(rate(otel_redis_keyspace_hits_total{job=\\\"redis\\\"}[5m])) / (sum(rate(otel_redis_keyspace_hits_total{job=\\\
+    \"redis\\\"}[5m])) + sum(rate(otel_redis_keyspace_misses_total{job=\\\"redis\\\
+    \"}[5m])))) * 100\",\n          \"legendFormat\": \"hit %\"\n        }\n     \
+    \ ],\n      \"fieldConfig\": {\n        \"defaults\": {\n          \"unit\": \"\
+    percent\",\n          \"min\": 0,\n          \"max\": 100\n        }\n      }\n\
+    \    },\n    {\n      \"title\": \"Connected Clients Over Time\",\n      \"type\"\
+    : \"timeseries\",\n      \"gridPos\": {\n        \"h\": 8,\n        \"w\": 12,\n\
+    \        \"x\": 0,\n        \"y\": 12\n      },\n      \"targets\": [\n      \
+    \  {\n          \"expr\": \"sum(otel_redis_clients_connected{job=\\\"redis\\\"\
+    })\",\n          \"legendFormat\": \"clients\"\n        }\n      ]\n    },\n \
+    \   {\n      \"title\": \"Memory Usage Over Time\",\n      \"type\": \"timeseries\"\
+    ,\n      \"gridPos\": {\n        \"h\": 8,\n        \"w\": 12,\n        \"x\"\
+    : 12,\n        \"y\": 12\n      },\n      \"targets\": [\n        {\n        \
+    \  \"expr\": \"sum(otel_redis_memory_used_bytes{job=\\\"redis\\\"})\",\n     \
+    \     \"legendFormat\": \"used\"\n        },\n        {\n          \"expr\": \"\
+    max(otel_redis_memory_used_bytes{job=\\\"redis\\\"})\",\n          \"legendFormat\"\
+    : \"max\"\n        }\n      ],\n      \"fieldConfig\": {\n        \"defaults\"\
+    : {\n          \"unit\": \"bytes\"\n        }\n      }\n    },\n    {\n      \"\
+    title\": \"Keys by Database\",\n      \"type\": \"timeseries\",\n      \"gridPos\"\
+    : {\n        \"h\": 8,\n        \"w\": 12,\n        \"x\": 0,\n        \"y\":\
+    \ 20\n      },\n      \"targets\": [\n        {\n          \"expr\": \"sum(otel_redis_keyspace_hits_total{job=\\\
+    \"redis\\\"}) by (db)\",\n          \"legendFormat\": \"db{{db}}\"\n        }\n\
+    \      ]\n    },\n    {\n      \"title\": \"Evicted Keys\",\n      \"type\": \"\
+    timeseries\",\n      \"gridPos\": {\n        \"h\": 8,\n        \"w\": 12,\n \
+    \       \"x\": 12,\n        \"y\": 20\n      },\n      \"targets\": [\n      \
+    \  {\n          \"expr\": \"sum(rate(otel_redis_keys_evicted_total{job=\\\"redis\\\
+    \"}[5m]))\",\n          \"legendFormat\": \"evicted/s\"\n        }\n      ]\n\
+    \    }\n  ],\n  \"schemaVersion\": 39,\n  \"tags\": [\n    \"redis\"\n  ],\n \
+    \ \"templating\": {\n    \"list\": []\n  },\n  \"time\": {\n    \"from\": \"now-1h\"\
+    ,\n    \"to\": \"now\"\n  },\n  \"title\": \"Redis\",\n  \"uid\": \"redis\",\n\
+    \  \"version\": 2\n}"
+  traefik.json: "{\n  \"annotations\": {\n    \"list\": []\n  },\n  \"editable\":\
+    \ true,\n  \"fiscalYearStartMonth\": 0,\n  \"graphTooltip\": 1,\n  \"id\": null,\n\
+    \  \"links\": [],\n  \"panels\": [\n    {\n      \"title\": \"Status\",\n    \
+    \  \"type\": \"stat\",\n      \"gridPos\": {\n        \"h\": 4,\n        \"w\"\
+    : 4,\n        \"x\": 0,\n        \"y\": 0\n      },\n      \"targets\": [\n  \
+    \      {\n          \"expr\": \"max(otel_up{service=\\\"traefik\\\"})\",\n   \
+    \       \"legendFormat\": \"up\"\n        }\n      ],\n      \"fieldConfig\":\
+    \ {\n        \"defaults\": {\n          \"mappings\": [\n            {\n     \
+    \         \"options\": {\n                \"0\": {\n                  \"text\"\
+    : \"DOWN\",\n                  \"color\": \"red\"\n                },\n      \
+    \          \"1\": {\n                  \"text\": \"UP\",\n                  \"\
+    color\": \"green\"\n                }\n              },\n              \"type\"\
+    : \"value\"\n            }\n          ],\n          \"thresholds\": {\n      \
+    \      \"steps\": [\n              {\n                \"value\": 0,\n        \
+    \        \"color\": \"red\"\n              },\n              {\n             \
+    \   \"value\": 1,\n                \"color\": \"green\"\n              }\n   \
+    \         ]\n          }\n        }\n      }\n    },\n    {\n      \"title\":\
+    \ \"Request Rate\",\n      \"type\": \"stat\",\n      \"gridPos\": {\n       \
+    \ \"h\": 4,\n        \"w\": 5,\n        \"x\": 4,\n        \"y\": 0\n      },\n\
+    \      \"targets\": [\n        {\n          \"expr\": \"sum(rate(otel_traefik_entrypoint_requests_total{service=\\\
+    \"traefik\\\"}[5m]))\",\n          \"legendFormat\": \"req/s\"\n        }\n  \
+    \    ],\n      \"fieldConfig\": {\n        \"defaults\": {\n          \"unit\"\
+    : \"reqps\"\n        }\n      }\n    },\n    {\n      \"title\": \"Error Rate\"\
+    ,\n      \"type\": \"stat\",\n      \"gridPos\": {\n        \"h\": 4,\n      \
+    \  \"w\": 5,\n        \"x\": 9,\n        \"y\": 0\n      },\n      \"targets\"\
+    : [\n        {\n          \"expr\": \"(sum(rate(otel_traefik_entrypoint_requests_total{service=\\\
+    \"traefik\\\",code=~\\\"5..\\\"}[5m])) / sum(rate(otel_traefik_entrypoint_requests_total{service=\\\
+    \"traefik\\\"}[5m]))) * 100\",\n          \"legendFormat\": \"%\"\n        }\n\
+    \      ],\n      \"fieldConfig\": {\n        \"defaults\": {\n          \"unit\"\
+    : \"percent\",\n          \"thresholds\": {\n            \"steps\": [\n      \
+    \        {\n                \"value\": 0,\n                \"color\": \"green\"\
+    \n              },\n              {\n                \"value\": 1,\n         \
+    \       \"color\": \"yellow\"\n              },\n              {\n           \
+    \     \"value\": 5,\n                \"color\": \"red\"\n              }\n   \
+    \         ]\n          }\n        }\n      }\n    },\n    {\n      \"title\":\
+    \ \"Latency P95\",\n      \"type\": \"stat\",\n      \"gridPos\": {\n        \"\
+    h\": 4,\n        \"w\": 5,\n        \"x\": 14,\n        \"y\": 0\n      },\n \
+    \     \"targets\": [\n        {\n          \"expr\": \"histogram_quantile(0.95,\
+    \ sum(rate(otel_traefik_entrypoint_request_duration_seconds_bucket{service=\\\"\
+    traefik\\\"}[5m])) by (le))\",\n          \"legendFormat\": \"P95\"\n        }\n\
+    \      ],\n      \"fieldConfig\": {\n        \"defaults\": {\n          \"unit\"\
+    : \"s\"\n        }\n      }\n    },\n    {\n      \"title\": \"Open Connections\"\
+    ,\n      \"type\": \"stat\",\n      \"gridPos\": {\n        \"h\": 4,\n      \
+    \  \"w\": 5,\n        \"x\": 19,\n        \"y\": 0\n      },\n      \"targets\"\
+    : [\n        {\n          \"expr\": \"sum(otel_traefik_entrypoint_open_connections{service=\\\
+    \"traefik\\\"})\",\n          \"legendFormat\": \"open\"\n        }\n      ],\n\
+    \      \"fieldConfig\": {\n        \"defaults\": {\n          \"color\": {\n \
+    \           \"mode\": \"thresholds\"\n          },\n          \"thresholds\":\
+    \ {\n            \"steps\": [\n              {\n                \"value\": 0,\n\
+    \                \"color\": \"green\"\n              },\n              {\n   \
+    \             \"value\": 100,\n                \"color\": \"yellow\"\n       \
+    \       },\n              {\n                \"value\": 500,\n               \
+    \ \"color\": \"red\"\n              }\n            ]\n          }\n        }\n\
+    \      }\n    },\n    {\n      \"title\": \"Request Rate by Router\",\n      \"\
+    type\": \"timeseries\",\n      \"gridPos\": {\n        \"h\": 8,\n        \"w\"\
+    : 12,\n        \"x\": 0,\n        \"y\": 4\n      },\n      \"targets\": [\n \
+    \       {\n          \"expr\": \"sum(rate(otel_traefik_entrypoint_requests_total{service=\\\
+    \"traefik\\\"}[5m])) by (router)\",\n          \"legendFormat\": \"{{router}}\"\
+    \n        }\n      ]\n    },\n    {\n      \"title\": \"Request Rate by Entry\
+    \ Point\",\n      \"type\": \"timeseries\",\n      \"gridPos\": {\n        \"\
+    h\": 8,\n        \"w\": 12,\n        \"x\": 12,\n        \"y\": 4\n      },\n\
+    \      \"targets\": [\n        {\n          \"expr\": \"sum(rate(otel_traefik_entrypoint_requests_total{service=\\\
+    \"traefik\\\"}[5m])) by (entrypoint)\",\n          \"legendFormat\": \"{{entrypoint}}\"\
+    \n        }\n      ]\n    },\n    {\n      \"title\": \"Request Latency by Router\"\
+    ,\n      \"type\": \"timeseries\",\n      \"gridPos\": {\n        \"h\": 8,\n\
+    \        \"w\": 12,\n        \"x\": 0,\n        \"y\": 12\n      },\n      \"\
+    targets\": [\n        {\n          \"expr\": \"histogram_quantile(0.95, sum(rate(otel_traefik_entrypoint_request_duration_seconds_bucket{service=\\\
+    \"traefik\\\"}[5m])) by (le, router))\",\n          \"legendFormat\": \"P95 {{router}}\"\
+    \n        }\n      ],\n      \"fieldConfig\": {\n        \"defaults\": {\n   \
+    \       \"unit\": \"s\"\n        }\n      }\n    },\n    {\n      \"title\": \"\
+    HTTP Status Codes\",\n      \"type\": \"timeseries\",\n      \"gridPos\": {\n\
+    \        \"h\": 8,\n        \"w\": 12,\n        \"x\": 12,\n        \"y\": 12\n\
+    \      },\n      \"targets\": [\n        {\n          \"expr\": \"sum(rate(otel_traefik_entrypoint_requests_total{service=\\\
+    \"traefik\\\"}[5m])) by (code)\",\n          \"legendFormat\": \"{{code}}\"\n\
+    \        }\n      ]\n    },\n    {\n      \"title\": \"Entrypoint Connections\"\
+    ,\n      \"type\": \"timeseries\",\n      \"gridPos\": {\n        \"h\": 8,\n\
+    \        \"w\": 12,\n        \"x\": 0,\n        \"y\": 20\n      },\n      \"\
+    targets\": [\n        {\n          \"expr\": \"sum(otel_traefik_entrypoint_open_connections{service=\\\
+    \"traefik\\\"}) by (entrypoint)\",\n          \"legendFormat\": \"{{entrypoint}}\"\
+    \n        }\n      ]\n    },\n    {\n      \"title\": \"Config Reload\",\n   \
+    \   \"type\": \"timeseries\",\n      \"gridPos\": {\n        \"h\": 8,\n     \
+    \   \"w\": 12,\n        \"x\": 12,\n        \"y\": 20\n      },\n      \"targets\"\
+    : [\n        {\n          \"expr\": \"max(otel_traefik_config_last_reload_success{service=\\\
+    \"traefik\\\"})\",\n          \"legendFormat\": \"last reload\"\n        }\n \
+    \     ],\n      \"fieldConfig\": {\n        \"defaults\": {\n          \"mappings\"\
+    : [\n            {\n              \"options\": {\n                \"0\": {\n \
+    \                 \"text\": \"FAILED\"\n                },\n                \"\
+    1\": {\n                  \"text\": \"OK\"\n                }\n              },\n\
+    \              \"type\": \"value\"\n            }\n          ]\n        }\n  \
+    \    }\n    }\n  ],\n  \"schemaVersion\": 39,\n  \"tags\": [\n    \"traefik\"\n\
+    \  ],\n  \"templating\": {\n    \"list\": []\n  },\n  \"time\": {\n    \"from\"\
+    : \"now-1h\",\n    \"to\": \"now\"\n  },\n  \"title\": \"Traefik\",\n  \"uid\"\
+    : \"traefik\",\n  \"version\": 2\n}"
+  websocket-service.json: "{\n  \"annotations\": {\n    \"list\": []\n  },\n  \"editable\"\
+    : true,\n  \"fiscalYearStartMonth\": 0,\n  \"graphTooltip\": 1,\n  \"id\": null,\n\
+    \  \"links\": [],\n  \"panels\": [\n    {\n      \"title\": \"Status\",\n    \
+    \  \"type\": \"stat\",\n      \"gridPos\": {\n        \"h\": 4,\n        \"w\"\
+    : 4,\n        \"x\": 0,\n        \"y\": 0\n      },\n      \"targets\": [\n  \
+    \      {\n          \"expr\": \"max(otel_up{service=\\\"websocket-service\\\"\
+    })\",\n          \"legendFormat\": \"up\"\n        }\n      ],\n      \"fieldConfig\"\
+    : {\n        \"defaults\": {\n          \"mappings\": [\n            {\n     \
+    \         \"options\": {\n                \"0\": {\n                  \"text\"\
+    : \"DOWN\",\n                  \"color\": \"red\"\n                },\n      \
+    \          \"1\": {\n                  \"text\": \"UP\",\n                  \"\
+    color\": \"green\"\n                }\n              },\n              \"type\"\
+    : \"value\"\n            }\n          ],\n          \"thresholds\": {\n      \
+    \      \"steps\": [\n              {\n                \"value\": 0,\n        \
+    \        \"color\": \"red\"\n              },\n              {\n             \
+    \   \"value\": 1,\n                \"color\": \"green\"\n              }\n   \
+    \         ]\n          }\n        }\n      }\n    },\n    {\n      \"title\":\
+    \ \"Request Rate\",\n      \"type\": \"stat\",\n      \"gridPos\": {\n       \
+    \ \"h\": 4,\n        \"w\": 5,\n        \"x\": 4,\n        \"y\": 0\n      },\n\
+    \      \"targets\": [\n        {\n          \"expr\": \"sum(rate(otel_http_requests_total{service=\\\
+    \"websocket-service\\\"}[5m]))\",\n          \"legendFormat\": \"req/s\"\n   \
+    \     }\n      ],\n      \"fieldConfig\": {\n        \"defaults\": {\n       \
+    \   \"unit\": \"reqps\"\n        }\n      }\n    },\n    {\n      \"title\": \"\
+    Latency P95\",\n      \"type\": \"stat\",\n      \"gridPos\": {\n        \"h\"\
+    : 4,\n        \"w\": 5,\n        \"x\": 9,\n        \"y\": 0\n      },\n     \
+    \ \"targets\": [\n        {\n          \"expr\": \"histogram_quantile(0.95, sum(rate(otel_http_request_duration_seconds_bucket{service=\\\
+    \"websocket-service\\\"}[5m])) by (le))\",\n          \"legendFormat\": \"P95\"\
+    \n        }\n      ],\n      \"fieldConfig\": {\n        \"defaults\": {\n   \
+    \       \"unit\": \"s\"\n        }\n      }\n    },\n    {\n      \"title\": \"\
+    Active Connections\",\n      \"type\": \"stat\",\n      \"gridPos\": {\n     \
+    \   \"h\": 4,\n        \"w\": 5,\n        \"x\": 14,\n        \"y\": 0\n     \
+    \ },\n      \"targets\": [\n        {\n          \"expr\": \"sum(otel_ws_connections_active{service=\\\
+    \"websocket-service\\\"})\",\n          \"legendFormat\": \"active\"\n       \
+    \ }\n      ],\n      \"fieldConfig\": {\n        \"defaults\": {\n          \"\
+    color\": {\n            \"mode\": \"thresholds\"\n          },\n          \"thresholds\"\
+    : {\n            \"steps\": [\n              {\n                \"value\": 0,\n\
+    \                \"color\": \"green\"\n              },\n              {\n   \
+    \             \"value\": 100,\n                \"color\": \"yellow\"\n       \
+    \       },\n              {\n                \"value\": 500,\n               \
+    \ \"color\": \"red\"\n              }\n            ]\n          }\n        }\n\
+    \      }\n    },\n    {\n      \"title\": \"Total Connections\",\n      \"type\"\
+    : \"stat\",\n      \"gridPos\": {\n        \"h\": 4,\n        \"w\": 5,\n    \
+    \    \"x\": 19,\n        \"y\": 0\n      },\n      \"targets\": [\n        {\n\
+    \          \"expr\": \"sum(increase(otel_ws_connections_total{service=\\\"websocket-service\\\
+    \"}[1h]))\",\n          \"legendFormat\": \"1h\"\n        }\n      ],\n      \"\
+    fieldConfig\": {\n        \"defaults\": {\n          \"color\": {\n          \
+    \  \"mode\": \"thresholds\"\n          },\n          \"thresholds\": {\n     \
+    \       \"steps\": [\n              {\n                \"value\": 0,\n       \
+    \         \"color\": \"blue\"\n              }\n            ]\n          }\n \
+    \       }\n      }\n    },\n    {\n      \"title\": \"Active Connections Over\
+    \ Time\",\n      \"type\": \"timeseries\",\n      \"gridPos\": {\n        \"h\"\
+    : 8,\n        \"w\": 12,\n        \"x\": 0,\n        \"y\": 4\n      },\n    \
+    \  \"targets\": [\n        {\n          \"expr\": \"sum(otel_ws_connections_active{service=\\\
+    \"websocket-service\\\"})\",\n          \"legendFormat\": \"active\"\n       \
+    \ },\n        {\n          \"expr\": \"sum(rate(otel_ws_connections_total{service=\\\
+    \"websocket-service\\\"}[5m]))\",\n          \"legendFormat\": \"new/s\"\n   \
+    \     }\n      ]\n    },\n    {\n      \"title\": \"Messages Sent by Channel\"\
+    ,\n      \"type\": \"timeseries\",\n      \"gridPos\": {\n        \"h\": 8,\n\
+    \        \"w\": 12,\n        \"x\": 12,\n        \"y\": 4\n      },\n      \"\
+    targets\": [\n        {\n          \"expr\": \"sum(rate(otel_ws_messages_sent_total{service=\\\
+    \"websocket-service\\\"}[5m])) by (channel)\",\n          \"legendFormat\": \"\
+    {{channel}}\"\n        }\n      ]\n    },\n    {\n      \"title\": \"HTTP Status\
+    \ Codes\",\n      \"type\": \"timeseries\",\n      \"gridPos\": {\n        \"\
+    h\": 8,\n        \"w\": 12,\n        \"x\": 0,\n        \"y\": 12\n      },\n\
+    \      \"targets\": [\n        {\n          \"expr\": \"sum(rate(otel_http_requests_total{service=\\\
+    \"websocket-service\\\"}[5m])) by (status)\",\n          \"legendFormat\": \"\
+    {{status}}\"\n        }\n      ]\n    },\n    {\n      \"title\": \"Request Rate\
+    \ by Endpoint\",\n      \"type\": \"timeseries\",\n      \"gridPos\": {\n    \
+    \    \"h\": 8,\n        \"w\": 12,\n        \"x\": 12,\n        \"y\": 12\n  \
+    \    },\n      \"targets\": [\n        {\n          \"expr\": \"sum(rate(otel_http_requests_total{service=\\\
+    \"websocket-service\\\"}[5m])) by (method, path)\",\n          \"legendFormat\"\
+    : \"{{method}} {{path}}\"\n        }\n      ]\n    },\n    {\n      \"title\"\
+    : \"Go Runtime\",\n      \"type\": \"timeseries\",\n      \"gridPos\": {\n   \
+    \     \"h\": 8,\n        \"w\": 24,\n        \"x\": 0,\n        \"y\": 20\n  \
+    \    },\n      \"targets\": [\n        {\n          \"expr\": \"sum(otel_go_memstats_alloc_bytes{service=\\\
+    \"websocket-service\\\"})\",\n          \"legendFormat\": \"alloc\"\n        },\n\
+    \        {\n          \"expr\": \"sum(otel_go_goroutines{service=\\\"websocket-service\\\
+    \"})\",\n          \"legendFormat\": \"goroutines\"\n        }\n      ]\n    }\n\
+    \  ],\n  \"schemaVersion\": 39,\n  \"tags\": [\n    \"websocket-service\"\n  ],\n\
+    \  \"templating\": {\n    \"list\": []\n  },\n  \"time\": {\n    \"from\": \"\
+    now-1h\",\n    \"to\": \"now\"\n  },\n  \"title\": \"WebSocket Service\",\n  \"\
+    uid\": \"websocket-service\",\n  \"version\": 2\n}"

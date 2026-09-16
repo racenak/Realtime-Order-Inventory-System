@@ -1,0 +1,203 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: traefik-dynamic-config
+  namespace: order-inventory
+data:
+  traefik-dynamic.yml: |
+    http:
+      middlewares:
+        # ========== Rate Limiting ==========
+        rate-limit:
+          rateLimit:
+            average: 100
+            burst: 50
+            period: 1s
+            sourceCriterion:
+              ipStrategy:
+                depth: 1
+
+        # ========== Security Headers ==========
+        security-headers:
+          headers:
+            stsSeconds: 31536000
+            stsIncludeSubdomains: true
+            contentTypeNosniff: true
+            frameDeny: true
+            referrerPolicy: "strict-origin-when-cross-origin"
+            permissionsPolicy: "camera=(), microphone=(), geolocation=()"
+
+        # ========== JWT ForwardAuth ==========
+        jwt-auth:
+          forwardAuth:
+            address: "http://auth-service:8083/verify"
+            trustForwardHeader: true
+            authResponseHeaders:
+              - X-User-Id
+              - X-User-Role
+
+        # ========== Chains ==========
+        public-chain:
+          chain:
+            middlewares:
+              - rate-limit
+              - security-headers
+
+        protected-chain:
+          chain:
+            middlewares:
+              - jwt-auth
+              - rate-limit
+              - security-headers
+
+      routers:
+        # ========== Public Routers (no auth) ==========
+        health:
+          rule: "Path(`/health`)"
+          entryPoints:
+            - web
+          service: order-service
+          middlewares:
+            - public-chain
+
+        # ========== Protected Routers (JWT required) ==========
+        orders:
+          rule: "PathPrefix(`/api/orders`)"
+          entryPoints:
+            - web
+          service: order-service
+          middlewares:
+            - protected-chain
+
+        inventory:
+          rule: "PathPrefix(`/api/inventory`)"
+          entryPoints:
+            - web
+          service: inventory-service
+          middlewares:
+            - protected-chain
+
+        websocket:
+          rule: "PathPrefix(`/ws`)"
+          entryPoints:
+            - web
+          service: websocket-service
+          middlewares:
+            - protected-chain
+
+      services:
+        order-service:
+          loadBalancer:
+            servers:
+              - url: "http://order-service:8080"
+        inventory-service:
+          loadBalancer:
+            servers:
+              - url: "http://inventory-service:8081"
+        websocket-service:
+          loadBalancer:
+            servers:
+              - url: "http://websocket-service:8082"
+
+    # TLS options (enable when using HTTPS entrypoint with domain)
+    # tls:
+    #   options:
+    #     default:
+    #       minVersion: VersionTLS12
+    #       cipherSuites:
+    #         - TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+    #         - TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+    #         - TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256
+    #         - TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: traefik
+  namespace: order-inventory
+  labels:
+    app: traefik
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: traefik
+  template:
+    metadata:
+      labels:
+        app: traefik
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: node-role.kubernetes.io/app
+                    operator: In
+                    values:
+                      - "true"
+      containers:
+        - name: traefik
+          image: traefik:v2.11.57
+          imagePullPolicy: IfNotPresent
+          args:
+            - --api.dashboard=true
+            - --api.insecure=true
+            - --providers.file.filename=/etc/traefik/traefik-dynamic.yml
+            - --providers.file.watch=false
+            - --entrypoints.web.address=:8088
+            - --metrics.prometheus=true
+            - --metrics.prometheus.addEntryPointsLabels=true
+            - --metrics.prometheus.addServicesLabels=true
+            - --log.level=INFO
+          ports:
+            - name: web
+              containerPort: 8088
+              protocol: TCP
+            - name: dashboard
+              containerPort: 8080
+              protocol: TCP
+          volumeMounts:
+            - name: traefik-dynamic-config
+              mountPath: /etc/traefik/traefik-dynamic.yml
+              subPath: traefik-dynamic.yml
+              readOnly: true
+          livenessProbe:
+            httpGet:
+              path: /ping
+              port: 8088
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /ping
+              port: 8088
+            initialDelaySeconds: 5
+            periodSeconds: 10
+      volumes:
+        - name: traefik-dynamic-config
+          configMap:
+            name: traefik-dynamic-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: traefik
+  namespace: order-inventory
+  labels:
+    app: traefik
+spec:
+  type: NodePort
+  selector:
+    app: traefik
+  ports:
+    - name: web
+      port: 8088
+      targetPort: 8088
+      nodePort: 30080
+      protocol: TCP
+    - name: dashboard
+      port: 8080
+      targetPort: 8080
+      nodePort: 30090
+      protocol: TCP

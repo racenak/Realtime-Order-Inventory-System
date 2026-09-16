@@ -11,11 +11,16 @@ distributor:
           endpoint: 0.0.0.0:4318
 
 ingester:
-  max_block_duration: 5m
-
-compactor:
-  compaction:
-    block_retention: 24h
+  lifecycler:
+    ring:
+      kvstore:
+        store: inmemory
+      replication_factor: 1
+    join_after: 0s
+    min_ready_duration: 1m
+    final_sleep: 0s
+  trace_idle_period: 10s
+  complete_block_timeout: 1s
 
 storage:
   trace:
@@ -25,10 +30,15 @@ storage:
     wal:
       path: /var/tempo/wal
 
+compactor:
+  compaction:
+    block_retention: 24h
+    max_block_bytes: 1073741824
+
 query_frontend:
-  max_outstanding_per_tenant: 2000
+  max_outstanding_per_tenant: 5000
   search:
-    concurrent_jobs: 1000
+    concurrent_jobs: 2000
     target_bytes_per_job: 104857600
     default_result_limit: 20
     max_duration: 168h
@@ -43,9 +53,4 @@ metrics_generator:
   storage:
     path: /var/tempo/generator/wal
 
-overrides:
-  defaults:
-    metrics_generator:
-      processors:
-        - service-graphs
-        - span-metrics
+target: all

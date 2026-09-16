@@ -1,5 +1,7 @@
 {
-  "annotations": { "list": [] },
+  "annotations": {
+    "list": []
+  },
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
@@ -9,109 +11,292 @@
     {
       "title": "Status",
       "type": "stat",
-      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 0 },
-      "targets": [{ "expr": "up{job=\"order-service\"}", "legendFormat": "up" }],
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 0,
+        "y": 0
+      },
+      "targets": [
+        {
+          "expr": "max(up{job=\"order-service\"})",
+          "legendFormat": "up"
+        }
+      ],
       "fieldConfig": {
         "defaults": {
-          "mappings": [{ "options": { "0": { "text": "DOWN", "color": "red" }, "1": { "text": "UP", "color": "green" } }, "type": "value" }],
-          "thresholds": { "steps": [{ "value": 0, "color": "red" }, { "value": 1, "color": "green" }] }
+          "mappings": [
+            {
+              "options": {
+                "0": {
+                  "text": "DOWN",
+                  "color": "red"
+                },
+                "1": {
+                  "text": "UP",
+                  "color": "green"
+                }
+              },
+              "type": "value"
+            }
+          ],
+          "thresholds": {
+            "steps": [
+              {
+                "value": 0,
+                "color": "red"
+              },
+              {
+                "value": 1,
+                "color": "green"
+              }
+            ]
+          }
         }
       }
     },
     {
       "title": "Request Rate",
       "type": "stat",
-      "gridPos": { "h": 4, "w": 5, "x": 4, "y": 0 },
-      "targets": [{ "expr": "sum(rate(http_requests_total{job=\"order-service\"}[5m]))", "legendFormat": "req/s" }],
-      "fieldConfig": { "defaults": { "unit": "reqps" } }
+      "gridPos": {
+        "h": 4,
+        "w": 5,
+        "x": 4,
+        "y": 0
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(otel_http_requests_total{job=\"order-service\"}[5m]))",
+          "legendFormat": "req/s"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        }
+      }
     },
     {
       "title": "Error Rate",
       "type": "stat",
-      "gridPos": { "h": 4, "w": 5, "x": 9, "y": 0 },
-      "targets": [{ "expr": "sum(rate(http_requests_total{job=\"order-service\",status=~\"5..\"}[5m])) / sum(rate(http_requests_total{job=\"order-service\"}[5m])) * 100", "legendFormat": "%" }],
-      "fieldConfig": { "defaults": { "unit": "percent", "thresholds": { "steps": [{ "value": 0, "color": "green" }, { "value": 1, "color": "yellow" }, { "value": 5, "color": "red" }] } } }
+      "gridPos": {
+        "h": 4,
+        "w": 5,
+        "x": 9,
+        "y": 0
+      },
+      "targets": [
+        {
+          "expr": "(sum(rate(otel_http_requests_total{job=\"order-service\",status=~\"5..\"}[5m])) / sum(rate(otel_http_requests_total{job=\"order-service\"}[5m]))) * 100",
+          "legendFormat": "%"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": {
+            "steps": [
+              {
+                "value": 0,
+                "color": "green"
+              },
+              {
+                "value": 1,
+                "color": "yellow"
+              },
+              {
+                "value": 5,
+                "color": "red"
+              }
+            ]
+          }
+        }
+      }
     },
     {
       "title": "Latency P95",
       "type": "stat",
-      "gridPos": { "h": 4, "w": 5, "x": 14, "y": 0 },
-      "targets": [{ "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job=\"order-service\"}[5m])) by (le))", "legendFormat": "P95" }],
-      "fieldConfig": { "defaults": { "unit": "s" } }
+      "gridPos": {
+        "h": 4,
+        "w": 5,
+        "x": 14,
+        "y": 0
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(otel_http_request_duration_seconds_bucket{job=\"order-service\"}[5m])) by (le))",
+          "legendFormat": "P95"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        }
+      }
     },
     {
       "title": "Latency P99",
       "type": "stat",
-      "gridPos": { "h": 4, "w": 5, "x": 19, "y": 0 },
-      "targets": [{ "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket{job=\"order-service\"}[5m])) by (le))", "legendFormat": "P99" }],
-      "fieldConfig": { "defaults": { "unit": "s" } }
+      "gridPos": {
+        "h": 4,
+        "w": 5,
+        "x": 19,
+        "y": 0
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(otel_http_request_duration_seconds_bucket{job=\"order-service\"}[5m])) by (le))",
+          "legendFormat": "P99"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        }
+      }
     },
     {
       "title": "Orders Created",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 4 },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 4
+      },
       "targets": [
-        { "expr": "sum(rate(orders_created_total{job=\"order-service\"}[5m]))", "legendFormat": "created/s" },
-        { "expr": "sum(increase(orders_created_total{job=\"order-service\"}[1h]))", "legendFormat": "last 1h" }
+        {
+          "expr": "sum(rate(otel_orders_created_total{job=\"order-service\"}[5m]))",
+          "legendFormat": "created/s"
+        },
+        {
+          "expr": "sum(increase(otel_orders_created_total{job=\"order-service\"}[1h]))",
+          "legendFormat": "last 1h"
+        }
       ]
     },
     {
       "title": "Orders Cancelled",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 4 },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 4
+      },
       "targets": [
-        { "expr": "sum(rate(orders_cancelled_total{job=\"order-service\"}[5m]))", "legendFormat": "cancelled/s" },
-        { "expr": "sum(increase(orders_cancelled_total{job=\"order-service\"}[1h]))", "legendFormat": "last 1h" }
+        {
+          "expr": "sum(rate(otel_orders_cancelled_total{job=\"order-service\"}[5m]))",
+          "legendFormat": "cancelled/s"
+        },
+        {
+          "expr": "sum(increase(otel_orders_cancelled_total{job=\"order-service\"}[1h]))",
+          "legendFormat": "last 1h"
+        }
       ]
     },
     {
       "title": "Failed Orders",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 4 },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 4
+      },
       "targets": [
-        { "expr": "sum(rate(orders_failed_total{job=\"order-service\"}[5m])) by (reason)", "legendFormat": "{{reason}}" }
+        {
+          "expr": "sum(rate(otel_orders_failed_total{job=\"order-service\"}[5m])) by (reason)",
+          "legendFormat": "{{reason}}"
+        }
       ]
     },
     {
       "title": "Request Rate by Endpoint",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 12
+      },
       "targets": [
-        { "expr": "sum(rate(http_requests_total{job=\"order-service\"}[5m])) by (method, path)", "legendFormat": "{{method}} {{path}}" }
+        {
+          "expr": "sum(rate(otel_http_requests_total{job=\"order-service\"}[5m])) by (method, path)",
+          "legendFormat": "{{method}} {{path}}"
+        }
       ]
     },
     {
       "title": "Request Latency by Endpoint",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 12
+      },
       "targets": [
-        { "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job=\"order-service\"}[5m])) by (le, path))", "legendFormat": "P95 {{path}}" }
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(otel_http_request_duration_seconds_bucket{job=\"order-service\"}[5m])) by (le, path))",
+          "legendFormat": "P95 {{path}}"
+        }
       ],
-      "fieldConfig": { "defaults": { "unit": "s" } }
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        }
+      }
     },
     {
       "title": "HTTP Status Codes",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 20 },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 20
+      },
       "targets": [
-        { "expr": "sum(rate(http_requests_total{job=\"order-service\"}[5m])) by (status)", "legendFormat": "{{status}}" }
+        {
+          "expr": "sum(rate(otel_http_requests_total{job=\"order-service\"}[5m])) by (status)",
+          "legendFormat": "{{status}}"
+        }
       ]
     },
     {
       "title": "Go Runtime",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 20 },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 20
+      },
       "targets": [
-        { "expr": "go_memstats_alloc_bytes{job=\"order-service\"}", "legendFormat": "alloc" },
-        { "expr": "go_goroutines{job=\"order-service\"}", "legendFormat": "goroutines" }
+        {
+          "expr": "sum(otel_go_memstats_alloc_bytes{job=\"order-service\"})",
+          "legendFormat": "alloc"
+        },
+        {
+          "expr": "sum(otel_go_goroutines{job=\"order-service\"})",
+          "legendFormat": "goroutines"
+        }
       ]
     }
   ],
   "schemaVersion": 39,
-  "tags": ["order-service"],
-  "templating": { "list": [] },
-  "time": { "from": "now-1h", "to": "now" },
+  "tags": [
+    "order-service"
+  ],
+  "templating": {
+    "list": []
+  },
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
   "title": "Order Service",
   "uid": "order-service",
-  "version": 1
+  "version": 2
 }

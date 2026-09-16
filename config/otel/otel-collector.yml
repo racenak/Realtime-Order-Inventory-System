@@ -6,12 +6,10 @@ receivers:
       http:
         endpoint: 0.0.0.0:4318
 
-  # Collect metrics from Redis
   redis:
     endpoint: "redis:6379"
     collection_interval: 10s
 
-  # Collect Metrics from Kafka
   kafkametrics:
     brokers: ["kafka:9092"]
     protocol_version: 2.0.0
@@ -21,24 +19,9 @@ receivers:
       - consumers
     collection_interval: 10s
 
-  # Postgres - Inventory DB
-  postgresql/inventory-db:
-    endpoint: "inventory-db:5432"
-    transport: "tcp"
-    username: "postgres"
-    password: "postgres"
-    databases:
-      - "inventory_db"
-    collection_interval: 10s
-    tls:
-      insecure: true
-    # Cú pháp mới cho Postgres receiver trong OTel v0.106+
-    metrics:
-
-  # Postgres - Order DB
   postgresql/order-db:
     endpoint: "order-db:5432"
-    transport: "tcp"
+    transport: tcp
     username: "postgres"
     password: "postgres"
     databases:
@@ -47,40 +30,44 @@ receivers:
     tls:
       insecure: true
 
-  # Scrape App Services & Traefik
+  postgresql/inventory-db:
+    endpoint: "inventory-db:5432"
+    transport: tcp
+    username: "postgres"
+    password: "postgres"
+    databases:
+      - "inventory_db"
+    collection_interval: 10s
+    tls:
+      insecure: true
+
   prometheus/app-services:
     config:
       scrape_configs:
-      # ========== Application Services ==========
       - job_name: "order-service"
         metrics_path: "/metrics"
         static_configs:
           - targets: ["order-service:8080"]
             labels:
               service: "order-service"
-
       - job_name: "inventory-service"
         metrics_path: "/metrics"
         static_configs:
           - targets: ["inventory-service:8081"]
             labels:
               service: "inventory-service"
-
       - job_name: "websocket-service"
         metrics_path: "/metrics"
         static_configs:
           - targets: ["websocket-service:8082"]
             labels:
               service: "websocket-service"
-
       - job_name: "auth-service"
         metrics_path: "/metrics"
         static_configs:
           - targets: ["auth-service:8083"]
             labels:
               service: "auth-service"
-
-      # ========== Traefik ==========
       - job_name: "traefik"
         metrics_path: "/metrics"
         static_configs:
@@ -92,8 +79,6 @@ exporters:
   prometheus:
     endpoint: "0.0.0.0:8889"
     namespace: "otel"
-    const_labels:
-      source: "otel-collector"
 
   otlphttp/tempo:
     endpoint: "http://tempo:4318"
@@ -106,7 +91,7 @@ exporters:
 processors:
   batch:
     timeout: 5s
-    send_batch_size: 1000
+    send_batch_size: 2000
 
   resource:
     attributes:
@@ -115,7 +100,6 @@ processors:
         action: upsert
 
 service:
-  # Cú pháp mới cho Self-Telemetry Metrics trong OTel v0.106+
   telemetry:
     metrics:
       level: detailed
@@ -132,13 +116,13 @@ service:
       processors: [batch, resource]
       exporters: [otlphttp/tempo]
     metrics:
-      receivers: 
+      receivers:
         - otlp
         - redis
         - kafkametrics
         - prometheus/app-services
-        - postgresql/inventory-db
         - postgresql/order-db
+        - postgresql/inventory-db
       processors: [batch, resource]
       exporters: [prometheus]
     logs:

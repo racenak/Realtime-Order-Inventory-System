@@ -1,5 +1,7 @@
 {
-  "annotations": { "list": [] },
+  "annotations": {
+    "list": []
+  },
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
@@ -7,153 +9,337 @@
   "links": [],
   "panels": [
     {
-      "title": "Order DB Status",
+      "title": "Order DB Backends",
       "type": "stat",
-      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 0 },
-      "targets": [{ "expr": "up{job=\"order-db\"}", "legendFormat": "up" }],
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 0,
+        "y": 0
+      },
+      "targets": [
+        {
+          "expr": "max(otel_postgresql_backends{exported_instance=~\"order-db.*\"})",
+          "legendFormat": "backends"
+        }
+      ],
       "fieldConfig": {
         "defaults": {
-          "mappings": [{ "options": { "0": { "text": "DOWN", "color": "red" }, "1": { "text": "UP", "color": "green" } }, "type": "value" }],
-          "thresholds": { "steps": [{ "value": 0, "color": "red" }, { "value": 1, "color": "green" }] }
+          "thresholds": {
+            "steps": [
+              {
+                "value": 0,
+                "color": "green"
+              },
+              {
+                "value": 50,
+                "color": "yellow"
+              },
+              {
+                "value": 80,
+                "color": "red"
+              }
+            ]
+          }
         }
       }
     },
     {
-      "title": "Inventory DB Status",
+      "title": "Inventory DB Backends",
       "type": "stat",
-      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 0 },
-      "targets": [{ "expr": "up{job=\"inventory-db\"}", "legendFormat": "up" }],
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 4,
+        "y": 0
+      },
+      "targets": [
+        {
+          "expr": "max(otel_postgresql_backends{exported_instance=~\"inventory-db.*\"})",
+          "legendFormat": "backends"
+        }
+      ],
       "fieldConfig": {
         "defaults": {
-          "mappings": [{ "options": { "0": { "text": "DOWN", "color": "red" }, "1": { "text": "UP", "color": "green" } }, "type": "value" }],
-          "thresholds": { "steps": [{ "value": 0, "color": "red" }, { "value": 1, "color": "green" }] }
+          "thresholds": {
+            "steps": [
+              {
+                "value": 0,
+                "color": "green"
+              },
+              {
+                "value": 50,
+                "color": "yellow"
+              },
+              {
+                "value": 80,
+                "color": "red"
+              }
+            ]
+          }
         }
       }
     },
     {
-      "title": "Active Connections (Order)",
+      "title": "Max Connections (Order)",
       "type": "stat",
-      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 0 },
-      "targets": [{ "expr": "pg_stat_activity_count{job=\"order-db\",state=\"active\"}", "legendFormat": "active" }],
-      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "steps": [{ "value": 0, "color": "green" }, { "value": 10, "color": "yellow" }, { "value": 50, "color": "red" }] } } }
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 8,
+        "y": 0
+      },
+      "targets": [
+        {
+          "expr": "max(otel_postgresql_connection_max{exported_instance=~\"order-db.*\"})",
+          "legendFormat": "max"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "steps": [
+              {
+                "value": 0,
+                "color": "blue"
+              }
+            ]
+          }
+        }
+      }
     },
     {
-      "title": "Active Connections (Inventory)",
+      "title": "Max Connections (Inventory)",
       "type": "stat",
-      "gridPos": { "h": 4, "w": 4, "x": 12, "y": 0 },
-      "targets": [{ "expr": "pg_stat_activity_count{job=\"inventory-db\",state=\"active\"}", "legendFormat": "active" }],
-      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "steps": [{ "value": 0, "color": "green" }, { "value": 10, "color": "yellow" }, { "value": 50, "color": "red" }] } } }
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 12,
+        "y": 0
+      },
+      "targets": [
+        {
+          "expr": "max(otel_postgresql_connection_max{exported_instance=~\"inventory-db.*\"})",
+          "legendFormat": "max"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "steps": [
+              {
+                "value": 0,
+                "color": "blue"
+              }
+            ]
+          }
+        }
+      }
     },
     {
       "title": "Database Size (Order)",
       "type": "stat",
-      "gridPos": { "h": 4, "w": 4, "x": 16, "y": 0 },
-      "targets": [{ "expr": "pg_database_size_bytes{job=\"order-db\",datname=\"order_db\"}", "legendFormat": "size" }],
-      "fieldConfig": { "defaults": { "unit": "bytes" } }
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 16,
+        "y": 0
+      },
+      "targets": [
+        {
+          "expr": "max(otel_postgresql_db_size_bytes{exported_instance=~\"order-db.*\"})",
+          "legendFormat": "size"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes"
+        }
+      }
     },
     {
       "title": "Database Size (Inventory)",
       "type": "stat",
-      "gridPos": { "h": 4, "w": 4, "x": 20, "y": 0 },
-      "targets": [{ "expr": "pg_database_size_bytes{job=\"inventory-db\",datname=\"inventory_db\"}", "legendFormat": "size" }],
-      "fieldConfig": { "defaults": { "unit": "bytes" } }
-    },
-    {
-      "title": "Connections by State (Order DB)",
-      "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 20,
+        "y": 0
+      },
       "targets": [
-        { "expr": "pg_stat_activity_count{job=\"order-db\"}", "legendFormat": "{{state}}" }
-      ]
-    },
-    {
-      "title": "Connections by State (Inventory DB)",
-      "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
-      "targets": [
-        { "expr": "pg_stat_activity_count{job=\"inventory-db\"}", "legendFormat": "{{state}}" }
-      ]
-    },
-    {
-      "title": "Transactions/sec (Order DB)",
-      "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
-      "targets": [
-        { "expr": "rate(pg_stat_database_xact_commit{job=\"order-db\",datname=\"order_db\"}[5m])", "legendFormat": "commits/s" },
-        { "expr": "rate(pg_stat_database_xact_rollback{job=\"order-db\",datname=\"order_db\"}[5m])", "legendFormat": "rollbacks/s" }
-      ]
-    },
-    {
-      "title": "Transactions/sec (Inventory DB)",
-      "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
-      "targets": [
-        { "expr": "rate(pg_stat_database_xact_commit{job=\"inventory-db\",datname=\"inventory_db\"}[5m])", "legendFormat": "commits/s" },
-        { "expr": "rate(pg_stat_database_xact_rollback{job=\"inventory-db\",datname=\"inventory_db\"}[5m])", "legendFormat": "rollbacks/s" }
-      ]
-    },
-    {
-      "title": "Cache Hit Ratio (Order DB)",
-      "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 20 },
-      "targets": [
-        { "expr": "pg_stat_database_blks_hit{job=\"order-db\",datname=\"order_db\"} / (pg_stat_database_blks_hit{job=\"order-db\",datname=\"order_db\"} + pg_stat_database_blks_read{job=\"order-db\",datname=\"order_db\"}) * 100", "legendFormat": "hit %" }
+        {
+          "expr": "max(otel_postgresql_db_size_bytes{exported_instance=~\"inventory-db.*\"})",
+          "legendFormat": "size"
+        }
       ],
-      "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100, "thresholds": { "steps": [{ "value": 90, "color": "green" }, { "value": 80, "color": "yellow" }, { "value": 0, "color": "red" }] } } }
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes"
+        }
+      }
     },
     {
-      "title": "Cache Hit Ratio (Inventory DB)",
+      "title": "Transactions / sec (Order DB)",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 20 },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 4
+      },
       "targets": [
-        { "expr": "pg_stat_database_blks_hit{job=\"inventory-db\",datname=\"inventory_db\"} / (pg_stat_database_blks_hit{job=\"inventory-db\",datname=\"inventory_db\"} + pg_stat_database_blks_read{job=\"inventory-db\",datname=\"inventory_db\"}) * 100", "legendFormat": "hit %" }
-      ],
-      "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100, "thresholds": { "steps": [{ "value": 90, "color": "green" }, { "value": 80, "color": "yellow" }, { "value": 0, "color": "red" }] } } }
-    },
-    {
-      "title": "Rows Fetched/sec (Order DB)",
-      "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 28 },
-      "targets": [
-        { "expr": "rate(pg_stat_database_tup_fetched{job=\"order-db\",datname=\"order_db\"}[5m])", "legendFormat": "fetched/s" },
-        { "expr": "rate(pg_stat_database_tup_returned{job=\"order-db\",datname=\"order_db\"}[5m])", "legendFormat": "returned/s" }
+        {
+          "expr": "sum(rate(otel_postgresql_commits_total{exported_instance=~\"order-db.*\"}[5m]))",
+          "legendFormat": "commits/s"
+        },
+        {
+          "expr": "sum(rate(otel_postgresql_rollbacks_total{exported_instance=~\"order-db.*\"}[5m]))",
+          "legendFormat": "rollbacks/s"
+        }
       ]
     },
     {
-      "title": "Rows Fetched/sec (Inventory DB)",
+      "title": "Transactions / sec (Inventory DB)",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 28 },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 4
+      },
       "targets": [
-        { "expr": "rate(pg_stat_database_tup_fetched{job=\"inventory-db\",datname=\"inventory_db\"}[5m])", "legendFormat": "fetched/s" },
-        { "expr": "rate(pg_stat_database_tup_returned{job=\"inventory-db\",datname=\"inventory_db\"}[5m])", "legendFormat": "returned/s" }
+        {
+          "expr": "sum(rate(otel_postgresql_commits_total{exported_instance=~\"inventory-db.*\"}[5m]))",
+          "legendFormat": "commits/s"
+        },
+        {
+          "expr": "sum(rate(otel_postgresql_rollbacks_total{exported_instance=~\"inventory-db.*\"}[5m]))",
+          "legendFormat": "rollbacks/s"
+        }
       ]
     },
     {
-      "title": "Deadlocks (Both DBs)",
+      "title": "Buffer Writes by Source (Order DB)",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 36 },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 12
+      },
       "targets": [
-        { "expr": "increase(pg_stat_database_deadlocks{job=\"order-db\"}[5m])", "legendFormat": "order-db" },
-        { "expr": "increase(pg_stat_database_deadlocks{job=\"inventory-db\"}[5m])", "legendFormat": "inventory-db" }
-      ],
-      "fieldConfig": { "defaults": { "thresholds": { "steps": [{ "value": 0, "color": "green" }, { "value": 1, "color": "red" }] } } }
+        {
+          "expr": "sum(rate(otel_postgresql_bgwriter_buffers_writes_total{exported_instance=~\"order-db.*\"}[5m])) by (source)",
+          "legendFormat": "{{source}}"
+        }
+      ]
     },
     {
-      "title": "Database Size Over Time",
+      "title": "Buffer Writes by Source (Inventory DB)",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 36 },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 12
+      },
       "targets": [
-        { "expr": "pg_database_size_bytes{job=\"order-db\",datname=\"order_db\"}", "legendFormat": "order_db" },
-        { "expr": "pg_database_size_bytes{job=\"inventory-db\",datname=\"inventory_db\"}", "legendFormat": "inventory_db" }
+        {
+          "expr": "sum(rate(otel_postgresql_bgwriter_buffers_writes_total{exported_instance=~\"inventory-db.*\"}[5m])) by (source)",
+          "legendFormat": "{{source}}"
+        }
+      ]
+    },
+    {
+      "title": "Checkpoints Per Minute",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 20
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(otel_postgresql_bgwriter_checkpoint_count_total{exported_instance=~\"order-db.*\"}[5m])) by (type)",
+          "legendFormat": "Order: {{type}}"
+        },
+        {
+          "expr": "sum(rate(otel_postgresql_bgwriter_checkpoint_count_total{exported_instance=~\"inventory-db.*\"}[5m])) by (type)",
+          "legendFormat": "Inventory: {{type}}"
+        }
+      ]
+    },
+    {
+      "title": "Checkpoint Duration (ms)",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 20
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(otel_postgresql_bgwriter_duration_milliseconds_total{exported_instance=~\"order-db.*\"}[5m])) by (type)",
+          "legendFormat": "Order: {{type}}"
+        },
+        {
+          "expr": "sum(rate(otel_postgresql_bgwriter_duration_milliseconds_total{exported_instance=~\"inventory-db.*\"}[5m])) by (type)",
+          "legendFormat": "Inventory: {{type}}"
+        }
       ],
-      "fieldConfig": { "defaults": { "unit": "bytes" } }
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms"
+        }
+      }
+    },
+    {
+      "title": "Total Database Size Over Time",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 28
+      },
+      "targets": [
+        {
+          "expr": "sum(otel_postgresql_db_size_bytes{exported_instance=~\"order-db.*\"})",
+          "legendFormat": "order-db"
+        },
+        {
+          "expr": "sum(otel_postgresql_db_size_bytes{exported_instance=~\"inventory-db.*\"})",
+          "legendFormat": "inventory-db"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes"
+        }
+      }
     }
   ],
   "schemaVersion": 39,
-  "tags": ["postgresql", "database"],
-  "templating": { "list": [] },
-  "time": { "from": "now-1h", "to": "now" },
+  "tags": [
+    "postgresql",
+    "opentelemetry"
+  ],
+  "templating": {
+    "list": []
+  },
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
   "title": "PostgreSQL",
   "uid": "postgresql",
-  "version": 1
+  "version": 3
 }

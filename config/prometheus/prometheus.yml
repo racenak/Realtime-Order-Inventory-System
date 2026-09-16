@@ -8,6 +8,11 @@ scrape_configs:
     static_configs:
       - targets: ['otel-collector:8889']
 
+  - job_name: 'otel-collector-self'
+    scrape_interval: 30s
+    static_configs:
+      - targets: ['otel-collector:8888']
+
 # ========== Alert Rules ==========
 rule_files:
   - "/etc/prometheus/alerts/*.yml"

@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   # ========== Databases ==========
   order-db:
@@ -292,6 +290,24 @@ services:
           memory: 1G
 
   # ========== Observability ==========
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.160.0
+    container_name: otel-collector
+    command: ["--config=/etc/otel/otel-collector.yml"]
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+      - "8888:8888"
+      - "8889:8889"
+    volumes:
+      - ./config/otel/otel-collector.yml:/etc/otel/otel-collector.yml:ro,z
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2G
+    restart: always
+
   prometheus:
     image: prom/prometheus:v2.53.0
     container_name: prometheus
@@ -299,6 +315,7 @@ services:
       - "--config.file=/etc/prometheus/prometheus.yml"
       - "--storage.tsdb.path=/prometheus"
       - "--storage.tsdb.retention.time=7d"
+      - "--storage.tsdb.retention.size=50GB"
       - "--web.enable-lifecycle"
     ports:
       - "9090:9090"
@@ -306,11 +323,14 @@ services:
       - ./config/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro,z
       - ./config/prometheus/alerts:/etc/prometheus/alerts:ro,z
       - prometheus_data:/prometheus
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 4G
     depends_on:
-      - order-service
-      - inventory-service
-      - websocket-service
-      - auth-service
+      - otel-collector
+    restart: always
 
   grafana:
     image: grafana/grafana:11.1.0
@@ -326,10 +346,16 @@ services:
       - ./config/grafana/provisioning:/etc/grafana/provisioning:ro,z
       - ./config/grafana/dashboards:/var/lib/grafana/dashboards:ro,z
       - grafana_data:/var/lib/grafana
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 2G
     depends_on:
       - prometheus
       - loki
       - tempo
+    restart: always
 
   loki:
     image: grafana/loki:3.1.0
@@ -339,36 +365,35 @@ services:
       - "3100:3100"
     volumes:
       - ./config/loki/loki.yml:/etc/loki/loki.yml:ro,z
-      - loki_data:/loki
+      - loki:/loki
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 2G
+    restart: always
 
   tempo:
     image: grafana/tempo:2.3.0
     container_name: tempo
     command: ["--config.file=/etc/tempo/tempo.yaml"]
     ports:
-      - "4317:4317"
       - "3200:3200"
     volumes:
       - ./config/tempo/tempo.yaml:/etc/tempo/tempo.yaml:ro,z
-      - tempo_data:/var/tempo
+      - tempo:/var/tempo
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 2G
     healthcheck:
       test: ["CMD-SHELL", "wget -q --spider http://localhost:3200/ready || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 15s
-  
-  otel-collector:
-    image: otel/opentelemetry-collector-contrib:0.160.0
-    container_name: otel-collector
-    command: ["--config=/etc/otel/otel-collector.yml"]
-    ports:
-      - "4319:4317"
-      - "4320:4318"
-      - "8888:8888"
-      - "8889:8889"
-    volumes:
-      - ./config/otel/otel-collector.yml:/etc/otel/otel-collector.yml:ro,z
+    restart: always
 
   k6-loadtester:
     image: grafana/k6:0.50.0
@@ -384,33 +409,10 @@ services:
     profiles:
       - load-test
 
-  order-db-exporter:
-    image: prometheuscommunity/postgres-exporter:v0.15.0
-    container_name: order-db-exporter
-    environment:
-      - DATA_SOURCE_NAME=postgresql://postgres:postgres@order-db:5432/order_db?sslmode=disable
-    ports:
-      - "9187:9187"
-    depends_on:
-      order-db:
-        condition: service_healthy
-
-  inventory-db-exporter:
-    image: prometheuscommunity/postgres-exporter:v0.15.0
-    container_name: inventory-db-exporter
-    environment:
-      - DATA_SOURCE_NAME=postgresql://postgres:postgres@inventory-db:5432/inventory_db?sslmode=disable
-    ports:
-      - "9188:9187"
-    depends_on:
-      inventory-db:
-        condition: service_healthy
-
 volumes:
   order_db_data:
   inventory_db_data:
   prometheus_data:
   grafana_data:
-  loki_data:
-  tempo_data:
-  promtail_data:
+  loki:
+  tempo:

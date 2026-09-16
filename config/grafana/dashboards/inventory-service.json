@@ -1,5 +1,7 @@
 {
-  "annotations": { "list": [] },
+  "annotations": {
+    "list": []
+  },
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
@@ -9,107 +11,283 @@
     {
       "title": "Status",
       "type": "stat",
-      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 0 },
-      "targets": [{ "expr": "up{job=\"inventory-service\"}", "legendFormat": "up" }],
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 0,
+        "y": 0
+      },
+      "targets": [
+        {
+          "expr": "max(up{job=\"inventory-service\"})",
+          "legendFormat": "up"
+        }
+      ],
       "fieldConfig": {
         "defaults": {
-          "mappings": [{ "options": { "0": { "text": "DOWN", "color": "red" }, "1": { "text": "UP", "color": "green" } }, "type": "value" }],
-          "thresholds": { "steps": [{ "value": 0, "color": "red" }, { "value": 1, "color": "green" }] }
+          "mappings": [
+            {
+              "options": {
+                "0": {
+                  "text": "DOWN",
+                  "color": "red"
+                },
+                "1": {
+                  "text": "UP",
+                  "color": "green"
+                }
+              },
+              "type": "value"
+            }
+          ],
+          "thresholds": {
+            "steps": [
+              {
+                "value": 0,
+                "color": "red"
+              },
+              {
+                "value": 1,
+                "color": "green"
+              }
+            ]
+          }
         }
       }
     },
     {
       "title": "Request Rate",
       "type": "stat",
-      "gridPos": { "h": 4, "w": 5, "x": 4, "y": 0 },
-      "targets": [{ "expr": "sum(rate(http_requests_total{job=\"inventory-service\"}[5m]))", "legendFormat": "req/s" }],
-      "fieldConfig": { "defaults": { "unit": "reqps" } }
+      "gridPos": {
+        "h": 4,
+        "w": 5,
+        "x": 4,
+        "y": 0
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(otel_http_requests_total{job=\"inventory-service\"}[5m]))",
+          "legendFormat": "req/s"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        }
+      }
     },
     {
       "title": "Error Rate",
       "type": "stat",
-      "gridPos": { "h": 4, "w": 5, "x": 9, "y": 0 },
-      "targets": [{ "expr": "sum(rate(http_requests_total{job=\"inventory-service\",status=~\"5..\"}[5m])) / sum(rate(http_requests_total{job=\"inventory-service\"}[5m])) * 100", "legendFormat": "%" }],
-      "fieldConfig": { "defaults": { "unit": "percent", "thresholds": { "steps": [{ "value": 0, "color": "green" }, { "value": 1, "color": "yellow" }, { "value": 5, "color": "red" }] } } }
+      "gridPos": {
+        "h": 4,
+        "w": 5,
+        "x": 9,
+        "y": 0
+      },
+      "targets": [
+        {
+          "expr": "(sum(rate(otel_http_requests_total{job=\"inventory-service\",status=~\"5..\"}[5m])) / sum(rate(otel_http_requests_total{job=\"inventory-service\"}[5m]))) * 100",
+          "legendFormat": "%"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": {
+            "steps": [
+              {
+                "value": 0,
+                "color": "green"
+              },
+              {
+                "value": 1,
+                "color": "yellow"
+              },
+              {
+                "value": 5,
+                "color": "red"
+              }
+            ]
+          }
+        }
+      }
     },
     {
       "title": "Latency P95",
       "type": "stat",
-      "gridPos": { "h": 4, "w": 5, "x": 14, "y": 0 },
-      "targets": [{ "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job=\"inventory-service\"}[5m])) by (le))", "legendFormat": "P95" }],
-      "fieldConfig": { "defaults": { "unit": "s" } }
+      "gridPos": {
+        "h": 4,
+        "w": 5,
+        "x": 14,
+        "y": 0
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(otel_http_request_duration_seconds_bucket{job=\"inventory-service\"}[5m])) by (le))",
+          "legendFormat": "P95"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        }
+      }
     },
     {
       "title": "Latency P99",
       "type": "stat",
-      "gridPos": { "h": 4, "w": 5, "x": 19, "y": 0 },
-      "targets": [{ "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket{job=\"inventory-service\"}[5m])) by (le))", "legendFormat": "P99" }],
-      "fieldConfig": { "defaults": { "unit": "s" } }
+      "gridPos": {
+        "h": 4,
+        "w": 5,
+        "x": 19,
+        "y": 0
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(otel_http_request_duration_seconds_bucket{job=\"inventory-service\"}[5m])) by (le))",
+          "legendFormat": "P99"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        }
+      }
     },
     {
       "title": "Stock Reservations",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 4 },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 4
+      },
       "targets": [
-        { "expr": "sum(rate(inventory_reservations_total{job=\"inventory-service\",status=\"success\"}[5m]))", "legendFormat": "reserved/s" },
-        { "expr": "sum(rate(inventory_reservations_total{job=\"inventory-service\",status!=\"success\"}[5m]))", "legendFormat": "failed/s" }
+        {
+          "expr": "sum(rate(otel_inventory_reservations_total{job=\"inventory-service\",status=\"success\"}[5m]))",
+          "legendFormat": "reserved/s"
+        },
+        {
+          "expr": "sum(rate(otel_inventory_reservations_total{job=\"inventory-service\",status!=\"success\"}[5m]))",
+          "legendFormat": "failed/s"
+        }
       ]
     },
     {
       "title": "Reservation Releases",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 4 },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 4
+      },
       "targets": [
-        { "expr": "sum(rate(inventory_releases_total{job=\"inventory-service\"}[5m]))", "legendFormat": "releases/s" }
+        {
+          "expr": "sum(rate(otel_inventory_releases_total{job=\"inventory-service\"}[5m]))",
+          "legendFormat": "releases/s"
+        }
       ]
     },
     {
       "title": "Stock Updates",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 4 },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 4
+      },
       "targets": [
-        { "expr": "sum(rate(inventory_updates_total{job=\"inventory-service\"}[5m]))", "legendFormat": "updates/s" }
+        {
+          "expr": "sum(rate(otel_inventory_updates_total{job=\"inventory-service\"}[5m]))",
+          "legendFormat": "updates/s"
+        }
       ]
     },
     {
       "title": "Failed Operations",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 12
+      },
       "targets": [
-        { "expr": "sum(rate(inventory_failed_total{job=\"inventory-service\"}[5m])) by (reason)", "legendFormat": "{{reason}}" }
+        {
+          "expr": "sum(rate(otel_inventory_failed_total{job=\"inventory-service\"}[5m])) by (reason)",
+          "legendFormat": "{{reason}}"
+        }
       ]
     },
     {
       "title": "Request Rate by Endpoint",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 12
+      },
       "targets": [
-        { "expr": "sum(rate(http_requests_total{job=\"inventory-service\"}[5m])) by (method, path)", "legendFormat": "{{method}} {{path}}" }
+        {
+          "expr": "sum(rate(otel_http_requests_total{job=\"inventory-service\"}[5m])) by (method, path)",
+          "legendFormat": "{{method}} {{path}}"
+        }
       ]
     },
     {
       "title": "HTTP Status Codes",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 20 },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 20
+      },
       "targets": [
-        { "expr": "sum(rate(http_requests_total{job=\"inventory-service\"}[5m])) by (status)", "legendFormat": "{{status}}" }
+        {
+          "expr": "sum(rate(otel_http_requests_total{job=\"inventory-service\"}[5m])) by (status)",
+          "legendFormat": "{{status}}"
+        }
       ]
     },
     {
       "title": "Go Runtime",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 20 },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 20
+      },
       "targets": [
-        { "expr": "go_memstats_alloc_bytes{job=\"inventory-service\"}", "legendFormat": "alloc" },
-        { "expr": "go_goroutines{job=\"inventory-service\"}", "legendFormat": "goroutines" }
+        {
+          "expr": "sum(otel_go_memstats_alloc_bytes{job=\"inventory-service\"})",
+          "legendFormat": "alloc"
+        },
+        {
+          "expr": "sum(otel_go_goroutines{job=\"inventory-service\"})",
+          "legendFormat": "goroutines"
+        }
       ]
     }
   ],
   "schemaVersion": 39,
-  "tags": ["inventory-service"],
-  "templating": { "list": [] },
-  "time": { "from": "now-1h", "to": "now" },
+  "tags": [
+    "inventory-service"
+  ],
+  "templating": {
+    "list": []
+  },
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
   "title": "Inventory Service",
   "uid": "inventory-service",
-  "version": 1
+  "version": 2
 }

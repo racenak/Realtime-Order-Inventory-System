@@ -1,5 +1,7 @@
 {
-  "annotations": { "list": [] },
+  "annotations": {
+    "list": []
+  },
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
@@ -9,100 +11,277 @@
     {
       "title": "Status",
       "type": "stat",
-      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 0 },
-      "targets": [{ "expr": "redis_up{job=\"redis\"}", "legendFormat": "up" }],
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 0,
+        "y": 0
+      },
+      "targets": [
+        {
+          "expr": "max(otel_up{job=\"redis\"})",
+          "legendFormat": "up"
+        }
+      ],
       "fieldConfig": {
         "defaults": {
-          "mappings": [{ "options": { "0": { "text": "DOWN", "color": "red" }, "1": { "text": "UP", "color": "green" } }, "type": "value" }],
-          "thresholds": { "steps": [{ "value": 0, "color": "red" }, { "value": 1, "color": "green" }] }
+          "mappings": [
+            {
+              "options": {
+                "0": {
+                  "text": "DOWN",
+                  "color": "red"
+                },
+                "1": {
+                  "text": "UP",
+                  "color": "green"
+                }
+              },
+              "type": "value"
+            }
+          ],
+          "thresholds": {
+            "steps": [
+              {
+                "value": 0,
+                "color": "red"
+              },
+              {
+                "value": 1,
+                "color": "green"
+              }
+            ]
+          }
         }
       }
     },
     {
       "title": "Connected Clients",
       "type": "stat",
-      "gridPos": { "h": 4, "w": 5, "x": 4, "y": 0 },
-      "targets": [{ "expr": "redis_connected_clients{job=\"redis\"}", "legendFormat": "clients" }],
-      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "steps": [{ "value": 0, "color": "green" }, { "value": 50, "color": "yellow" }, { "value": 100, "color": "red" }] } } }
+      "gridPos": {
+        "h": 4,
+        "w": 5,
+        "x": 4,
+        "y": 0
+      },
+      "targets": [
+        {
+          "expr": "sum(otel_redis_clients_connected{job=\"redis\"})",
+          "legendFormat": "clients"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "steps": [
+              {
+                "value": 0,
+                "color": "green"
+              },
+              {
+                "value": 50,
+                "color": "yellow"
+              },
+              {
+                "value": 100,
+                "color": "red"
+              }
+            ]
+          }
+        }
+      }
     },
     {
       "title": "Memory Used",
       "type": "stat",
-      "gridPos": { "h": 4, "w": 5, "x": 9, "y": 0 },
-      "targets": [{ "expr": "redis_memory_used_bytes{job=\"redis\"}", "legendFormat": "used" }],
-      "fieldConfig": { "defaults": { "unit": "bytes" } }
+      "gridPos": {
+        "h": 4,
+        "w": 5,
+        "x": 9,
+        "y": 0
+      },
+      "targets": [
+        {
+          "expr": "sum(otel_redis_memory_used_bytes{job=\"redis\"})",
+          "legendFormat": "used"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes"
+        }
+      }
     },
     {
       "title": "Memory Peak",
       "type": "stat",
-      "gridPos": { "h": 4, "w": 5, "x": 14, "y": 0 },
-      "targets": [{ "expr": "redis_memory_max_bytes{job=\"redis\"}", "legendFormat": "max" }],
-      "fieldConfig": { "defaults": { "unit": "bytes" } }
+      "gridPos": {
+        "h": 4,
+        "w": 5,
+        "x": 14,
+        "y": 0
+      },
+      "targets": [
+        {
+          "expr": "max(otel_redis_memory_used_bytes{job=\"redis\"})",
+          "legendFormat": "max"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes"
+        }
+      }
     },
     {
       "title": "Uptime",
       "type": "stat",
-      "gridPos": { "h": 4, "w": 5, "x": 19, "y": 0 },
-      "targets": [{ "expr": "redis_uptime_in_seconds{job=\"redis\"}", "legendFormat": "uptime" }],
-      "fieldConfig": { "defaults": { "unit": "s" } }
+      "gridPos": {
+        "h": 4,
+        "w": 5,
+        "x": 19,
+        "y": 0
+      },
+      "targets": [
+        {
+          "expr": "max(otel_redis_uptime_seconds_total{job=\"redis\"})",
+          "legendFormat": "uptime"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        }
+      }
     },
     {
       "title": "Commands/sec",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 4
+      },
       "targets": [
-        { "expr": "rate(redis_commands_processed_total{job=\"redis\"}[5m])", "legendFormat": "commands/s" }
+        {
+          "expr": "sum(rate(otel_redis_commands_processed_total{job=\"redis\"}[5m]))",
+          "legendFormat": "commands/s"
+        }
       ]
     },
     {
       "title": "Hit Rate",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 4
+      },
       "targets": [
-        { "expr": "rate(redis_keyspace_hits_total{job=\"redis\"}[5m]) / (rate(redis_keyspace_hits_total{job=\"redis\"}[5m]) + rate(redis_keyspace_misses_total{job=\"redis\"}[5m])) * 100", "legendFormat": "hit %" }
+        {
+          "expr": "(sum(rate(otel_redis_keyspace_hits_total{job=\"redis\"}[5m])) / (sum(rate(otel_redis_keyspace_hits_total{job=\"redis\"}[5m])) + sum(rate(otel_redis_keyspace_misses_total{job=\"redis\"}[5m])))) * 100",
+          "legendFormat": "hit %"
+        }
       ],
-      "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100 } }
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100
+        }
+      }
     },
     {
       "title": "Connected Clients Over Time",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 12
+      },
       "targets": [
-        { "expr": "redis_connected_clients{job=\"redis\"}", "legendFormat": "clients" }
+        {
+          "expr": "sum(otel_redis_clients_connected{job=\"redis\"})",
+          "legendFormat": "clients"
+        }
       ]
     },
     {
       "title": "Memory Usage Over Time",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 12
+      },
       "targets": [
-        { "expr": "redis_memory_used_bytes{job=\"redis\"}", "legendFormat": "used" },
-        { "expr": "redis_memory_max_bytes{job=\"redis\"}", "legendFormat": "max" }
+        {
+          "expr": "sum(otel_redis_memory_used_bytes{job=\"redis\"})",
+          "legendFormat": "used"
+        },
+        {
+          "expr": "max(otel_redis_memory_used_bytes{job=\"redis\"})",
+          "legendFormat": "max"
+        }
       ],
-      "fieldConfig": { "defaults": { "unit": "bytes" } }
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes"
+        }
+      }
     },
     {
       "title": "Keys by Database",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 20 },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 20
+      },
       "targets": [
-        { "expr": "redis_db_keys{job=\"redis\"}", "legendFormat": "db{{db}}" }
+        {
+          "expr": "sum(otel_redis_keyspace_hits_total{job=\"redis\"}) by (db)",
+          "legendFormat": "db{{db}}"
+        }
       ]
     },
     {
       "title": "Evicted Keys",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 20 },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 20
+      },
       "targets": [
-        { "expr": "rate(redis_evicted_keys_total{job=\"redis\"}[5m])", "legendFormat": "evicted/s" }
+        {
+          "expr": "sum(rate(otel_redis_keys_evicted_total{job=\"redis\"}[5m]))",
+          "legendFormat": "evicted/s"
+        }
       ]
     }
   ],
   "schemaVersion": 39,
-  "tags": ["redis"],
-  "templating": { "list": [] },
-  "time": { "from": "now-1h", "to": "now" },
+  "tags": [
+    "redis"
+  ],
+  "templating": {
+    "list": []
+  },
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
   "title": "Redis",
   "uid": "redis",
-  "version": 1
+  "version": 2
 }

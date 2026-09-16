@@ -1,5 +1,7 @@
 {
-  "annotations": { "list": [] },
+  "annotations": {
+    "list": []
+  },
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
@@ -9,99 +11,299 @@
     {
       "title": "Status",
       "type": "stat",
-      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 0 },
-      "targets": [{ "expr": "up{job=\"traefik\"}", "legendFormat": "up" }],
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 0,
+        "y": 0
+      },
+      "targets": [
+        {
+          "expr": "max(up{job=\"traefik\"})",
+          "legendFormat": "up"
+        }
+      ],
       "fieldConfig": {
         "defaults": {
-          "mappings": [{ "options": { "0": { "text": "DOWN", "color": "red" }, "1": { "text": "UP", "color": "green" } }, "type": "value" }],
-          "thresholds": { "steps": [{ "value": 0, "color": "red" }, { "value": 1, "color": "green" }] }
+          "mappings": [
+            {
+              "options": {
+                "0": {
+                  "text": "DOWN",
+                  "color": "red"
+                },
+                "1": {
+                  "text": "UP",
+                  "color": "green"
+                }
+              },
+              "type": "value"
+            }
+          ],
+          "thresholds": {
+            "steps": [
+              {
+                "value": 0,
+                "color": "red"
+              },
+              {
+                "value": 1,
+                "color": "green"
+              }
+            ]
+          }
         }
       }
     },
     {
       "title": "Request Rate",
       "type": "stat",
-      "gridPos": { "h": 4, "w": 5, "x": 4, "y": 0 },
-      "targets": [{ "expr": "sum(rate(traefik_http_requests_total{job=\"traefik\"}[5m]))", "legendFormat": "req/s" }],
-      "fieldConfig": { "defaults": { "unit": "reqps" } }
+      "gridPos": {
+        "h": 4,
+        "w": 5,
+        "x": 4,
+        "y": 0
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(otel_traefik_entrypoint_requests_total{job=\"traefik\"}[5m]))",
+          "legendFormat": "req/s"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        }
+      }
     },
     {
       "title": "Error Rate",
       "type": "stat",
-      "gridPos": { "h": 4, "w": 5, "x": 9, "y": 0 },
-      "targets": [{ "expr": "sum(rate(traefik_http_requests_total{job=\"traefik\",code=~\"5..\"}[5m])) / sum(rate(traefik_http_requests_total{job=\"traefik\"}[5m])) * 100", "legendFormat": "%" }],
-      "fieldConfig": { "defaults": { "unit": "percent", "thresholds": { "steps": [{ "value": 0, "color": "green" }, { "value": 1, "color": "yellow" }, { "value": 5, "color": "red" }] } } }
+      "gridPos": {
+        "h": 4,
+        "w": 5,
+        "x": 9,
+        "y": 0
+      },
+      "targets": [
+        {
+          "expr": "(sum(rate(otel_traefik_entrypoint_requests_total{job=\"traefik\",code=~\"5..\"}[5m])) / sum(rate(otel_traefik_entrypoint_requests_total{job=\"traefik\"}[5m]))) * 100",
+          "legendFormat": "%"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": {
+            "steps": [
+              {
+                "value": 0,
+                "color": "green"
+              },
+              {
+                "value": 1,
+                "color": "yellow"
+              },
+              {
+                "value": 5,
+                "color": "red"
+              }
+            ]
+          }
+        }
+      }
     },
     {
       "title": "Latency P95",
       "type": "stat",
-      "gridPos": { "h": 4, "w": 5, "x": 14, "y": 0 },
-      "targets": [{ "expr": "histogram_quantile(0.95, sum(rate(traefik_http_request_duration_seconds_bucket{job=\"traefik\"}[5m])) by (le))", "legendFormat": "P95" }],
-      "fieldConfig": { "defaults": { "unit": "s" } }
+      "gridPos": {
+        "h": 4,
+        "w": 5,
+        "x": 14,
+        "y": 0
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(otel_traefik_entrypoint_request_duration_seconds_bucket{job=\"traefik\"}[5m])) by (le))",
+          "legendFormat": "P95"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        }
+      }
     },
     {
       "title": "Open Connections",
       "type": "stat",
-      "gridPos": { "h": 4, "w": 5, "x": 19, "y": 0 },
-      "targets": [{ "expr": "traefik_open_connections{job=\"traefik\"}", "legendFormat": "open" }],
-      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "steps": [{ "value": 0, "color": "green" }, { "value": 100, "color": "yellow" }, { "value": 500, "color": "red" }] } } }
+      "gridPos": {
+        "h": 4,
+        "w": 5,
+        "x": 19,
+        "y": 0
+      },
+      "targets": [
+        {
+          "expr": "sum(otel_traefik_entrypoint_open_connections{job=\"traefik\"})",
+          "legendFormat": "open"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "steps": [
+              {
+                "value": 0,
+                "color": "green"
+              },
+              {
+                "value": 100,
+                "color": "yellow"
+              },
+              {
+                "value": 500,
+                "color": "red"
+              }
+            ]
+          }
+        }
+      }
     },
     {
       "title": "Request Rate by Router",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 4
+      },
       "targets": [
-        { "expr": "sum(rate(traefik_http_requests_total{job=\"traefik\"}[5m])) by (router)", "legendFormat": "{{router}}" }
+        {
+          "expr": "sum(rate(otel_traefik_entrypoint_requests_total{job=\"traefik\"}[5m])) by (router)",
+          "legendFormat": "{{router}}"
+        }
       ]
     },
     {
       "title": "Request Rate by Entry Point",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 4
+      },
       "targets": [
-        { "expr": "sum(rate(traefik_http_requests_total{job=\"traefik\"}[5m])) by (entrypoint)", "legendFormat": "{{entrypoint}}" }
+        {
+          "expr": "sum(rate(otel_traefik_entrypoint_requests_total{job=\"traefik\"}[5m])) by (entrypoint)",
+          "legendFormat": "{{entrypoint}}"
+        }
       ]
     },
     {
       "title": "Request Latency by Router",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 12
+      },
       "targets": [
-        { "expr": "histogram_quantile(0.95, sum(rate(traefik_http_request_duration_seconds_bucket{job=\"traefik\"}[5m])) by (le, router))", "legendFormat": "P95 {{router}}" }
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(otel_traefik_entrypoint_request_duration_seconds_bucket{job=\"traefik\"}[5m])) by (le, router))",
+          "legendFormat": "P95 {{router}}"
+        }
       ],
-      "fieldConfig": { "defaults": { "unit": "s" } }
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        }
+      }
     },
     {
       "title": "HTTP Status Codes",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 12
+      },
       "targets": [
-        { "expr": "sum(rate(traefik_http_requests_total{job=\"traefik\"}[5m])) by (code)", "legendFormat": "{{code}}" }
+        {
+          "expr": "sum(rate(otel_traefik_entrypoint_requests_total{job=\"traefik\"}[5m])) by (code)",
+          "legendFormat": "{{code}}"
+        }
       ]
     },
     {
       "title": "Entrypoint Connections",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 20 },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 20
+      },
       "targets": [
-        { "expr": "traefik_open_connections{job=\"traefik\"}", "legendFormat": "{{entrypoint}}" }
+        {
+          "expr": "sum(otel_traefik_entrypoint_open_connections{job=\"traefik\"}) by (entrypoint)",
+          "legendFormat": "{{entrypoint}}"
+        }
       ]
     },
     {
       "title": "Config Reload",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 20 },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 20
+      },
       "targets": [
-        { "expr": "traefik_config_last_reload_success{job=\"traefik\"}", "legendFormat": "last reload" }
+        {
+          "expr": "max(otel_traefik_config_last_reload_success{job=\"traefik\"})",
+          "legendFormat": "last reload"
+        }
       ],
-      "fieldConfig": { "defaults": { "mappings": [{ "options": { "0": { "text": "FAILED" }, "1": { "text": "OK" } }, "type": "value" }] } }
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "options": {
+                "0": {
+                  "text": "FAILED"
+                },
+                "1": {
+                  "text": "OK"
+                }
+              },
+              "type": "value"
+            }
+          ]
+        }
+      }
     }
   ],
   "schemaVersion": 39,
-  "tags": ["traefik"],
-  "templating": { "list": [] },
-  "time": { "from": "now-1h", "to": "now" },
+  "tags": [
+    "traefik"
+  ],
+  "templating": {
+    "list": []
+  },
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
   "title": "Traefik",
   "uid": "traefik",
-  "version": 1
+  "version": 2
 }

@@ -4,16 +4,35 @@
 
 | Component | Port | Purpose |
 |-----------|------|---------|
+| OTel Collector | 4317 | Telemetry pipeline (single instance, high concurrency) |
 | Prometheus | 9090 | Metrics TSDB + scraping |
 | Grafana | 3000 | 9 dashboards |
 | Loki | 3100 | Log aggregation |
 | Tempo | 3200 | Distributed trace UI |
-| OTel Collector | 8888 | Telemetry pipeline |
 | Promtail | 9080 | Log shipping |
 | kafka-exporter | 9308 | Kafka metrics |
 | redis-exporter | 9121 | Redis metrics |
-| postgres-exporter | 9187 | Order DB metrics |
-| postgres-exporter | 9188 | Inventory DB metrics |
+| order-db-exporter | 9187 | Order DB metrics |
+| inventory-db-exporter | 9188 | Inventory DB metrics |
+
+---
+
+## Architecture
+
+### Observability Flow
+
+```
+N Services ──→ otel-collector:4317 ──→ Prometheus + Loki + Tempo → Grafana
+N DBs   ↗
+```
+
+**Key scaling decisions:**
+- **OTel Collector**: Single instance with `max_concurrent_requests: 200` and `send_batch_size: 2000`. Handles N services by queuing and batching telemetry.
+- **Prometheus**: Single instance with increased TSDB retention (50GB) and proper scrape config for all services and database exporters.
+- **Loki**: Single instance with increased ingestion limits (`ingestion_rate_mb: 100`, `max_entries_limit_per_request: 5000`).
+- **Tempo**: Single instance with increased `max_traces_per_user: 50000` and `max_concurrent_requests: 200`.
+- **No object storage**: All Loki/Tempo data uses local filesystem volumes.
+- **No sharding**: Single instances handle all services through proper resource allocation and configuration tuning.
 
 ---
 
@@ -92,8 +111,8 @@ func Init(serviceName, endpoint string) (*sdktrace.TracerProvider, error) {
 
 **Flow**:
 ```
-Service → OTLP gRPC → OTel Collector → Tempo (traces)
-                                       → Prometheus (metrics)
+Service → OTLP gRPC → otel-collector:4317 → Tempo (traces)
+                                        → Prometheus (metrics)
 ```
 
 ### Span Naming
@@ -225,12 +244,17 @@ healthcheck:
 
 ## What's Implemented
 
-- [x] Full observability stack (Prometheus, Grafana, Loki, Tempo, OTel Collector, Promtail)
+- [x] Single OTel Collector with high concurrency (max_concurrent_requests: 200)
+- [x] Single Prometheus with increased TSDB retention (50GB)
+- [x] Single Loki with increased ingestion limits
+- [x] Single Tempo with increased trace capacity
 - [x] 9 Grafana dashboards
 - [x] 16 custom business metrics (pkg/metrics/)
 - [x] OTEL tracing with OTLP gRPC exporter
 - [x] Structured JSON logging (Zap)
 - [x] Log shipping via Promtail → Loki
-- [x] Per-service exporters (kafka, redis, postgres)
+- [x] Per-service exporters (kafka, redis, postgres, order-db, inventory-db)
 - [x] Health checks for all services
 - [x] HTTP metrics middleware (chi)
+- [x] Postgres exporters for both databases
+- [x] Scales to N services and N databases without bottleneck

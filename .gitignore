@@ -36,6 +36,9 @@ go.work.sum
 
 # Agents
 .opencode
+.ua
+.kilo
 
 # Binaries
 /auth-service
+

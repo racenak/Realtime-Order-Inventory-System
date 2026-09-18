@@ -39,6 +39,8 @@ spec:
               value: postgres
             - name: POSTGRES_DB
               value: inventory_db
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
           volumeMounts:
             - name: inventory-db-data
               mountPath: /var/lib/postgresql/data

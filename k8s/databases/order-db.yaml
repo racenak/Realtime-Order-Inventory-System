@@ -39,6 +39,8 @@ spec:
               value: postgres
             - name: POSTGRES_DB
               value: order_db
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
           volumeMounts:
             - name: order-db-data
               mountPath: /var/lib/postgresql/data

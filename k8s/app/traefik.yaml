@@ -150,6 +150,7 @@ spec:
             - --metrics.prometheus.addEntryPointsLabels=true
             - --metrics.prometheus.addServicesLabels=true
             - --log.level=INFO
+            - --ping=true
           ports:
             - name: web
               containerPort: 8088

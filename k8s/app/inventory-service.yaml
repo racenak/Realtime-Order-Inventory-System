@@ -29,7 +29,7 @@ spec:
       containers:
         - name: inventory-service
           image: ghcr.io/racenak/realtime-order-inventory-system/inventory-service:main
-          imagePullPolicy: Always
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8081
               protocol: TCP

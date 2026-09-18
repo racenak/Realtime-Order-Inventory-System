@@ -58,6 +58,14 @@ spec:
               value: "1"
             - name: KAFKA_AUTO_CREATE_TOPICS_ENABLE
               value: "true"
+            - name: KAFKA_LOG_DIRS
+              value: /var/lib/kafka/data
+            - name: KAFKA_CONTROLLER_SHUTDOWN_ENABLE
+              value: "true"
+            - name: KAFKA_SOCKET_SEND_BUFFER_BYTES
+              value: "102400"
+            - name: KAFKA_SOCKET_RECEIVE_BUFFER_BYTES
+              value: "102400"
           volumeMounts:
             - name: kafka-data
               mountPath: /var/lib/kafka/data
@@ -75,10 +83,10 @@ spec:
                 - -z
                 - localhost
                 - "9092"
-            initialDelaySeconds: 30
+            initialDelaySeconds: 60
             periodSeconds: 10
             timeoutSeconds: 10
-            failureThreshold: 10
+            failureThreshold: 15
           livenessProbe:
             exec:
               command:
@@ -86,7 +94,7 @@ spec:
                 - -z
                 - localhost
                 - "9092"
-            initialDelaySeconds: 60
+            initialDelaySeconds: 90
             periodSeconds: 15
             timeoutSeconds: 10
             failureThreshold: 10

@@ -17,15 +17,6 @@ spec:
     spec:
       imagePullSecrets:
         - name: ghcr-pull
-      affinity:
-        nodeAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            nodeSelectorTerms:
-              - matchExpressions:
-                  - key: node-role.kubernetes.io/app
-                    operator: In
-                    values:
-                      - "true"
       containers:
         - name: order-service
           image: ghcr.io/racenak/realtime-order-inventory-system/order-service:main

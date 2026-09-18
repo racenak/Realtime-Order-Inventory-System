@@ -100,15 +100,6 @@ spec:
             periodSeconds: 15
             timeoutSeconds: 10
             failureThreshold: 10
-      affinity:
-        nodeAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            nodeSelectorTerms:
-              - matchExpressions:
-                  - key: node-role.kubernetes.io/app
-                    operator: In
-                    values:
-                      - "true"
       volumes:
         - name: kafka-data
           persistentVolumeClaim:

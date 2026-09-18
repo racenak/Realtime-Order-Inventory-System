@@ -127,15 +127,6 @@ spec:
       labels:
         app: traefik
     spec:
-      affinity:
-        nodeAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            nodeSelectorTerms:
-              - matchExpressions:
-                  - key: node-role.kubernetes.io/app
-                    operator: In
-                    values:
-                      - "true"
       containers:
         - name: traefik
           image: traefik:v2.11.57

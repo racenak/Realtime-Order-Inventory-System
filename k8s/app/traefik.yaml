@@ -166,13 +166,13 @@ spec:
           livenessProbe:
             httpGet:
               path: /ping
-              port: 8088
+              port: 8080
             initialDelaySeconds: 15
             periodSeconds: 20
           readinessProbe:
             httpGet:
               path: /ping
-              port: 8088
+              port: 8080
             initialDelaySeconds: 5
             periodSeconds: 10
       volumes:

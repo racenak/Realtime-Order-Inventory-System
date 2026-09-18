@@ -16,8 +16,8 @@ spec:
         app: prometheus
     spec:
       securityContext:
-        fsGroup: 65534
-        runAsUser: 65534
+        fsGroup: 0
+        runAsUser: 0
       containers:
         - name: prometheus
           image: prom/prometheus:v2.53.0

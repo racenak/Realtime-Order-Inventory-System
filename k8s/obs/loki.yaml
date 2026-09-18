@@ -16,8 +16,8 @@ spec:
         app: loki
     spec:
       securityContext:
-        fsGroup: 10001
-        runAsUser: 10001
+        fsGroup: 0
+        runAsUser: 0
       containers:
         - name: loki
           image: grafana/loki:3.1.0

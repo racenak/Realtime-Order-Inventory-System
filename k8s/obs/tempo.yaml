@@ -42,15 +42,6 @@ spec:
         - name: tempo-data
           persistentVolumeClaim:
             claimName: tempo-data
-      affinity:
-        nodeAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            nodeSelectorTerms:
-              - matchExpressions:
-                  - key: node-role.kubernetes.io/observability
-                    operator: In
-                    values:
-                      - "true"
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim

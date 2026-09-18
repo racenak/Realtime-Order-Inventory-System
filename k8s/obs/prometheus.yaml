@@ -54,15 +54,6 @@ spec:
         - name: prometheus-data
           persistentVolumeClaim:
             claimName: prometheus-data
-      affinity:
-        nodeAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            nodeSelectorTerms:
-              - matchExpressions:
-                  - key: node-role.kubernetes.io/observability
-                    operator: In
-                    values:
-                      - "true"
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim

@@ -49,15 +49,6 @@ spec:
             items:
               - key: otel-collector.yml
                 path: otel-collector.yml
-      affinity:
-        nodeAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            nodeSelectorTerms:
-              - matchExpressions:
-                  - key: node-role.kubernetes.io/observability
-                    operator: In
-                    values:
-                      - "true"
       restartPolicy: Always
 ---
 apiVersion: v1

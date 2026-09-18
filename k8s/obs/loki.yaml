@@ -18,7 +18,7 @@ spec:
       containers:
         - name: loki
           image: grafana/loki:3.1.0
-          command: ["-config.file=/etc/loki/loki.yml"]
+          args: ["-config.file=/etc/loki/loki.yml"]
           ports:
             - containerPort: 3100
               name: http

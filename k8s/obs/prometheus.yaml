@@ -15,10 +15,13 @@ spec:
       labels:
         app: prometheus
     spec:
+      securityContext:
+        fsGroup: 65534
+        runAsUser: 65534
       containers:
         - name: prometheus
           image: prom/prometheus:v2.53.0
-          command:
+          args:
             - "--config.file=/etc/prometheus/prometheus.yml"
             - "--storage.tsdb.path=/prometheus"
             - "--storage.tsdb.retention.time=7d"

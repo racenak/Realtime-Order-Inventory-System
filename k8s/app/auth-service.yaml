@@ -15,6 +15,8 @@ spec:
       labels:
         app: auth-service
     spec:
+      imagePullSecrets:
+        - name: ghcr-pull
       affinity:
         nodeAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:

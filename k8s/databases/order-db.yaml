@@ -42,7 +42,6 @@ spec:
           volumeMounts:
             - name: order-db-data
               mountPath: /var/lib/postgresql/data
-              subPath: data
           resources:
             requests:
               cpu: 500m

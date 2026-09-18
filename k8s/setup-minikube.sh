@@ -28,7 +28,7 @@ else
         --cpus=2 \
         --memory=4096 \
         --disk-size=20g \
-        --container-runtime=docker
+        --container-runtime=containerd
     log "Minikube started"
 fi
 

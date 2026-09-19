@@ -49,16 +49,21 @@ spec:
       labels:
         app: kafka
     spec:
-      securityContext:
-        fsGroup: 0
-        runAsUser: 0
       containers:
         - name: kafka
-          image: apache/kafka:4.3.1
+          image: apache/kafka:3.8.0
           command:
             - /bin/sh
             - -c
-            - /opt/kafka/bin/kafka-server-start.sh /etc/kafka/server.properties
+            - |
+              # Tự động format storage nếu chưa có dữ liệu KRaft
+              if [ ! -f /var/lib/kafka/data/meta.properties ]; then
+                echo "Formatting Kafka storage log directories..."
+                CLUSTER_ID=$(/opt/kafka/bin/kafka-storage.sh random-cluster-id)
+                /opt/kafka/bin/kafka-storage.sh format -t $CLUSTER_ID -c /etc/kafka/server.properties --ignore-formatted
+              fi
+              echo "Starting Kafka..."
+              exec /opt/kafka/bin/kafka-server-start.sh /etc/kafka/server.properties
           ports:
             - containerPort: 9092
               name: plaintext
@@ -70,36 +75,23 @@ spec:
             - name: kafka-config
               mountPath: /etc/kafka/server.properties
               subPath: server.properties
-              readOnly: true
           resources:
             requests:
-              cpu: 500m
-              memory: 1Gi
+              cpu: 250m
+              memory: 512Mi
             limits:
               cpu: 1
               memory: 1Gi
           readinessProbe:
-            exec:
-              command:
-                - nc
-                - -z
-                - localhost
-                - "9092"
-            initialDelaySeconds: 45
+            tcpSocket:
+              port: 9092
+            initialDelaySeconds: 20
             periodSeconds: 10
-            timeoutSeconds: 10
-            failureThreshold: 30
           livenessProbe:
-            exec:
-              command:
-                - nc
-                - -z
-                - localhost
-                - "9092"
-            initialDelaySeconds: 90
+            tcpSocket:
+              port: 9092
+            initialDelaySeconds: 30
             periodSeconds: 15
-            timeoutSeconds: 10
-            failureThreshold: 10
       volumes:
         - name: kafka-data
           persistentVolumeClaim:
@@ -156,25 +148,15 @@ spec:
                 sleep 5
               done
               echo "Kafka is ready!"
-          resources:
-            requests:
-              cpu: 100m
-              memory: 64Mi
-            limits:
-              cpu: 100m
-              memory: 64Mi
       containers:
         - name: create-topics
-          image: apache/kafka:4.0.0
+          image: apache/kafka:3.8.0
           command:
             - /bin/sh
             - -c
             - |
-              echo "Waiting for Kafka to be fully ready..."
-              sleep 10
-
+              sleep 5
               echo "Creating Kafka topics..."
-
               /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic order.created --partitions 3 --replication-factor 1
               /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic order.paid --partitions 3 --replication-factor 1
               /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic order.confirmed --partitions 3 --replication-factor 1
@@ -188,12 +170,4 @@ spec:
               /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic inventory.low_stock --partitions 3 --replication-factor 1
               /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic inventory.reservation_failed --partitions 3 --replication-factor 1
               /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic dead_letter --partitions 3 --replication-factor 1
-
               echo "Kafka topics created successfully!"
-          resources:
-            requests:
-              cpu: 250m
-              memory: 256Mi
-            limits:
-              cpu: 250m
-              memory: 256Mi

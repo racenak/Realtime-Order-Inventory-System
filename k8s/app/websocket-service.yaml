@@ -15,8 +15,6 @@ spec:
       labels:
         app: websocket-service
     spec:
-      imagePullSecrets:
-        - name: ghcr-pull
       containers:
         - name: websocket-service
           image: ghcr.io/racenak/realtime-order-inventory-system/websocket-service:main

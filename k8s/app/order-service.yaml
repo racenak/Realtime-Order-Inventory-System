@@ -15,8 +15,6 @@ spec:
       labels:
         app: order-service
     spec:
-      imagePullSecrets:
-        - name: ghcr-pull
       containers:
         - name: order-service
           image: ghcr.io/racenak/realtime-order-inventory-system/order-service:main

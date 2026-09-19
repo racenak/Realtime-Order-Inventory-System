@@ -120,6 +120,7 @@ jobs:
           go build ./cmd/order-service/
           go build ./cmd/inventory-service/
           go build ./cmd/websocket-service/
+          go build ./cmd/auth-service/
 
   # ==========================================
   # 4. BUILD & PUSH DOCKER IMAGES
@@ -147,6 +148,9 @@ jobs:
           - name: websocket-service
             dockerfile: cmd/websocket-service/Dockerfile
             port: 8082
+          - name: auth-service
+            dockerfile: cmd/auth-service/Dockerfile
+            port: 8083
 
     steps:
       - name: Checkout code

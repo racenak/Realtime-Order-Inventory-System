@@ -15,8 +15,6 @@ spec:
       labels:
         app: inventory-service
     spec:
-      imagePullSecrets:
-        - name: ghcr-pull
       containers:
         - name: inventory-service
           image: ghcr.io/racenak/realtime-order-inventory-system/inventory-service:main

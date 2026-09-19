@@ -15,8 +15,6 @@ spec:
       labels:
         app: auth-service
     spec:
-      imagePullSecrets:
-        - name: ghcr-pull
       containers:
         - name: auth-service
           image: ghcr.io/racenak/realtime-order-inventory-system/auth-service:main

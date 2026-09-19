@@ -56,13 +56,31 @@ spec:
             - /bin/sh
             - -c
             - |
-              # Tự động format storage nếu chưa có dữ liệu KRaft
+              # 1. Format storage nếu dữ liệu KRaft chưa tồn tại
               if [ ! -f /var/lib/kafka/data/meta.properties ]; then
-                echo "Formatting Kafka storage log directories..."
+                echo "Formatting Kafka storage..."
                 CLUSTER_ID=$(/opt/kafka/bin/kafka-storage.sh random-cluster-id)
                 /opt/kafka/bin/kafka-storage.sh format -t $CLUSTER_ID -c /etc/kafka/server.properties --ignore-formatted
               fi
-              echo "Starting Kafka..."
+
+              # 2. Tạo một tiến trình chạy ngầm để chờ Kafka sẵn sàng rồi tự tạo topics
+              (
+                echo "Waiting for Kafka broker to respond..."
+                until /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list > /dev/null 2>&1; do
+                  sleep 2
+                done
+                
+                echo "Kafka is ready. Creating initial topics..."
+                TOPICS="order.created order.paid order.confirmed order.cancelled order.shipped order.delivered order.status.changed inventory.reserved inventory.released inventory.updated inventory.low_stock inventory.reservation_failed dead_letter"
+                
+                for topic in $TOPICS; do
+                  /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --create --if-not-exists --topic $topic --partitions 3 --replication-factor 1
+                done
+                echo "All initial Kafka topics created successfully!"
+              ) &
+
+              # 3. Chạy Kafka ở tiến trình chính (Foreground process)
+              echo "Starting Kafka server..."
               exec /opt/kafka/bin/kafka-server-start.sh /etc/kafka/server.properties
           ports:
             - containerPort: 9092
@@ -85,12 +103,12 @@ spec:
           readinessProbe:
             tcpSocket:
               port: 9092
-            initialDelaySeconds: 20
+            initialDelaySeconds: 15
             periodSeconds: 10
           livenessProbe:
             tcpSocket:
               port: 9092
-            initialDelaySeconds: 30
+            initialDelaySeconds: 25
             periodSeconds: 15
       volumes:
         - name: kafka-data
@@ -118,56 +136,3 @@ spec:
       name: controller
   selector:
     app: kafka
----
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: kafka-init
-  namespace: order-inventory
-  labels:
-    app: kafka-init
-spec:
-  backoffLimit: 5
-  ttlSecondsAfterFinished: 600
-  template:
-    metadata:
-      labels:
-        app: kafka-init
-    spec:
-      restartPolicy: OnFailure
-      initContainers:
-        - name: wait-for-kafka
-          image: busybox:1.36
-          command:
-            - sh
-            - -c
-            - |
-              echo "Waiting for Kafka to be ready..."
-              until nc -z kafka 9092; do
-                echo "Kafka not ready, retrying in 5s..."
-                sleep 5
-              done
-              echo "Kafka is ready!"
-      containers:
-        - name: create-topics
-          image: apache/kafka:3.8.0
-          command:
-            - /bin/sh
-            - -c
-            - |
-              sleep 5
-              echo "Creating Kafka topics..."
-              /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic order.created --partitions 3 --replication-factor 1
-              /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic order.paid --partitions 3 --replication-factor 1
-              /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic order.confirmed --partitions 3 --replication-factor 1
-              /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic order.cancelled --partitions 3 --replication-factor 1
-              /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic order.shipped --partitions 3 --replication-factor 1
-              /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic order.delivered --partitions 3 --replication-factor 1
-              /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic order.status.changed --partitions 3 --replication-factor 1
-              /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic inventory.reserved --partitions 3 --replication-factor 1
-              /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic inventory.released --partitions 3 --replication-factor 1
-              /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic inventory.updated --partitions 3 --replication-factor 1
-              /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic inventory.low_stock --partitions 3 --replication-factor 1
-              /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic inventory.reservation_failed --partitions 3 --replication-factor 1
-              /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic dead_letter --partitions 3 --replication-factor 1
-              echo "Kafka topics created successfully!"

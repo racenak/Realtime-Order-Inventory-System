@@ -1,142 +1,223 @@
-apiVersion: v1
-kind: PersistentVolumeClaim
+apiVersion: kafka.strimzi.io/v1
+kind: Kafka
 metadata:
-  name: kafka-data
+  name: kafka
   namespace: order-inventory
 spec:
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: 5Gi
+  kafka:
+    version: 4.3.1
+    listeners:
+      - name: plain
+        port: 9092
+        type: internal
+        tls: false
+    config:
+      offsets.topic.replication.factor: 1
+      transaction.state.log.replication.factor: 1
+      transaction.state.log.min.isr: 1
+      auto.create.topics.enable: true
+      default.replication.factor: 1
+      num.partitions: 3
+  entityOperator:
+    topicOperator: {}
+    userOperator: {}
 ---
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: kafka-config
-  namespace: order-inventory
-data:
-  server.properties: |
-    node.id=1
-    process.roles=broker,controller
-    controller.quorum.voters=1@localhost:9093
-    listeners=PLAINTEXT://:9092,CONTROLLER://:9093
-    advertised.listeners=PLAINTEXT://kafka:9092
-    listener.security.protocol.map=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
-    controller.listener.names=CONTROLLER
-    log.dirs=/var/lib/kafka/data
-    offsets.topic.replication.factor=1
-    transaction.state.log.replication.factor=1
-    transaction.state.log.min.isr=1
-    auto.create.topics.enable=true
-    num.partitions=3
-    default.replication.factor=1
----
-apiVersion: apps/v1
-kind: Deployment
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaNodePool
 metadata:
   name: kafka
   namespace: order-inventory
   labels:
-    app: kafka
+    strimzi.io/cluster: kafka
 spec:
   replicas: 1
-  selector:
-    matchLabels:
-      app: kafka
-  template:
-    metadata:
-      labels:
-        app: kafka
-    spec:
-      containers:
-        - name: kafka
-          image: apache/kafka:3.8.0
-          command:
-            - /bin/sh
-            - -c
-            - |
-              # Format storage nếu chưa có meta.properties
-              if [ ! -f /var/lib/kafka/data/meta.properties ]; then
-                echo "Formatting Kafka storage log directories..."
-                
-                # SỬA TẠI ĐÂY: Dùng random-uuid thay vì random-cluster-id
-                CLUSTER_ID=$(/opt/kafka/bin/kafka-storage.sh random-uuid)
-                echo "Generated Cluster ID: $CLUSTER_ID"
-                
-                /opt/kafka/bin/kafka-storage.sh format -t $CLUSTER_ID -c /etc/kafka/server.properties --ignore-formatted
-              fi
-
-              # Tiến trình ngầm tự động tạo topics
-              (
-                echo "Waiting for Kafka broker to respond..."
-                until /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list > /dev/null 2>&1; do
-                  sleep 2
-                done
-                
-                echo "Kafka is ready. Creating initial topics..."
-                TOPICS="order.created order.paid order.confirmed order.cancelled order.shipped order.delivered order.status.changed inventory.reserved inventory.released inventory.updated inventory.low_stock inventory.reservation_failed dead_letter"
-                
-                for topic in $TOPICS; do
-                  /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --create --if-not-exists --topic $topic --partitions 3 --replication-factor 1
-                done
-                echo "All initial Kafka topics created successfully!"
-              ) &
-
-              # Chạy Kafka
-              echo "Starting Kafka server..."
-              exec /opt/kafka/bin/kafka-server-start.sh /etc/kafka/server.properties
-          ports:
-            - containerPort: 9092
-              name: plaintext
-            - containerPort: 9093
-              name: controller
-          volumeMounts:
-            - name: kafka-data
-              mountPath: /var/lib/kafka/data
-            - name: kafka-config
-              mountPath: /etc/kafka/server.properties
-              subPath: server.properties
-          resources:
-            requests:
-              cpu: 250m
-              memory: 512Mi
-            limits:
-              cpu: 1
-              memory: 1Gi
-          readinessProbe:
-            tcpSocket:
-              port: 9092
-            initialDelaySeconds: 15
-            periodSeconds: 10
-          livenessProbe:
-            tcpSocket:
-              port: 9092
-            initialDelaySeconds: 25
-            periodSeconds: 15
-      volumes:
-        - name: kafka-data
-          persistentVolumeClaim:
-            claimName: kafka-data
-        - name: kafka-config
-          configMap:
-            name: kafka-config
+  roles:
+    - controller
+    - broker
+  storage:
+    type: jbod
+    volumes:
+      - id: 0
+        type: persistent-claim
+        size: 5Gi
+        deleteClaim: false
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: 1
+      memory: 1Gi
 ---
+# Alias service so apps can connect to "kafka:9092"
 apiVersion: v1
 kind: Service
 metadata:
   name: kafka
   namespace: order-inventory
-  labels:
-    app: kafka
 spec:
   type: ClusterIP
   ports:
     - port: 9092
       targetPort: 9092
       name: plaintext
-    - port: 9093
-      targetPort: 9093
-      name: controller
   selector:
-    app: kafka
+    strimzi.io/cluster: kafka
+    strimzi.io/kind: Kafka
+---
+# --- KafkaTopic resources ---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: order-created
+  namespace: order-inventory
+  labels:
+    strimzi.io/cluster: kafka
+spec:
+  topicName: order.created
+  partitions: 3
+  replicas: 1
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: order-paid
+  namespace: order-inventory
+  labels:
+    strimzi.io/cluster: kafka
+spec:
+  topicName: order.paid
+  partitions: 3
+  replicas: 1
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: order-confirmed
+  namespace: order-inventory
+  labels:
+    strimzi.io/cluster: kafka
+spec:
+  topicName: order.confirmed
+  partitions: 3
+  replicas: 1
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: order-cancelled
+  namespace: order-inventory
+  labels:
+    strimzi.io/cluster: kafka
+spec:
+  topicName: order.cancelled
+  partitions: 3
+  replicas: 1
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: order-shipped
+  namespace: order-inventory
+  labels:
+    strimzi.io/cluster: kafka
+spec:
+  topicName: order.shipped
+  partitions: 3
+  replicas: 1
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: order-delivered
+  namespace: order-inventory
+  labels:
+    strimzi.io/cluster: kafka
+spec:
+  topicName: order.delivered
+  partitions: 3
+  replicas: 1
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: order-status-changed
+  namespace: order-inventory
+  labels:
+    strimzi.io/cluster: kafka
+spec:
+  topicName: order.status.changed
+  partitions: 3
+  replicas: 1
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: inventory-reserved
+  namespace: order-inventory
+  labels:
+    strimzi.io/cluster: kafka
+spec:
+  topicName: inventory.reserved
+  partitions: 3
+  replicas: 1
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: inventory-released
+  namespace: order-inventory
+  labels:
+    strimzi.io/cluster: kafka
+spec:
+  topicName: inventory.released
+  partitions: 3
+  replicas: 1
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: inventory-updated
+  namespace: order-inventory
+  labels:
+    strimzi.io/cluster: kafka
+spec:
+  topicName: inventory.updated
+  partitions: 3
+  replicas: 1
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: inventory-low-stock
+  namespace: order-inventory
+  labels:
+    strimzi.io/cluster: kafka
+spec:
+  topicName: inventory.low_stock
+  partitions: 3
+  replicas: 1
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: inventory-reservation-failed
+  namespace: order-inventory
+  labels:
+    strimzi.io/cluster: kafka
+spec:
+  topicName: inventory.reservation_failed
+  partitions: 3
+  replicas: 1
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: dead-letter
+  namespace: order-inventory
+  labels:
+    strimzi.io/cluster: kafka
+spec:
+  topicName: dead_letter
+  partitions: 3
+  replicas: 1

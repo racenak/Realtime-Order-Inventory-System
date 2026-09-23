@@ -1,0 +1,28 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kafbat-ui
+  namespace: order-inventory 
+spec:
+  project: default
+  source:
+    repoURL: https://kafbat.github.io/helm-charts
+    chart: kafka-ui
+    targetRevision: "*" 
+    helm:
+      values: |
+        yamlApplicationConfig:
+          kafka:
+            clusters:
+              - name: yaml
+                bootstrapServers: kafka-kafka-bootstrap.order-inventory.svc:9092
+          auth:
+            type: disabled
+          management:
+            health:
+              ldap:
+                enabled: false
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: order-inventory 

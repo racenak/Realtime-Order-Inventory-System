@@ -15,23 +15,35 @@ spec:
       labels:
         app: otel-collector
     spec:
+      serviceAccountName: otel-collector
+
       containers:
         - name: otel-collector
           image: otel/opentelemetry-collector-contrib:0.160.0
-          args: ["--config=/etc/otel/otel-collector.yml"]
+          args:
+            - "--config=/etc/otel/otel-collector.yml"
+
           ports:
             - containerPort: 4317
               name: otlp-grpc
               protocol: TCP
+
             - containerPort: 4318
               name: otlp-http
               protocol: TCP
+
+            - containerPort: 13133
+              name: health
+              protocol: TCP
+
             - containerPort: 8888
               name: self-telemetry
               protocol: TCP
+
             - containerPort: 8889
               name: otel-metrics
               protocol: TCP
+
           resources:
             requests:
               cpu: "500m"
@@ -39,21 +51,29 @@ spec:
             limits:
               cpu: "1"
               memory: 1Gi
+
           volumeMounts:
             - name: otel-collector-config
               mountPath: /etc/otel/
+
           livenessProbe:
             httpGet:
               path: /
               port: 13133
             initialDelaySeconds: 10
             periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+
           readinessProbe:
             httpGet:
               path: /
               port: 13133
             initialDelaySeconds: 5
             periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+
       volumes:
         - name: otel-collector-config
           configMap:
@@ -61,7 +81,9 @@ spec:
             items:
               - key: otel-collector.yml
                 path: otel-collector.yml
+
       restartPolicy: Always
+
 ---
 apiVersion: v1
 kind: Service
@@ -79,18 +101,22 @@ spec:
       port: 4317
       targetPort: 4317
       protocol: TCP
+
     - name: otlp-http
       port: 4318
       targetPort: 4318
       protocol: TCP
+
     - name: self-telemetry
       port: 8888
       targetPort: 8888
       protocol: TCP
+
     - name: otel-metrics
       port: 8889
       targetPort: 8889
       protocol: TCP
+
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -99,161 +125,307 @@ metadata:
   namespace: order-inventory
 data:
   otel-collector.yml: |
+
+    # ============================================================
+    # EXTENSIONS
+    # ============================================================
+
+    extensions:
+      health_check:
+        endpoint: 0.0.0.0:13133
+
+
+    # ============================================================
+    # RECEIVERS
+    # ============================================================
+
     receivers:
+
       otlp:
         protocols:
           grpc:
             endpoint: 0.0.0.0:4317
+
           http:
             endpoint: 0.0.0.0:4318
+
 
       redis:
         endpoint: "redis:6379"
         collection_interval: 10s
 
+
       kafkametrics:
-        brokers: ["kafka:9092"]
+        brokers:
+          - "kafka:9092"
+
         protocol_version: 2.0.0
+
         scrapers:
           - brokers
           - topics
           - consumers
+
         collection_interval: 10s
+
 
       postgresql/order-db:
         endpoint: "order-db:5432"
         transport: tcp
+
         username: "postgres"
         password: "postgres"
+
         databases:
           - "order_db"
+
         collection_interval: 10s
+
         tls:
           insecure: true
+
 
       postgresql/inventory-db:
         endpoint: "inventory-db:5432"
         transport: tcp
+
         username: "postgres"
         password: "postgres"
+
         databases:
           - "inventory_db"
+
         collection_interval: 10s
+
         tls:
           insecure: true
 
+
       prometheus/app-services:
         config:
+
           scrape_configs:
-          - job_name: "order-service"
-            metrics_path: "/metrics"
-            kubernetes_sd_configs:
-            - role: endpoints
-              namespaces:
-                names: ["order-inventory"]
-            relabel_configs:
-            - source_labels: [__meta_kubernetes_service_name, __meta_kubernetes_endpoint_port_name]
-              action: keep
-              regex: order-service;http
-            - source_labels: [__meta_kubernetes_pod_name]
-              action: replace
-              target_label: pod
-            - source_labels: [__meta_kubernetes_namespace]
-              action: replace
-              target_label: namespace
-          - job_name: "inventory-service"
-            metrics_path: "/metrics"
-            kubernetes_sd_configs:
-            - role: endpoints
-              namespaces:
-                names: ["order-inventory"]
-            relabel_configs:
-            - source_labels: [__meta_kubernetes_service_name, __meta_kubernetes_endpoint_port_name]
-              action: keep
-              regex: inventory-service;http
-            - source_labels: [__meta_kubernetes_pod_name]
-              action: replace
-              target_label: pod
-            - source_labels: [__meta_kubernetes_namespace]
-              action: replace
-              target_label: namespace
-          - job_name: "websocket-service"
-            metrics_path: "/metrics"
-            kubernetes_sd_configs:
-            - role: endpoints
-              namespaces:
-                names: ["order-inventory"]
-            relabel_configs:
-            - source_labels: [__meta_kubernetes_service_name, __meta_kubernetes_endpoint_port_name]
-              action: keep
-              regex: websocket-service;http
-            - source_labels: [__meta_kubernetes_pod_name]
-              action: replace
-              target_label: pod
-            - source_labels: [__meta_kubernetes_namespace]
-              action: replace
-              target_label: namespace
-          - job_name: "auth-service"
-            metrics_path: "/metrics"
-            kubernetes_sd_configs:
-            - role: endpoints
-              namespaces:
-                names: ["order-inventory"]
-            relabel_configs:
-            - source_labels: [__meta_kubernetes_service_name, __meta_kubernetes_endpoint_port_name]
-              action: keep
-              regex: auth-service;http
-            - source_labels: [__meta_kubernetes_pod_name]
-              action: replace
-              target_label: pod
-            - source_labels: [__meta_kubernetes_namespace]
-              action: replace
-              target_label: namespace
-          - job_name: "traefik"
-            metrics_path: "/metrics"
-            kubernetes_sd_configs:
-            - role: endpoints
-              namespaces:
-                names: ["order-inventory"]
-            relabel_configs:
-            - source_labels: [__meta_kubernetes_service_name, __meta_kubernetes_endpoint_port_name]
-              action: keep
-              regex: traefik;dashboard
-            - source_labels: [__meta_kubernetes_pod_name]
-              action: replace
-              target_label: pod
-            - source_labels: [__meta_kubernetes_namespace]
-              action: replace
-              target_label: namespace
+
+            # ==================================================
+            # ORDER SERVICE
+            # ==================================================
+
+            - job_name: "order-service"
+
+              metrics_path: "/metrics"
+
+              kubernetes_sd_configs:
+                - role: endpoints
+                  namespaces:
+                    names:
+                      - "order-inventory"
+
+              relabel_configs:
+
+                - source_labels:
+                    - __meta_kubernetes_service_name
+                    - __meta_kubernetes_endpoint_port_name
+                  action: keep
+                  regex: order-service;http
+
+                - source_labels:
+                    - __meta_kubernetes_pod_name
+                  action: replace
+                  target_label: pod
+
+                - source_labels:
+                    - __meta_kubernetes_namespace
+                  action: replace
+                  target_label: namespace
+
+
+            # ==================================================
+            # INVENTORY SERVICE
+            # ==================================================
+
+            - job_name: "inventory-service"
+
+              metrics_path: "/metrics"
+
+              kubernetes_sd_configs:
+                - role: endpoints
+                  namespaces:
+                    names:
+                      - "order-inventory"
+
+              relabel_configs:
+
+                - source_labels:
+                    - __meta_kubernetes_service_name
+                    - __meta_kubernetes_endpoint_port_name
+                  action: keep
+                  regex: inventory-service;http
+
+                - source_labels:
+                    - __meta_kubernetes_pod_name
+                  action: replace
+                  target_label: pod
+
+                - source_labels:
+                    - __meta_kubernetes_namespace
+                  action: replace
+                  target_label: namespace
+
+
+            # ==================================================
+            # WEBSOCKET SERVICE
+            # ==================================================
+
+            - job_name: "websocket-service"
+
+              metrics_path: "/metrics"
+
+              kubernetes_sd_configs:
+                - role: endpoints
+                  namespaces:
+                    names:
+                      - "order-inventory"
+
+              relabel_configs:
+
+                - source_labels:
+                    - __meta_kubernetes_service_name
+                    - __meta_kubernetes_endpoint_port_name
+                  action: keep
+                  regex: websocket-service;http
+
+                - source_labels:
+                    - __meta_kubernetes_pod_name
+                  action: replace
+                  target_label: pod
+
+                - source_labels:
+                    - __meta_kubernetes_namespace
+                  action: replace
+                  target_label: namespace
+
+
+            # ==================================================
+            # AUTH SERVICE
+            # ==================================================
+
+            - job_name: "auth-service"
+
+              metrics_path: "/metrics"
+
+              kubernetes_sd_configs:
+                - role: endpoints
+                  namespaces:
+                    names:
+                      - "order-inventory"
+
+              relabel_configs:
+
+                - source_labels:
+                    - __meta_kubernetes_service_name
+                    - __meta_kubernetes_endpoint_port_name
+                  action: keep
+                  regex: auth-service;http
+
+                - source_labels:
+                    - __meta_kubernetes_pod_name
+                  action: replace
+                  target_label: pod
+
+                - source_labels:
+                    - __meta_kubernetes_namespace
+                  action: replace
+                  target_label: namespace
+
+
+            # ==================================================
+            # TRAEFIK
+            # ==================================================
+
+            - job_name: "traefik"
+
+              metrics_path: "/metrics"
+
+              kubernetes_sd_configs:
+                - role: endpoints
+                  namespaces:
+                    names:
+                      - "order-inventory"
+
+              relabel_configs:
+
+                - source_labels:
+                    - __meta_kubernetes_service_name
+                    - __meta_kubernetes_endpoint_port_name
+                  action: keep
+                  regex: traefik;dashboard
+
+                - source_labels:
+                    - __meta_kubernetes_pod_name
+                  action: replace
+                  target_label: pod
+
+                - source_labels:
+                    - __meta_kubernetes_namespace
+                  action: replace
+                  target_label: namespace
+
+
+    # ============================================================
+    # EXPORTERS
+    # ============================================================
 
     exporters:
+
       prometheus:
         endpoint: "0.0.0.0:8889"
         namespace: "otel"
 
+
       otlphttp/tempo:
         endpoint: "http://tempo:4318"
+
         tls:
           insecure: true
+
 
       otlphttp/loki:
         endpoint: "http://loki:3100/loki/api/v1/push"
 
+
+    # ============================================================
+    # PROCESSORS
+    # ============================================================
+
     processors:
+
       batch:
         timeout: 5s
         send_batch_size: 2000
 
+
       resource:
         attributes:
+
           - key: deployment.environment
             value: "development"
             action: upsert
 
+
+    # ============================================================
+    # SERVICE
+    # ============================================================
+
     service:
+
+      extensions:
+        - health_check
+
+
       telemetry:
         metrics:
           level: detailed
+
           readers:
             - pull:
                 exporter:
@@ -261,11 +433,29 @@ data:
                     host: "0.0.0.0"
                     port: 8888
 
+
       pipelines:
+
+        # ========================================================
+        # TRACES
+        # ========================================================
+
         traces:
-          receivers: [otlp]
-          processors: [batch, resource]
-          exporters: [otlphttp/tempo]
+          receivers:
+            - otlp
+
+          processors:
+            - batch
+            - resource
+
+          exporters:
+            - otlphttp/tempo
+
+
+        # ========================================================
+        # METRICS
+        # ========================================================
+
         metrics:
           receivers:
             - otlp
@@ -274,9 +464,26 @@ data:
             - prometheus/app-services
             - postgresql/order-db
             - postgresql/inventory-db
-          processors: [batch, resource]
-          exporters: [prometheus]
+
+          processors:
+            - batch
+            - resource
+
+          exporters:
+            - prometheus
+
+
+        # ========================================================
+        # LOGS
+        # ========================================================
+
         logs:
-          receivers: [otlp]
-          processors: [batch, resource]
-          exporters: [otlphttp/loki]
+          receivers:
+            - otlp
+
+          processors:
+            - batch
+            - resource
+
+          exporters:
+            - otlphttp/loki

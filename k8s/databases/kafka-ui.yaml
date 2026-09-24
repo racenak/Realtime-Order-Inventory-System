@@ -39,3 +39,30 @@ spec:
     automated:
       prune: true
       selfHeal: true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: strimzi-operator
+  namespace: argocd
+spec:
+  project: default
+
+  source:
+    repoURL: https://strimzi.io/charts/
+    chart: strimzi-kafka-operator
+    targetRevision: "*"
+
+    helm:
+      values: |
+        watchNamespaces:
+          - order-inventory
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: order-inventory
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

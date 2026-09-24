@@ -48,6 +48,12 @@ spec:
     limits:
       cpu: 1
       memory: 1Gi
+  template:
+    pod:
+      securityContext:
+        runAsUser: 1000
+        fsGroup: 1000
+        runAsNonRoot: true
 ---
 # Alias service so apps can connect to "kafka:9092"
 apiVersion: v1

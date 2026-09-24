@@ -1,4 +1,4 @@
-minikube start --driver=docker
+minikube start --driver=docker --cpus=4
 kubectl create namespace argocd 
 kubectl create namespace order-inventory
 

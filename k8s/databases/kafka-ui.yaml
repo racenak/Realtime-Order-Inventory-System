@@ -2,7 +2,7 @@ apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: kafbat-ui
-  namespace: order-inventory
+  namespace: argocd
 spec:
   project: default
 

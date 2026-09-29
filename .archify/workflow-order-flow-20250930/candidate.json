@@ -37,21 +37,25 @@
   "nodes": [
     {
       "id": "req",
-      "label": "POST /api/orders",
+      "label": "Request",
       "lane": "client",
       "col": 1,
-      "type": "external"
+      "type": "external",
+      "width": 140,
+      "height": 70
     },
     {
       "id": "auth-gate",
       "label": "JWT verify",
       "lane": "gateway",
       "col": 2,
-      "type": "backend"
+      "type": "backend",
+      "width": 140,
+      "height": 70
     },
     {
       "id": "order-accept",
-      "label": "Validate / create",
+      "label": "Validate",
       "lane": "order",
       "col": 3,
       "type": "backend",
@@ -61,45 +65,57 @@
           "line": 89,
           "label": "outbox"
         }
-      ]
+      ],
+      "width": 140,
+      "height": 70
     },
     {
       "id": "db-write",
-      "label": "PostgreSQL + outbox",
+      "label": "DB + outbox",
       "lane": "order",
       "col": 3,
-      "yOffset": -70,
-      "type": "database"
+      "yOffset": -100,
+      "type": "database",
+      "width": 140,
+      "height": 70
     },
     {
       "id": "kafka-pub",
       "label": "Outbox \u2192 Kafka",
       "lane": "inventory",
       "col": 4,
-      "yOffset": -70,
-      "type": "messagebus"
+      "yOffset": -100,
+      "type": "messagebus",
+      "width": 140,
+      "height": 70
     },
     {
       "id": "inv-reserve",
       "label": "Reserve stock",
       "lane": "inventory",
       "col": 4,
-      "type": "backend"
+      "type": "backend",
+      "width": 140,
+      "height": 70
     },
     {
       "id": "ws-bcast",
       "label": "Redis pub / WS",
       "lane": "inventory",
       "col": 4,
-      "yOffset": 70,
-      "type": "backend"
+      "yOffset": 100,
+      "type": "backend",
+      "width": 140,
+      "height": 70
     },
     {
       "id": "telemetry",
-      "label": "OTLP \u2192 Collector",
+      "label": "OTLP",
       "lane": "observability",
       "col": 5,
-      "type": "cloud"
+      "type": "cloud",
+      "width": 140,
+      "height": 70
     }
   ],
   "edges": [

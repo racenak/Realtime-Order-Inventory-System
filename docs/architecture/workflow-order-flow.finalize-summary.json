@@ -1,67 +1,36 @@
 {
   "schemaVersion": 1,
-  "ok": false,
+  "ok": true,
   "command": "finalize",
-  "status": "fail",
+  "status": "pass",
   "type": "workflow",
   "quality": "standard",
   "specification": {
     "path": "/home/tranngocvu/Projects/Realtime-Order-Inventory-System/.archify/workflow-order-flow-20250930/candidate.json",
-    "sha256": "6acaee387c117e6989ba02323683e84a70734d083d59427e9dd6749a8d5e7933",
-    "bytes": 3001
+    "sha256": "b6d5100841698469bb446775f9584eadd5ae33b31c754d92421640887d812763",
+    "bytes": 3281
   },
   "artifact": {
-    "path": "/home/tranngocvu/Projects/Realtime-Order-Inventory-System/docs/architecture/workflow-order-flow.html"
+    "path": "/home/tranngocvu/Projects/Realtime-Order-Inventory-System/docs/architecture/workflow-order-flow.html",
+    "sha256": "b9467cc2e85327f2736557cf7f31f6086766c5254fd7f378b23e69b5575cd573",
+    "bytes": 754786
   },
   "gates": {
-    "validate": "fail",
-    "deliver": "not-run",
-    "check": "not-run",
-    "browser-check": "not-run"
+    "validate": "pass",
+    "deliver": "pass",
+    "check": "pass",
+    "browser-check": "pass"
   },
-  "failedStage": "validate",
-  "diagnostics": [
-    {
-      "code": "layout/constraint",
-      "severity": "error",
-      "message": "Label \"POST /api/orders\" (~109px) is wider than node \"req\" (92px) — shorten the label or increase node.width.",
-      "subject": {
-        "diagramType": "workflow"
-      }
-    },
-    {
-      "code": "layout/constraint",
-      "severity": "error",
-      "message": "Label \"PostgreSQL + outbox\" (~129px) is wider than node \"db-write\" (92px) — shorten the label or increase node.width.",
-      "subject": {
-        "diagramType": "workflow"
-      }
-    },
-    {
-      "code": "layout/constraint",
-      "severity": "error",
-      "message": "Label \"Validate / create\" (~116px) is wider than node \"order-accept\" (92px) — shorten the label or increase node.width.",
-      "subject": {
-        "diagramType": "workflow"
-      }
-    },
-    {
-      "code": "layout/constraint",
-      "severity": "error",
-      "message": "Label \"OTLP → Collector\" (~109px) is wider than node \"telemetry\" (92px) — shorten the label or increase node.width.",
-      "subject": {
-        "diagramType": "workflow"
-      }
-    }
-  ],
+  "diagnostics": [],
   "diagnosticSummary": {
-    "total": 4,
-    "shown": 4,
+    "total": 0,
+    "shown": 0,
     "truncated": false
   },
   "evidence": {
     "receipt": "/home/tranngocvu/Projects/Realtime-Order-Inventory-System/docs/architecture/workflow-order-flow.finalize.json",
-    "summaryReceipt": "/home/tranngocvu/Projects/Realtime-Order-Inventory-System/docs/architecture/workflow-order-flow.finalize-summary.json"
+    "summaryReceipt": "/home/tranngocvu/Projects/Realtime-Order-Inventory-System/docs/architecture/workflow-order-flow.finalize-summary.json",
+    "browserCheckReceipt": "/home/tranngocvu/Projects/Realtime-Order-Inventory-System/docs/architecture/workflow-order-flow.browser-check.json"
   },
   "update": {
     "status": "current",
@@ -74,11 +43,34 @@
     "noticeText": null
   },
   "visualReview": "not-requested",
-  "durationMs": 385,
-  "nextAction": {
-    "action": "edit-in-place",
-    "candidate": "/home/tranngocvu/Projects/Realtime-Order-Inventory-System/.archify/workflow-order-flow-20250930/candidate.json",
-    "constraint": "Preserve unaffected semantics and geometry; do not replace the whole candidate.",
-    "then": "finalize-once"
+  "durationMs": 3598,
+  "visualReviewRecommendation": {
+    "action": "inspect-route-readability",
+    "signals": {
+      "routesOverSuggestedStretch": 1
+    },
+    "reason": "Automated gates passed, but crossings or detours still need perceptual review before claiming visual quality.",
+    "affectedRoutes": {
+      "crossings": [],
+      "detours": [
+        {
+          "relationship": {
+            "id": "auth-order",
+            "from": "auth-gate",
+            "to": "order-accept",
+            "label": "verified request",
+            "collectionIndex": 0,
+            "artifactIndex": 1
+          },
+          "bends": 2,
+          "stretch": 1.69
+        }
+      ],
+      "truncated": false
+    },
+    "hints": [
+      "auth-gate → order-accept needs 2 bends: move node auth-gate or order-accept so they share a row or column with matching centers, or sit diagonally with a clear corner."
+    ],
+    "repair": "Trace these relationships at the desktop viewport. For Architecture, use references/architecture-layout-repair.md: reflow a blocked main path or tangled connected scene, and repair an isolated defect locally only when the surrounding composition is accepted. Preserve all semantic content and user-fixed geometry. Rerun finalize once after the edit."
   }
 }

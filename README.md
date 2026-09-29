@@ -12,17 +12,11 @@ A distributed microservices system for order processing and inventory management
 
 ### Verified Runtime Architecture
 
-<div align="center">
-<img src="docs/architecture/architecture-runtime.svg" alt="Verified Runtime Architecture (standard quality, source-linked at ddddab94)" style="max-width:100%;height:auto;"/>
-</div>
-<p align="center"><small>Source: repo <code>ddddab94</code> (local-only links due to dirty worktree). Gaps: Kafka <code>inventory.reserved</code> missing producer; Redis pub/sub zero <code>.Publish()</code>; DLQ <code>dead_letter</code> at <code>pkg/kafka/consumer.go:196</code>.</small></p>
-
 **Diagram artifacts (verified from repo sources)**
-- [Architecture (runtime overview)](https://racenak.github.io/https://github.com/racenak/Realtime-Order-Inventory-System/docs/architecture/architecture-runtime.html) — delivered, embedded SVG
-- [Sequence (request flow)](https://racenak.github.io/https://github.com/racenak/Realtime-Order-Inventory-System/docs/architecture/sequence-request-flow.html) — delivered
-- [Workflow (order creation)](docs/architecture/workflow-order-flow.html) — delivered
-- [Data Flow (pipeline)](.archify/dataflow-order-pipeline-20250930/candidate.json) — validated candidate (blocked by endpoint-side-direction flows f1/f4; fixable)
-- [Lifecycle (status)](docs/architecture/lifecycle-order-status.html) — delivered
+- [Architecture (runtime overview)](https://racenak.github.io/Realtime-Order-Inventory-System/docs/architecture/architecture-runtime.html)
+- [Sequence (request flow)](https://racenak.github.io/Realtime-Order-Inventory-System/docs/architecture/sequence-request-flow.html)
+- [Workflow (order creation)](https://racenak.github.io/Realtime-Order-Inventory-System/docs/architecture/workflow-order-flow.html)
+- [Lifecycle (status)](https://racenak.github.io/Realtime-Order-Inventory-System/docs/architecture/lifecycle-order-status.html)
 
 - **Language:** Go 1.22
 - **Database:** PostgreSQL 16

@@ -1,8 +1,0 @@
-{
-  "schemaVersion": 1,
-  "command": "deliver",
-  "status": "pending",
-  "receiptId": "0e783bb8-7e5b-4637-9da8-5fffd2935134",
-  "input": "/home/tranngocvu/Projects/Realtime-Order-Inventory-System/.archify/workflow-order-flow-20250930/candidate.json",
-  "output": "/home/tranngocvu/Projects/Realtime-Order-Inventory-System/docs/architecture/workflow-order-flow.html"
-}

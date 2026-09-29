@@ -44,3 +44,7 @@ go.work.sum
 
 # Graphify
 graphify-out
+
+# Archify
+docs/architecture/*.json
+.archify

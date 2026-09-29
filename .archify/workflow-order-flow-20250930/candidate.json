@@ -1,0 +1,149 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Workflow \u2014 Order Creation & Outbox Publishing",
+    "output": "docs/architecture/workflow-order-flow.html",
+    "locale": "en",
+    "quality_profile": "standard",
+    "repository": {
+      "url": "https://github.com/racenak/Realtime-Order-Inventory-System.git",
+      "revision": "ddddab94f547b911a292cba09d93ead590e6b6ee",
+      "link_mode": "local-only"
+    }
+  },
+  "lanes": [
+    {
+      "id": "client",
+      "label": "Client"
+    },
+    {
+      "id": "gateway",
+      "label": "Gateway / Auth"
+    },
+    {
+      "id": "order",
+      "label": "Order Service"
+    },
+    {
+      "id": "inventory",
+      "label": "Inventory / Kafka"
+    },
+    {
+      "id": "observability",
+      "label": "Observability"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "req",
+      "label": "POST /api/orders",
+      "lane": "client",
+      "col": 1,
+      "type": "external"
+    },
+    {
+      "id": "auth-gate",
+      "label": "JWT verify",
+      "lane": "gateway",
+      "col": 2,
+      "type": "backend"
+    },
+    {
+      "id": "order-accept",
+      "label": "Validate / create",
+      "lane": "order",
+      "col": 3,
+      "type": "backend",
+      "sources": [
+        {
+          "path": "cmd/order-service/main.go",
+          "line": 89,
+          "label": "outbox"
+        }
+      ]
+    },
+    {
+      "id": "db-write",
+      "label": "PostgreSQL + outbox",
+      "lane": "order",
+      "col": 3,
+      "yOffset": -70,
+      "type": "database"
+    },
+    {
+      "id": "kafka-pub",
+      "label": "Outbox \u2192 Kafka",
+      "lane": "inventory",
+      "col": 4,
+      "yOffset": -70,
+      "type": "messagebus"
+    },
+    {
+      "id": "inv-reserve",
+      "label": "Reserve stock",
+      "lane": "inventory",
+      "col": 4,
+      "type": "backend"
+    },
+    {
+      "id": "ws-bcast",
+      "label": "Redis pub / WS",
+      "lane": "inventory",
+      "col": 4,
+      "yOffset": 70,
+      "type": "backend"
+    },
+    {
+      "id": "telemetry",
+      "label": "OTLP \u2192 Collector",
+      "lane": "observability",
+      "col": 5,
+      "type": "cloud"
+    }
+  ],
+  "edges": [
+    {
+      "id": "req-auth",
+      "from": "req",
+      "to": "auth-gate",
+      "label": "HTTP :8088"
+    },
+    {
+      "id": "auth-order",
+      "from": "auth-gate",
+      "to": "order-accept",
+      "label": "verified request"
+    },
+    {
+      "id": "order-db",
+      "from": "order-accept",
+      "to": "db-write",
+      "label": "SQL + outbox"
+    },
+    {
+      "id": "db-kafka",
+      "from": "db-write",
+      "to": "kafka-pub",
+      "label": "outbox publish"
+    },
+    {
+      "id": "kafka-inv",
+      "from": "kafka-pub",
+      "to": "inv-reserve",
+      "label": "order.created"
+    },
+    {
+      "id": "inv-ws",
+      "from": "inv-reserve",
+      "to": "ws-bcast",
+      "label": "pub/sub"
+    },
+    {
+      "id": "svc-obs",
+      "from": "order-accept",
+      "to": "telemetry",
+      "label": "OTLP metrics"
+    }
+  ]
+}

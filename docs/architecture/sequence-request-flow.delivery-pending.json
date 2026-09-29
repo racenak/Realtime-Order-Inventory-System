@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "command": "deliver",
+  "status": "pending",
+  "receiptId": "ae142acd-7c3e-4085-b2a7-a74cfee944f1",
+  "input": "/home/tranngocvu/Projects/Realtime-Order-Inventory-System/.archify/sequence-request-flow-20250930/candidate.json",
+  "output": "/home/tranngocvu/Projects/Realtime-Order-Inventory-System/docs/architecture/sequence-request-flow.html"
+}

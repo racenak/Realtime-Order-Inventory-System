@@ -1,0 +1,84 @@
+{
+  "schemaVersion": 1,
+  "ok": false,
+  "command": "finalize",
+  "status": "fail",
+  "type": "workflow",
+  "quality": "standard",
+  "specification": {
+    "path": "/home/tranngocvu/Projects/Realtime-Order-Inventory-System/.archify/workflow-order-flow-20250930/candidate.json",
+    "sha256": "6acaee387c117e6989ba02323683e84a70734d083d59427e9dd6749a8d5e7933",
+    "bytes": 3001
+  },
+  "artifact": {
+    "path": "/home/tranngocvu/Projects/Realtime-Order-Inventory-System/docs/architecture/workflow-order-flow.html"
+  },
+  "gates": {
+    "validate": "fail",
+    "deliver": "not-run",
+    "check": "not-run",
+    "browser-check": "not-run"
+  },
+  "failedStage": "validate",
+  "diagnostics": [
+    {
+      "code": "layout/constraint",
+      "severity": "error",
+      "message": "Label \"POST /api/orders\" (~109px) is wider than node \"req\" (92px) — shorten the label or increase node.width.",
+      "subject": {
+        "diagramType": "workflow"
+      }
+    },
+    {
+      "code": "layout/constraint",
+      "severity": "error",
+      "message": "Label \"PostgreSQL + outbox\" (~129px) is wider than node \"db-write\" (92px) — shorten the label or increase node.width.",
+      "subject": {
+        "diagramType": "workflow"
+      }
+    },
+    {
+      "code": "layout/constraint",
+      "severity": "error",
+      "message": "Label \"Validate / create\" (~116px) is wider than node \"order-accept\" (92px) — shorten the label or increase node.width.",
+      "subject": {
+        "diagramType": "workflow"
+      }
+    },
+    {
+      "code": "layout/constraint",
+      "severity": "error",
+      "message": "Label \"OTLP → Collector\" (~109px) is wider than node \"telemetry\" (92px) — shorten the label or increase node.width.",
+      "subject": {
+        "diagramType": "workflow"
+      }
+    }
+  ],
+  "diagnosticSummary": {
+    "total": 4,
+    "shown": 4,
+    "truncated": false
+  },
+  "evidence": {
+    "receipt": "/home/tranngocvu/Projects/Realtime-Order-Inventory-System/docs/architecture/workflow-order-flow.finalize.json",
+    "summaryReceipt": "/home/tranngocvu/Projects/Realtime-Order-Inventory-System/docs/architecture/workflow-order-flow.finalize-summary.json"
+  },
+  "update": {
+    "status": "current",
+    "installedVersion": "3.0.1",
+    "availableVersion": "3.0.1",
+    "releaseNotes": null,
+    "checkedAt": "2026-09-29T17:37:57.783Z",
+    "source": "cache",
+    "noticeRequired": false,
+    "noticeText": null
+  },
+  "visualReview": "not-requested",
+  "durationMs": 385,
+  "nextAction": {
+    "action": "edit-in-place",
+    "candidate": "/home/tranngocvu/Projects/Realtime-Order-Inventory-System/.archify/workflow-order-flow-20250930/candidate.json",
+    "constraint": "Preserve unaffected semantics and geometry; do not replace the whole candidate.",
+    "then": "finalize-once"
+  }
+}

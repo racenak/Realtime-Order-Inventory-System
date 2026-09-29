@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "19933730-a2d7-438b-beaa-d5caf906bd1d",
+  "status": "current",
+  "command": "deliver",
+  "type": "architecture",
+  "input": "/home/tranngocvu/Projects/Realtime-Order-Inventory-System/.archify/architecture-runtime-overview-20250930-120000/candidate.json",
+  "output": "/home/tranngocvu/Projects/Realtime-Order-Inventory-System/docs/architecture/architecture-runtime.html",
+  "specification": {
+    "sha256": "0234f8eee7dfde2b3c5075ce67a84387b1b37b51448d123c13d8753c6c67cbc7",
+    "bytes": 9973
+  },
+  "artifact": {
+    "sha256": "0e3f90ec72f5e8eb811216d39a44560b176884d1c65b6e706c72b88646cc2543",
+    "bytes": 795099
+  }
+}

@@ -1,0 +1,93 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Realtime Inventory System — Runtime Architecture",
+    "subtitle": "Verified from repo ddddab94 (2026-09-30); dirty worktree (local-only links)",
+    "output": "docs/architecture/architecture-runtime.html",
+    "locale": "en",
+    "quality_profile": "standard",
+    "repository": {
+      "url": "https://github.com/racenak/Realtime-Order-Inventory-System.git",
+      "revision": "ddddab94f547b911a292cba09d93ead590e6b6ee",
+      "link_mode": "local-only"
+    },
+    "animation": "none",
+    "legend": { "mode": "auto" }
+  },
+  "layout": {
+    "mode": "grid",
+    "origin": [60, 60],
+    "cols": 6,
+    "gapX": 60,
+    "gapY": 60,
+    "cellW": 200,
+    "cellH": 90
+  },
+  "components": [
+    { "id": "clients", "type": "external", "label": "Clients", "sublabel": "Browser / Load Tester (k6)", "row": 0, "col": 0, "sources": [{ "path": "docker-compose.yml", "line": 400, "label": "k6 profile" }] },
+    { "id": "traefik", "type": "backend", "label": "Traefik Gateway", "sublabel": "Reverse proxy :8088", "tag": "entrypoint: web", "row": 1, "col": 1, "sources": [{ "path": "traefik-dynamic.yml", "line": 46, "end_line": 79, "label": "routers + ForwardAuth + chain" }] },
+    { "id": "auth", "type": "security", "label": "Auth Service", "sublabel": "JWT /verify :8083", "tag": "JWT", "row": 1, "col": 3, "sources": [{ "path": "cmd/auth-service/main.go", "line": 42, "end_line": 77, "label": "verify endpoint + metrics" }] },
+    { "id": "order-service", "type": "backend", "label": "Order Service", "sublabel": "Claims / orders :8080", "tag": "OTLP + outbox", "row": 2, "col": 1, "sources": [{ "path": "cmd/order-service/main.go", "line": 33, "end_line": 90, "label": "main + outbox + kafka consumer" }] },
+    { "id": "inventory-service", "type": "backend", "label": "Inventory Service", "sublabel": "Stock / reservations :8081", "tag": "OTLP + consumer", "row": 3, "col": 1, "sources": [{ "path": "cmd/inventory-service/main.go", "line": 51, "end_line": 113, "label": "main + kafka consumer group" }] },
+    { "id": "websocket-service", "type": "backend", "label": "WebSocket Service", "sublabel": "Real-time push /ws:8082", "tag": "Redis sub", "row": 4, "col": 1, "sources": [{ "path": "cmd/websocket-service/main.go", "line": 27, "end_line": 90, "label": "main + /ws mount + Redis" }] },
+    { "id": "order-db", "type": "database", "label": "Order DB", "sublabel": "PostgreSQL :5432", "row": 2, "col": 2, "sources": [{ "path": "docker-compose.yml", "line": 7, "end_line": 22, "label": "order-db service + volume" }] },
+    { "id": "inventory-db", "type": "database", "label": "Inventory DB", "sublabel": "PostgreSQL :5433", "row": 3, "col": 2, "sources": [{ "path": "docker-compose.yml", "line": 32, "end_line": 47, "label": "inventory-db service + volume" }] },
+    { "id": "redis", "type": "database", "label": "Redis", "sublabel": "Cache + pubsub", "tag": "5min / 30s / pubsub", "row": 4, "col": 2, "sources": [{ "path": "cmd/order-service/main.go", "line": 66, "end_line": 78, "label": "redis client + caches" }, { "path": "internal/websocket/subscriber.go", "line": 35, "label": "Subscribe order.events + inventory.events" }] },
+    { "id": "kafka", "type": "messagebus", "label": "Kafka", "sublabel": "Message bus", "tag": "4.3.1", "row": 5, "col": 1, "sources": [{ "path": "docker-compose.yml", "line": 65, "end_line": 130, "label": "kafka init + topics + dead_letter" }] },
+    { "id": "otel-collector", "type": "cloud", "label": "OTel Collector", "sublabel": "OTLP :4317 / Scrape :8889", "tag": "traces/metrics/logs", "row": 5, "col": 3, "sources": [{ "path": "config/otel/otel-collector.yml", "line": 1, "end_line": 131, "label": "receivers / exporters / pipelines" }] },
+    { "id": "prometheus", "type": "cloud", "label": "Prometheus", "sublabel": "Metrics :9090", "row": 6, "col": 3, "sources": [{ "path": "config/prometheus/prometheus.yml", "line": 1, "end_line": 14, "label": "scrape targets + otel-collector" }] },
+    { "id": "loki", "type": "cloud", "label": "Loki", "sublabel": "Logs :3100", "row": 6, "col": 4, "sources": [{ "path": "docker-compose.yml", "line": 362, "end_line": 377, "label": "loki container" }] },
+    { "id": "tempo", "type": "cloud", "label": "Tempo", "sublabel": "Traces :3200", "row": 6, "col": 5, "sources": [{ "path": "docker-compose.yml", "line": 378, "end_line": 395, "label": "tempo container" }] },
+    { "id": "grafana", "type": "frontend", "label": "Grafana", "sublabel": "Dashboards :3000", "row": 7, "col": 3, "sources": [{ "path": "config/grafana/provisioning/datasources/datasources.yml", "line": 1, "end_line": 21, "label": "Prometheus / Loki / Tempo" }] }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "Application Services", "wraps": ["traefik", "auth", "order-service", "inventory-service", "websocket-service"], "pad": 12 },
+    { "kind": "region", "label": "State & Messaging", "wraps": ["order-db", "inventory-db", "redis", "kafka"], "pad": 12 },
+    { "kind": "region", "label": "Observability", "wraps": ["otel-collector", "prometheus", "loki", "tempo", "grafana"], "pad": 12 }
+  ],
+  "connections": [
+    { "id": "clients-traefik", "from": "clients", "to": "traefik", "label": "HTTP :8088", "variant": "emphasis", "fromSide": "right", "toSide": "left" },
+    { "id": "traefik-auth", "from": "traefik", "to": "auth", "label": "ForwardAuth /verify", "variant": "security", "fromSide": "right", "toSide": "left" },
+    { "id": "traefik-orders", "from": "traefik", "to": "order-service", "label": "/api/orders", "labelDy": 24 },
+    { "id": "traefik-inventory", "from": "traefik", "to": "inventory-service", "label": "/api/inventory", "fromSide": "bottom", "toSide": "top" },
+    { "id": "traefik-ws", "from": "traefik", "to": "websocket-service", "label": "/ws", "variant": "emphasis" },
+    { "id": "order-db-sql", "from": "order-service", "to": "order-db", "label": "SQL + outbox", "fromSide": "right", "toSide": "left" },
+    { "id": "inv-db-sql", "from": "inventory-service", "to": "inventory-db", "label": "SQL", "fromSide": "right", "toSide": "left" },
+    { "id": "ws-redis", "from": "websocket-service", "to": "redis", "label": "pub/sub subscribe", "fromSide": "right", "toSide": "left", "variant": "dashed" },
+    { "id": "order-redis", "from": "order-service", "to": "redis", "label": "cache (5min TTL)", "fromSide": "bottom", "toSide": "left", "labelDy": 10 },
+    { "id": "inv-redis", "from": "inventory-service", "to": "redis", "label": "cache (30s TTL)", "fromSide": "right", "toSide": "left", "labelDy": 10 },
+    { "id": "order-kafka", "from": "order-service", "to": "kafka", "label": "outbox → order.*", "variant": "dashed", "labelAt": [420, 430] },
+    { "id": "kafka-inv-cons", "from": "kafka", "to": "inventory-service", "label": "order.created", "variant": "dashed", "fromSide": "right", "toSide": "left" },
+    { "id": "inv-kafka-reserved", "from": "inventory-service", "to": "kafka", "label": "reservation_failed", "variant": "dashed", "fromSide": "bottom", "toSide": "left" },
+    { "id": "kafka-order-cons", "from": "kafka", "to": "order-service", "label": "inventory.reserved (gap)", "variant": "dashed", "fromSide": "left", "toSide": "bottom" },
+    { "id": "order-otlp", "from": "order-service", "to": "otel-collector", "label": "OTLP + /metrics", "labelDy": 24 },
+    { "id": "inv-otlp", "from": "inventory-service", "to": "otel-collector", "label": "OTLP + /metrics" },
+    { "id": "ws-otlp", "from": "websocket-service", "to": "otel-collector", "label": "OTLP + /metrics" },
+    { "id": "auth-otlp", "from": "auth", "to": "otel-collector", "label": "OTLP + /metrics", "labelDy": 24 },
+    { "id": "otel-prom", "from": "otel-collector", "to": "prometheus", "label": ":8889 metrics", "fromSide": "right", "toSide": "left" },
+    { "id": "otel-loki", "from": "otel-collector", "to": "loki", "label": "logs", "fromSide": "bottom", "toSide": "top" },
+    { "id": "otel-tempo", "from": "otel-collector", "to": "tempo", "label": "traces", "fromSide": "bottom", "toSide": "top" },
+    { "id": "prom-graf", "from": "prometheus", "to": "grafana", "label": "query /dashboards", "fromSide": "right", "toSide": "left" },
+    { "id": "loki-graf", "from": "loki", "to": "grafana", "label": "query", "fromSide": "right", "toSide": "left" },
+    { "id": "tempo-graf", "from": "tempo", "to": "grafana", "label": "query", "fromSide": "right", "toSide": "left" }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "Edge / Gate", "items": [
+      "Traefik :8088 routes /api/orders → order-service, /api/inventory → inventory-service, /ws → websocket-service",
+      "JWT ForwardAuth to auth-service:8083/verify; protected-chain = jwt-auth + rate-limit + security-headers",
+      "Public /health router uses public-chain (no auth)"
+    ]},
+    { "dot": "emerald", "title": "Application & State", "items": [
+      "Order-service outbox publisher → Kafka topics order.created / paid / confirmed / cancelled / shipped / delivered / status.changed (cmd/order-service/main.go:90)",
+      "Inventory-service consumes order.created (group inventory-service-orders) and writes inventory.reservation_failed to Kafka (internal/inventory/adapter/kafka/order_event_handler.go:181-207)",
+      "WebSocket subscribes Redis channels order.events + inventory.events — zero .Publish() matches in repo (verified gap)",
+      "Redis caches: order 5min TTL, inventory 30s TTL; DLQ topic dead_letter configured in pkg/kafka/consumer.go:196"
+    ]},
+    { "dot": "rose", "title": "Verified Gaps / Notes", "items": [
+      "Kafka topic inventory.reserved (line 125) is consumed by order-service (cmd/order-service/main.go:101) but has no in-repo producer",
+      "Kafka inventory.reserved + Redis pub/sub channels lack verified producers — diagram edges shown dashed with gap notation",
+      "OTel Collector scrapes 5 services + Traefik; exports to Tempo / Loki / Prometheus; Grafana queries all three"
+    ]}
+  ]
+}

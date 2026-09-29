@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "Sequence — Order Request to Inventory Reservation",
+    "output": "docs/architecture/sequence-request-flow.html",
+    "output": "docs/architecture/sequence-request-flow.html",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/racenak/Realtime-Order-Inventory-System.git",
+      "revision": "ddddab94f547b911a292cba09d93ead590e6b6ee",
+      "link_mode": "local-only"
+    }
+  },
+  "participants": [
+    { "id": "client", "type": "external", "label": "Client / k6" },
+    { "id": "traefik", "type": "backend", "label": "Traefik" },
+    { "id": "auth", "type": "security", "label": "Auth" },
+    { "id": "order-svc", "type": "backend", "label": "Order Service", "sources": [{"path":"cmd/order-service/main.go","line":33,"label":"entry"}] },
+    { "id": "order-db", "type": "database", "label": "Order DB" },
+    { "id": "kafka", "type": "messagebus", "label": "Kafka" },
+    { "id": "inv-svc", "type": "backend", "label": "Inv-Svc" },
+    { "id": "inv-db", "type": "database", "label": "Inventory DB" },
+    { "id": "ws-hub", "type": "backend", "label": "WebSocket Hub" }
+  ],
+  "messages": [
+    { "id": "m1", "from": "client", "to": "traefik", "y": 160, "label": "POST /api/orders", "variant": "emphasis" },
+    { "id": "m2", "from": "traefik", "to": "auth", "y": 200, "label": "ForwardAuth /verify", "variant": "security" },
+    { "id": "m3", "from": "auth", "to": "traefik", "y": 240, "label": "X-User-Id / X-User-Role", "variant": "return" },
+    { "id": "m4", "from": "traefik", "to": "order-svc", "y": 280, "label": "/api/orders (JWT)", "variant": "emphasis" },
+    { "id": "m5", "from": "order-svc", "to": "order-db", "y": 320, "label": "INSERT + outbox SQL", "variant": "default" },
+    { "id": "m6", "from": "order-svc", "to": "kafka", "y": 360, "label": "publish order.created (outbox)", "variant": "dashed" },
+    { "id": "m7", "from": "kafka", "to": "inv-svc", "y": 400, "label": "consume order.created (group)", "variant": "dashed" },
+    { "id": "m8", "from": "inv-svc", "to": "inv-db", "y": 440, "label": "reserve SQL", "variant": "default" },
+    { "id": "m9", "from": "inv-svc", "to": "kafka", "y": 480, "label": "inventory.reservation_failed (if)", "variant": "dashed" },
+    { "id": "m10", "from": "kafka", "to": "order-svc", "y": 520, "label": "consume inventory.reserved (gap)", "variant": "dashed", "note": "No in-repo Kafka producer for this topic (verified gap at cmd/order-service/main.go:101)" },
+    { "id": "m11", "from": "ws-hub", "to": "client", "y": 560, "label": "broadcast via Redis pub/sub (subscribe only)", "variant": "dashed", "note": "Redis channels order.events / inventory.events have zero .Publish() match" }
+  ]
+}

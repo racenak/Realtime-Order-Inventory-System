@@ -1,0 +1,3288 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "finalize",
+  "status": "pass",
+  "type": "architecture",
+  "quality": "standard",
+  "startedAt": "2026-09-29T17:38:08.667Z",
+  "specification": {
+    "path": "/home/tranngocvu/Projects/Realtime-Order-Inventory-System/.archify/architecture-runtime-overview-20250930-120000/candidate.json",
+    "sha256": "0234f8eee7dfde2b3c5075ce67a84387b1b37b51448d123c13d8753c6c67cbc7",
+    "bytes": 9973
+  },
+  "artifact": {
+    "path": "/home/tranngocvu/Projects/Realtime-Order-Inventory-System/docs/architecture/architecture-runtime.html",
+    "sha256": "0e3f90ec72f5e8eb811216d39a44560b176884d1c65b6e706c72b88646cc2543",
+    "bytes": 795099
+  },
+  "stages": {
+    "validate": {
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": null,
+      "execution": "embedded-in-deliver",
+      "command": [
+        "/home/tranngocvu/.hermes/node/bin/node",
+        "/home/tranngocvu/.agents/skills/archify/bin/archify.mjs",
+        "deliver",
+        "architecture",
+        "/home/tranngocvu/Projects/Realtime-Order-Inventory-System/.archify/architecture-runtime-overview-20250930-120000/candidate.json",
+        "/home/tranngocvu/Projects/Realtime-Order-Inventory-System/docs/architecture/architecture-runtime.html",
+        "--quality",
+        "standard",
+        "--repo-root",
+        "/home/tranngocvu/Projects/Realtime-Order-Inventory-System",
+        "--json"
+      ],
+      "receipt": {
+        "schemaVersion": 1,
+        "ok": true,
+        "command": "validate",
+        "specification": {
+          "sha256": "0234f8eee7dfde2b3c5075ce67a84387b1b37b51448d123c13d8753c6c67cbc7",
+          "bytes": 9973
+        },
+        "validation": {
+          "checksPassed": 9,
+          "checkCount": 9,
+          "compositionProfile": "standard",
+          "compositionStatus": "pass",
+          "errors": 0,
+          "warnings": 14,
+          "compositionIssues": [
+            {
+              "severity": "warning",
+              "code": "composition/label-route-clearance",
+              "label": "/api/inventory",
+              "labelRelationship": {
+                "id": "traefik-inventory",
+                "from": "traefik",
+                "to": "inventory-service",
+                "label": "/api/inventory",
+                "collectionIndex": 3,
+                "artifactIndex": 4
+              },
+              "otherRelationship": {
+                "id": "traefik-orders",
+                "from": "traefik",
+                "to": "order-service",
+                "label": "/api/orders",
+                "collectionIndex": 2,
+                "artifactIndex": 3
+              },
+              "segmentIndex": 0,
+              "labelRect": {
+                "x": 302.4,
+                "y": 274,
+                "width": 77.2,
+                "height": 14
+              },
+              "clearance": 0,
+              "intersectionLength": 14,
+              "threshold": 2,
+              "from": [
+                352,
+                270
+              ],
+              "to": [
+                352,
+                315
+              ]
+            },
+            {
+              "severity": "warning",
+              "code": "composition/label-route-clearance",
+              "label": "SQL",
+              "labelRelationship": {
+                "id": "inv-db-sql",
+                "from": "inventory-service",
+                "to": "inventory-db",
+                "label": "SQL",
+                "collectionIndex": 6,
+                "artifactIndex": 7
+              },
+              "otherRelationship": {
+                "id": "order-redis",
+                "from": "order-service",
+                "to": "redis",
+                "label": "cache (5min TTL)",
+                "collectionIndex": 8,
+                "artifactIndex": 9
+              },
+              "segmentIndex": 1,
+              "labelRect": {
+                "x": 495,
+                "y": 506,
+                "width": 30,
+                "height": 14
+              },
+              "clearance": 0,
+              "intersectionLength": 30,
+              "threshold": 2,
+              "from": [
+                387,
+                507
+              ],
+              "to": [
+                556,
+                507
+              ]
+            },
+            {
+              "severity": "warning",
+              "code": "composition/label-route-clearance",
+              "label": "pub/sub subscribe",
+              "labelRelationship": {
+                "id": "ws-redis",
+                "from": "websocket-service",
+                "to": "redis",
+                "label": "pub/sub subscribe",
+                "collectionIndex": 7,
+                "artifactIndex": 8
+              },
+              "otherRelationship": {
+                "id": "order-redis",
+                "from": "order-service",
+                "to": "redis",
+                "label": "cache (5min TTL)",
+                "collectionIndex": 8,
+                "artifactIndex": 9
+              },
+              "segmentIndex": 2,
+              "labelRect": {
+                "x": 464.2,
+                "y": 673.5,
+                "width": 91.6,
+                "height": 14
+              },
+              "clearance": 0.2,
+              "intersectionLength": 0,
+              "threshold": 2,
+              "from": [
+                556,
+                507
+              ],
+              "to": [
+                556,
+                676
+              ]
+            },
+            {
+              "severity": "warning",
+              "code": "composition/label-route-clearance",
+              "label": "pub/sub subscribe",
+              "labelRelationship": {
+                "id": "ws-redis",
+                "from": "websocket-service",
+                "to": "redis",
+                "label": "pub/sub subscribe",
+                "collectionIndex": 7,
+                "artifactIndex": 8
+              },
+              "otherRelationship": {
+                "id": "inv-redis",
+                "from": "inventory-service",
+                "to": "redis",
+                "label": "cache (30s TTL)",
+                "collectionIndex": 9,
+                "artifactIndex": 10
+              },
+              "segmentIndex": 1,
+              "labelRect": {
+                "x": 464.2,
+                "y": 673.5,
+                "width": 91.6,
+                "height": 14
+              },
+              "clearance": 0,
+              "intersectionLength": 14,
+              "threshold": 2,
+              "from": [
+                510,
+                540
+              ],
+              "to": [
+                510,
+                690
+              ]
+            },
+            {
+              "severity": "warning",
+              "code": "composition/label-route-clearance",
+              "label": "outbox → order.*",
+              "labelRelationship": {
+                "id": "order-kafka",
+                "from": "order-service",
+                "to": "kafka",
+                "label": "outbox → order.*",
+                "collectionIndex": 10,
+                "artifactIndex": 11
+              },
+              "otherRelationship": {
+                "id": "order-redis",
+                "from": "order-service",
+                "to": "redis",
+                "label": "cache (5min TTL)",
+                "collectionIndex": 8,
+                "artifactIndex": 9
+              },
+              "segmentIndex": 0,
+              "labelRect": {
+                "x": 376.6,
+                "y": 420,
+                "width": 86.8,
+                "height": 14
+              },
+              "clearance": 0,
+              "intersectionLength": 14,
+              "threshold": 2,
+              "from": [
+                387,
+                420
+              ],
+              "to": [
+                387,
+                507
+              ]
+            },
+            {
+              "severity": "warning",
+              "code": "composition/label-route-clearance",
+              "label": "reservation_failed",
+              "labelRelationship": {
+                "id": "inv-kafka-reserved",
+                "from": "inventory-service",
+                "to": "kafka",
+                "label": "reservation_failed",
+                "collectionIndex": 12,
+                "artifactIndex": 13
+              },
+              "otherRelationship": {
+                "id": "order-kafka",
+                "from": "order-service",
+                "to": "kafka",
+                "label": "outbox → order.*",
+                "collectionIndex": 10,
+                "artifactIndex": 11
+              },
+              "segmentIndex": 2,
+              "labelRect": {
+                "x": 285.8,
+                "y": 637,
+                "width": 96.4,
+                "height": 14
+              },
+              "clearance": 0,
+              "intersectionLength": 14,
+              "threshold": 2,
+              "from": [
+                296,
+                444
+              ],
+              "to": [
+                296,
+                840
+              ]
+            },
+            {
+              "severity": "warning",
+              "code": "composition/label-route-clearance",
+              "label": "reservation_failed",
+              "labelRelationship": {
+                "id": "inv-kafka-reserved",
+                "from": "inventory-service",
+                "to": "kafka",
+                "label": "reservation_failed",
+                "collectionIndex": 12,
+                "artifactIndex": 13
+              },
+              "otherRelationship": {
+                "id": "kafka-inv-cons",
+                "from": "kafka",
+                "to": "inventory-service",
+                "label": "order.created",
+                "collectionIndex": 11,
+                "artifactIndex": 12
+              },
+              "segmentIndex": 3,
+              "labelRect": {
+                "x": 285.8,
+                "y": 637,
+                "width": 96.4,
+                "height": 14
+              },
+              "clearance": 0,
+              "intersectionLength": 14,
+              "threshold": 2,
+              "from": [
+                296,
+                723
+              ],
+              "to": [
+                296,
+                540
+              ]
+            },
+            {
+              "severity": "warning",
+              "code": "composition/label-route-clearance",
+              "label": "reservation_failed",
+              "labelRelationship": {
+                "id": "inv-kafka-reserved",
+                "from": "inventory-service",
+                "to": "kafka",
+                "label": "reservation_failed",
+                "collectionIndex": 12,
+                "artifactIndex": 13
+              },
+              "otherRelationship": {
+                "id": "inv-otlp",
+                "from": "inventory-service",
+                "to": "otel-collector",
+                "label": "OTLP + /metrics",
+                "collectionIndex": 15,
+                "artifactIndex": 16
+              },
+              "segmentIndex": 0,
+              "labelRect": {
+                "x": 285.8,
+                "y": 637,
+                "width": 96.4,
+                "height": 14
+              },
+              "clearance": 0,
+              "intersectionLength": 12,
+              "threshold": 2,
+              "from": [
+                366,
+                570
+              ],
+              "to": [
+                366,
+                649
+              ]
+            },
+            {
+              "severity": "warning",
+              "code": "composition/label-route-clearance",
+              "label": "inventory.reserved (gap)",
+              "labelRelationship": {
+                "id": "kafka-order-cons",
+                "from": "kafka",
+                "to": "order-service",
+                "label": "inventory.reserved (gap)",
+                "collectionIndex": 13,
+                "artifactIndex": 14
+              },
+              "otherRelationship": {
+                "id": "order-kafka",
+                "from": "order-service",
+                "to": "kafka",
+                "label": "outbox → order.*",
+                "collectionIndex": 10,
+                "artifactIndex": 11
+              },
+              "segmentIndex": 2,
+              "labelRect": {
+                "x": 217.4,
+                "y": 618.5,
+                "width": 125.2,
+                "height": 14
+              },
+              "clearance": 0,
+              "intersectionLength": 14,
+              "threshold": 2,
+              "from": [
+                296,
+                444
+              ],
+              "to": [
+                296,
+                840
+              ]
+            },
+            {
+              "severity": "warning",
+              "code": "composition/label-route-clearance",
+              "label": "inventory.reserved (gap)",
+              "labelRelationship": {
+                "id": "kafka-order-cons",
+                "from": "kafka",
+                "to": "order-service",
+                "label": "inventory.reserved (gap)",
+                "collectionIndex": 13,
+                "artifactIndex": 14
+              },
+              "otherRelationship": {
+                "id": "kafka-inv-cons",
+                "from": "kafka",
+                "to": "inventory-service",
+                "label": "order.created",
+                "collectionIndex": 11,
+                "artifactIndex": 12
+              },
+              "segmentIndex": 3,
+              "labelRect": {
+                "x": 217.4,
+                "y": 618.5,
+                "width": 125.2,
+                "height": 14
+              },
+              "clearance": 0,
+              "intersectionLength": 14,
+              "threshold": 2,
+              "from": [
+                296,
+                723
+              ],
+              "to": [
+                296,
+                540
+              ]
+            },
+            {
+              "severity": "warning",
+              "code": "composition/label-route-clearance",
+              "label": "OTLP + /metrics",
+              "labelRelationship": {
+                "id": "inv-otlp",
+                "from": "inventory-service",
+                "to": "otel-collector",
+                "label": "OTLP + /metrics",
+                "collectionIndex": 15,
+                "artifactIndex": 16
+              },
+              "otherRelationship": {
+                "id": "traefik-ws",
+                "from": "traefik",
+                "to": "websocket-service",
+                "label": "/ws",
+                "collectionIndex": 4,
+                "artifactIndex": 5
+              },
+              "segmentIndex": 2,
+              "labelRect": {
+                "x": 550,
+                "y": 629,
+                "width": 82,
+                "height": 14
+              },
+              "clearance": 0,
+              "intersectionLength": 14,
+              "threshold": 2,
+              "from": [
+                577,
+                294
+              ],
+              "to": [
+                577,
+                744
+              ]
+            },
+            {
+              "severity": "warning",
+              "code": "composition/label-route-clearance",
+              "label": "OTLP + /metrics",
+              "labelRelationship": {
+                "id": "inv-otlp",
+                "from": "inventory-service",
+                "to": "otel-collector",
+                "label": "OTLP + /metrics",
+                "collectionIndex": 15,
+                "artifactIndex": 16
+              },
+              "otherRelationship": {
+                "id": "order-redis",
+                "from": "order-service",
+                "to": "redis",
+                "label": "cache (5min TTL)",
+                "collectionIndex": 8,
+                "artifactIndex": 9
+              },
+              "segmentIndex": 2,
+              "labelRect": {
+                "x": 550,
+                "y": 629,
+                "width": 82,
+                "height": 14
+              },
+              "clearance": 0,
+              "intersectionLength": 14,
+              "threshold": 2,
+              "from": [
+                556,
+                507
+              ],
+              "to": [
+                556,
+                676
+              ]
+            },
+            {
+              "severity": "warning",
+              "code": "composition/label-route-clearance",
+              "label": "logs",
+              "labelRelationship": {
+                "id": "otel-loki",
+                "from": "otel-collector",
+                "to": "loki",
+                "label": "logs",
+                "collectionIndex": 19,
+                "artifactIndex": 20
+              },
+              "otherRelationship": {
+                "id": "otel-tempo",
+                "from": "otel-collector",
+                "to": "tempo",
+                "label": "traces",
+                "collectionIndex": 20,
+                "artifactIndex": 21
+              },
+              "segmentIndex": 1,
+              "labelRect": {
+                "x": 1011.5,
+                "y": 916,
+                "width": 30,
+                "height": 14
+              },
+              "clearance": 0,
+              "intersectionLength": 30,
+              "threshold": 2,
+              "from": [
+                907,
+                928
+              ],
+              "to": [
+                1420,
+                928
+              ]
+            },
+            {
+              "severity": "warning",
+              "code": "composition/desktop-readability",
+              "nodeId": "clients",
+              "owner": {
+                "kind": "node",
+                "id": "clients"
+              },
+              "viewportWidth": 1440,
+              "viewportHeight": 900,
+              "availableDiagramWidth": 930,
+              "budgetBasis": "legacy-930",
+              "readerContract": "declared-wide-v1",
+              "requestedTargetPx": 7.5,
+              "requestedTargetMet": false,
+              "budgetLimit": "legacy",
+              "viewBoxWidth": 1561,
+              "scale": 0.5957719410634209,
+              "text": "Browser / Load Tester (k6)",
+              "detail": "context",
+              "sourceFontPx": 7.1,
+              "projectedFontPx": 4.229980781550288,
+              "minimumProjectedFontPx": 6
+            }
+          ]
+        }
+      }
+    },
+    "deliver": {
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 787,
+      "command": [
+        "/home/tranngocvu/.hermes/node/bin/node",
+        "/home/tranngocvu/.agents/skills/archify/bin/archify.mjs",
+        "deliver",
+        "architecture",
+        "/home/tranngocvu/Projects/Realtime-Order-Inventory-System/.archify/architecture-runtime-overview-20250930-120000/candidate.json",
+        "/home/tranngocvu/Projects/Realtime-Order-Inventory-System/docs/architecture/architecture-runtime.html",
+        "--quality",
+        "standard",
+        "--repo-root",
+        "/home/tranngocvu/Projects/Realtime-Order-Inventory-System",
+        "--json"
+      ],
+      "receipt": {
+        "schemaVersion": 1,
+        "receiptId": "19933730-a2d7-438b-beaa-d5caf906bd1d",
+        "ok": true,
+        "command": "deliver",
+        "type": "architecture",
+        "input": "/home/tranngocvu/Projects/Realtime-Order-Inventory-System/.archify/architecture-runtime-overview-20250930-120000/candidate.json",
+        "output": "/home/tranngocvu/Projects/Realtime-Order-Inventory-System/docs/architecture/architecture-runtime.html",
+        "specification": {
+          "sha256": "0234f8eee7dfde2b3c5075ce67a84387b1b37b51448d123c13d8753c6c67cbc7",
+          "bytes": 9973
+        },
+        "artifact": {
+          "sha256": "0e3f90ec72f5e8eb811216d39a44560b176884d1c65b6e706c72b88646cc2543",
+          "bytes": 795099
+        },
+        "validation": {
+          "checksPassed": 9,
+          "checkCount": 9,
+          "compositionProfile": "standard",
+          "compositionStatus": "pass",
+          "errors": 0,
+          "warnings": 14,
+          "compositionIssues": [
+            {
+              "severity": "warning",
+              "code": "composition/label-route-clearance",
+              "label": "/api/inventory",
+              "labelRelationship": {
+                "id": "traefik-inventory",
+                "from": "traefik",
+                "to": "inventory-service",
+                "label": "/api/inventory",
+                "collectionIndex": 3,
+                "artifactIndex": 4
+              },
+              "otherRelationship": {
+                "id": "traefik-orders",
+                "from": "traefik",
+                "to": "order-service",
+                "label": "/api/orders",
+                "collectionIndex": 2,
+                "artifactIndex": 3
+              },
+              "segmentIndex": 0,
+              "labelRect": {
+                "x": 302.4,
+                "y": 274,
+                "width": 77.2,
+                "height": 14
+              },
+              "clearance": 0,
+              "intersectionLength": 14,
+              "threshold": 2,
+              "from": [
+                352,
+                270
+              ],
+              "to": [
+                352,
+                315
+              ]
+            },
+            {
+              "severity": "warning",
+              "code": "composition/label-route-clearance",
+              "label": "SQL",
+              "labelRelationship": {
+                "id": "inv-db-sql",
+                "from": "inventory-service",
+                "to": "inventory-db",
+                "label": "SQL",
+                "collectionIndex": 6,
+                "artifactIndex": 7
+              },
+              "otherRelationship": {
+                "id": "order-redis",
+                "from": "order-service",
+                "to": "redis",
+                "label": "cache (5min TTL)",
+                "collectionIndex": 8,
+                "artifactIndex": 9
+              },
+              "segmentIndex": 1,
+              "labelRect": {
+                "x": 495,
+                "y": 506,
+                "width": 30,
+                "height": 14
+              },
+              "clearance": 0,
+              "intersectionLength": 30,
+              "threshold": 2,
+              "from": [
+                387,
+                507
+              ],
+              "to": [
+                556,
+                507
+              ]
+            },
+            {
+              "severity": "warning",
+              "code": "composition/label-route-clearance",
+              "label": "pub/sub subscribe",
+              "labelRelationship": {
+                "id": "ws-redis",
+                "from": "websocket-service",
+                "to": "redis",
+                "label": "pub/sub subscribe",
+                "collectionIndex": 7,
+                "artifactIndex": 8
+              },
+              "otherRelationship": {
+                "id": "order-redis",
+                "from": "order-service",
+                "to": "redis",
+                "label": "cache (5min TTL)",
+                "collectionIndex": 8,
+                "artifactIndex": 9
+              },
+              "segmentIndex": 2,
+              "labelRect": {
+                "x": 464.2,
+                "y": 673.5,
+                "width": 91.6,
+                "height": 14
+              },
+              "clearance": 0.2,
+              "intersectionLength": 0,
+              "threshold": 2,
+              "from": [
+                556,
+                507
+              ],
+              "to": [
+                556,
+                676
+              ]
+            },
+            {
+              "severity": "warning",
+              "code": "composition/label-route-clearance",
+              "label": "pub/sub subscribe",
+              "labelRelationship": {
+                "id": "ws-redis",
+                "from": "websocket-service",
+                "to": "redis",
+                "label": "pub/sub subscribe",
+                "collectionIndex": 7,
+                "artifactIndex": 8
+              },
+              "otherRelationship": {
+                "id": "inv-redis",
+                "from": "inventory-service",
+                "to": "redis",
+                "label": "cache (30s TTL)",
+                "collectionIndex": 9,
+                "artifactIndex": 10
+              },
+              "segmentIndex": 1,
+              "labelRect": {
+                "x": 464.2,
+                "y": 673.5,
+                "width": 91.6,
+                "height": 14
+              },
+              "clearance": 0,
+              "intersectionLength": 14,
+              "threshold": 2,
+              "from": [
+                510,
+                540
+              ],
+              "to": [
+                510,
+                690
+              ]
+            },
+            {
+              "severity": "warning",
+              "code": "composition/label-route-clearance",
+              "label": "outbox → order.*",
+              "labelRelationship": {
+                "id": "order-kafka",
+                "from": "order-service",
+                "to": "kafka",
+                "label": "outbox → order.*",
+                "collectionIndex": 10,
+                "artifactIndex": 11
+              },
+              "otherRelationship": {
+                "id": "order-redis",
+                "from": "order-service",
+                "to": "redis",
+                "label": "cache (5min TTL)",
+                "collectionIndex": 8,
+                "artifactIndex": 9
+              },
+              "segmentIndex": 0,
+              "labelRect": {
+                "x": 376.6,
+                "y": 420,
+                "width": 86.8,
+                "height": 14
+              },
+              "clearance": 0,
+              "intersectionLength": 14,
+              "threshold": 2,
+              "from": [
+                387,
+                420
+              ],
+              "to": [
+                387,
+                507
+              ]
+            },
+            {
+              "severity": "warning",
+              "code": "composition/label-route-clearance",
+              "label": "reservation_failed",
+              "labelRelationship": {
+                "id": "inv-kafka-reserved",
+                "from": "inventory-service",
+                "to": "kafka",
+                "label": "reservation_failed",
+                "collectionIndex": 12,
+                "artifactIndex": 13
+              },
+              "otherRelationship": {
+                "id": "order-kafka",
+                "from": "order-service",
+                "to": "kafka",
+                "label": "outbox → order.*",
+                "collectionIndex": 10,
+                "artifactIndex": 11
+              },
+              "segmentIndex": 2,
+              "labelRect": {
+                "x": 285.8,
+                "y": 637,
+                "width": 96.4,
+                "height": 14
+              },
+              "clearance": 0,
+              "intersectionLength": 14,
+              "threshold": 2,
+              "from": [
+                296,
+                444
+              ],
+              "to": [
+                296,
+                840
+              ]
+            },
+            {
+              "severity": "warning",
+              "code": "composition/label-route-clearance",
+              "label": "reservation_failed",
+              "labelRelationship": {
+                "id": "inv-kafka-reserved",
+                "from": "inventory-service",
+                "to": "kafka",
+                "label": "reservation_failed",
+                "collectionIndex": 12,
+                "artifactIndex": 13
+              },
+              "otherRelationship": {
+                "id": "kafka-inv-cons",
+                "from": "kafka",
+                "to": "inventory-service",
+                "label": "order.created",
+                "collectionIndex": 11,
+                "artifactIndex": 12
+              },
+              "segmentIndex": 3,
+              "labelRect": {
+                "x": 285.8,
+                "y": 637,
+                "width": 96.4,
+                "height": 14
+              },
+              "clearance": 0,
+              "intersectionLength": 14,
+              "threshold": 2,
+              "from": [
+                296,
+                723
+              ],
+              "to": [
+                296,
+                540
+              ]
+            },
+            {
+              "severity": "warning",
+              "code": "composition/label-route-clearance",
+              "label": "reservation_failed",
+              "labelRelationship": {
+                "id": "inv-kafka-reserved",
+                "from": "inventory-service",
+                "to": "kafka",
+                "label": "reservation_failed",
+                "collectionIndex": 12,
+                "artifactIndex": 13
+              },
+              "otherRelationship": {
+                "id": "inv-otlp",
+                "from": "inventory-service",
+                "to": "otel-collector",
+                "label": "OTLP + /metrics",
+                "collectionIndex": 15,
+                "artifactIndex": 16
+              },
+              "segmentIndex": 0,
+              "labelRect": {
+                "x": 285.8,
+                "y": 637,
+                "width": 96.4,
+                "height": 14
+              },
+              "clearance": 0,
+              "intersectionLength": 12,
+              "threshold": 2,
+              "from": [
+                366,
+                570
+              ],
+              "to": [
+                366,
+                649
+              ]
+            },
+            {
+              "severity": "warning",
+              "code": "composition/label-route-clearance",
+              "label": "inventory.reserved (gap)",
+              "labelRelationship": {
+                "id": "kafka-order-cons",
+                "from": "kafka",
+                "to": "order-service",
+                "label": "inventory.reserved (gap)",
+                "collectionIndex": 13,
+                "artifactIndex": 14
+              },
+              "otherRelationship": {
+                "id": "order-kafka",
+                "from": "order-service",
+                "to": "kafka",
+                "label": "outbox → order.*",
+                "collectionIndex": 10,
+                "artifactIndex": 11
+              },
+              "segmentIndex": 2,
+              "labelRect": {
+                "x": 217.4,
+                "y": 618.5,
+                "width": 125.2,
+                "height": 14
+              },
+              "clearance": 0,
+              "intersectionLength": 14,
+              "threshold": 2,
+              "from": [
+                296,
+                444
+              ],
+              "to": [
+                296,
+                840
+              ]
+            },
+            {
+              "severity": "warning",
+              "code": "composition/label-route-clearance",
+              "label": "inventory.reserved (gap)",
+              "labelRelationship": {
+                "id": "kafka-order-cons",
+                "from": "kafka",
+                "to": "order-service",
+                "label": "inventory.reserved (gap)",
+                "collectionIndex": 13,
+                "artifactIndex": 14
+              },
+              "otherRelationship": {
+                "id": "kafka-inv-cons",
+                "from": "kafka",
+                "to": "inventory-service",
+                "label": "order.created",
+                "collectionIndex": 11,
+                "artifactIndex": 12
+              },
+              "segmentIndex": 3,
+              "labelRect": {
+                "x": 217.4,
+                "y": 618.5,
+                "width": 125.2,
+                "height": 14
+              },
+              "clearance": 0,
+              "intersectionLength": 14,
+              "threshold": 2,
+              "from": [
+                296,
+                723
+              ],
+              "to": [
+                296,
+                540
+              ]
+            },
+            {
+              "severity": "warning",
+              "code": "composition/label-route-clearance",
+              "label": "OTLP + /metrics",
+              "labelRelationship": {
+                "id": "inv-otlp",
+                "from": "inventory-service",
+                "to": "otel-collector",
+                "label": "OTLP + /metrics",
+                "collectionIndex": 15,
+                "artifactIndex": 16
+              },
+              "otherRelationship": {
+                "id": "traefik-ws",
+                "from": "traefik",
+                "to": "websocket-service",
+                "label": "/ws",
+                "collectionIndex": 4,
+                "artifactIndex": 5
+              },
+              "segmentIndex": 2,
+              "labelRect": {
+                "x": 550,
+                "y": 629,
+                "width": 82,
+                "height": 14
+              },
+              "clearance": 0,
+              "intersectionLength": 14,
+              "threshold": 2,
+              "from": [
+                577,
+                294
+              ],
+              "to": [
+                577,
+                744
+              ]
+            },
+            {
+              "severity": "warning",
+              "code": "composition/label-route-clearance",
+              "label": "OTLP + /metrics",
+              "labelRelationship": {
+                "id": "inv-otlp",
+                "from": "inventory-service",
+                "to": "otel-collector",
+                "label": "OTLP + /metrics",
+                "collectionIndex": 15,
+                "artifactIndex": 16
+              },
+              "otherRelationship": {
+                "id": "order-redis",
+                "from": "order-service",
+                "to": "redis",
+                "label": "cache (5min TTL)",
+                "collectionIndex": 8,
+                "artifactIndex": 9
+              },
+              "segmentIndex": 2,
+              "labelRect": {
+                "x": 550,
+                "y": 629,
+                "width": 82,
+                "height": 14
+              },
+              "clearance": 0,
+              "intersectionLength": 14,
+              "threshold": 2,
+              "from": [
+                556,
+                507
+              ],
+              "to": [
+                556,
+                676
+              ]
+            },
+            {
+              "severity": "warning",
+              "code": "composition/label-route-clearance",
+              "label": "logs",
+              "labelRelationship": {
+                "id": "otel-loki",
+                "from": "otel-collector",
+                "to": "loki",
+                "label": "logs",
+                "collectionIndex": 19,
+                "artifactIndex": 20
+              },
+              "otherRelationship": {
+                "id": "otel-tempo",
+                "from": "otel-collector",
+                "to": "tempo",
+                "label": "traces",
+                "collectionIndex": 20,
+                "artifactIndex": 21
+              },
+              "segmentIndex": 1,
+              "labelRect": {
+                "x": 1011.5,
+                "y": 916,
+                "width": 30,
+                "height": 14
+              },
+              "clearance": 0,
+              "intersectionLength": 30,
+              "threshold": 2,
+              "from": [
+                907,
+                928
+              ],
+              "to": [
+                1420,
+                928
+              ]
+            },
+            {
+              "severity": "warning",
+              "code": "composition/desktop-readability",
+              "nodeId": "clients",
+              "owner": {
+                "kind": "node",
+                "id": "clients"
+              },
+              "viewportWidth": 1440,
+              "viewportHeight": 900,
+              "availableDiagramWidth": 930,
+              "budgetBasis": "legacy-930",
+              "readerContract": "declared-wide-v1",
+              "requestedTargetPx": 7.5,
+              "requestedTargetMet": false,
+              "budgetLimit": "legacy",
+              "viewBoxWidth": 1561,
+              "scale": 0.5957719410634209,
+              "text": "Browser / Load Tester (k6)",
+              "detail": "context",
+              "sourceFontPx": 7.1,
+              "projectedFontPx": 4.229980781550288,
+              "minimumProjectedFontPx": 6
+            }
+          ]
+        },
+        "evidence": {
+          "verified": true,
+          "repository": "https://github.com/racenak/Realtime-Order-Inventory-System",
+          "revision": "ddddab94f547b911a292cba09d93ead590e6b6ee",
+          "references": 16,
+          "linkMode": "local-only"
+        },
+        "update": {
+          "status": "unavailable",
+          "installedVersion": null,
+          "availableVersion": null,
+          "releaseNotes": null,
+          "checkedAt": null,
+          "source": null,
+          "noticeRequired": false,
+          "noticeText": null,
+          "reason": "disabled"
+        }
+      }
+    },
+    "check": {
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 156,
+      "command": [
+        "/home/tranngocvu/.hermes/node/bin/node",
+        "/home/tranngocvu/.agents/skills/archify/bin/archify.mjs",
+        "check",
+        "/home/tranngocvu/Projects/Realtime-Order-Inventory-System/docs/architecture/architecture-runtime.html",
+        "--require-provenance"
+      ],
+      "receipt": {
+        "ok": true,
+        "file": "/home/tranngocvu/Projects/Realtime-Order-Inventory-System/docs/architecture/architecture-runtime.html",
+        "artifact": {
+          "sha256": "0e3f90ec72f5e8eb811216d39a44560b176884d1c65b6e706c72b88646cc2543",
+          "bytes": 795099
+        },
+        "checks": [
+          {
+            "name": "single_svg",
+            "ok": true,
+            "details": [
+              "found 1 <svg> block(s)"
+            ]
+          },
+          {
+            "name": "finite_svg",
+            "ok": true,
+            "details": []
+          },
+          {
+            "name": "orthogonal_arrows",
+            "ok": true,
+            "details": []
+          },
+          {
+            "name": "label_route_clearance",
+            "ok": true,
+            "details": [
+              "[composition/label-route-clearance] standard label \"/api/inventory\" on relationship id \"traefik-inventory\" (\"traefik\" -> \"inventory-service\") is 0px from relationship id \"traefik-orders\" (\"traefik\" -> \"order-service\") segment 0 [352, 270] -> [352, 315] with 14px hidden by the mask (minimum 2px) — use renderer-supported label controls (message y for sequence; otherwise labelAt, labelDx, labelDy, or labelSegment), or adjust the other relationship route/via/channel.",
+              "[composition/label-route-clearance] standard label \"SQL\" on relationship id \"inv-db-sql\" (\"inventory-service\" -> \"inventory-db\") is 0px from relationship id \"order-redis\" (\"order-service\" -> \"redis\") segment 1 [387, 507] -> [556, 507] with 30px hidden by the mask (minimum 2px) — use renderer-supported label controls (message y for sequence; otherwise labelAt, labelDx, labelDy, or labelSegment), or adjust the other relationship route/via/channel.",
+              "[composition/label-route-clearance] standard label \"pub/sub subscribe\" on relationship id \"ws-redis\" (\"websocket-service\" -> \"redis\") is 0.2px from relationship id \"order-redis\" (\"order-service\" -> \"redis\") segment 2 [556, 507] -> [556, 676] (minimum 2px) — use renderer-supported label controls (message y for sequence; otherwise labelAt, labelDx, labelDy, or labelSegment), or adjust the other relationship route/via/channel.",
+              "[composition/label-route-clearance] standard label \"pub/sub subscribe\" on relationship id \"ws-redis\" (\"websocket-service\" -> \"redis\") is 0px from relationship id \"inv-redis\" (\"inventory-service\" -> \"redis\") segment 1 [510, 540] -> [510, 690] with 14px hidden by the mask (minimum 2px) — use renderer-supported label controls (message y for sequence; otherwise labelAt, labelDx, labelDy, or labelSegment), or adjust the other relationship route/via/channel.",
+              "[composition/label-route-clearance] standard label \"outbox → order.*\" on relationship id \"order-kafka\" (\"order-service\" -> \"kafka\") is 0px from relationship id \"order-redis\" (\"order-service\" -> \"redis\") segment 0 [387, 420] -> [387, 507] with 14px hidden by the mask (minimum 2px) — use renderer-supported label controls (message y for sequence; otherwise labelAt, labelDx, labelDy, or labelSegment), or adjust the other relationship route/via/channel.",
+              "[composition/label-route-clearance] standard label \"reservation_failed\" on relationship id \"inv-kafka-reserved\" (\"inventory-service\" -> \"kafka\") is 0px from relationship id \"order-kafka\" (\"order-service\" -> \"kafka\") segment 2 [296, 444] -> [296, 840] with 14px hidden by the mask (minimum 2px) — use renderer-supported label controls (message y for sequence; otherwise labelAt, labelDx, labelDy, or labelSegment), or adjust the other relationship route/via/channel.",
+              "[composition/label-route-clearance] standard label \"reservation_failed\" on relationship id \"inv-kafka-reserved\" (\"inventory-service\" -> \"kafka\") is 0px from relationship id \"kafka-inv-cons\" (\"kafka\" -> \"inventory-service\") segment 3 [296, 723] -> [296, 540] with 14px hidden by the mask (minimum 2px) — use renderer-supported label controls (message y for sequence; otherwise labelAt, labelDx, labelDy, or labelSegment), or adjust the other relationship route/via/channel.",
+              "[composition/label-route-clearance] standard label \"reservation_failed\" on relationship id \"inv-kafka-reserved\" (\"inventory-service\" -> \"kafka\") is 0px from relationship id \"inv-otlp\" (\"inventory-service\" -> \"otel-collector\") segment 0 [366, 570] -> [366, 649] with 12px hidden by the mask (minimum 2px) — use renderer-supported label controls (message y for sequence; otherwise labelAt, labelDx, labelDy, or labelSegment), or adjust the other relationship route/via/channel.",
+              "[composition/label-route-clearance] standard label \"inventory.reserved (gap)\" on relationship id \"kafka-order-cons\" (\"kafka\" -> \"order-service\") is 0px from relationship id \"order-kafka\" (\"order-service\" -> \"kafka\") segment 2 [296, 444] -> [296, 840] with 14px hidden by the mask (minimum 2px) — use renderer-supported label controls (message y for sequence; otherwise labelAt, labelDx, labelDy, or labelSegment), or adjust the other relationship route/via/channel.",
+              "[composition/label-route-clearance] standard label \"inventory.reserved (gap)\" on relationship id \"kafka-order-cons\" (\"kafka\" -> \"order-service\") is 0px from relationship id \"kafka-inv-cons\" (\"kafka\" -> \"inventory-service\") segment 3 [296, 723] -> [296, 540] with 14px hidden by the mask (minimum 2px) — use renderer-supported label controls (message y for sequence; otherwise labelAt, labelDx, labelDy, or labelSegment), or adjust the other relationship route/via/channel.",
+              "[composition/label-route-clearance] standard label \"OTLP + /metrics\" on relationship id \"inv-otlp\" (\"inventory-service\" -> \"otel-collector\") is 0px from relationship id \"traefik-ws\" (\"traefik\" -> \"websocket-service\") segment 2 [577, 294] -> [577, 744] with 14px hidden by the mask (minimum 2px) — use renderer-supported label controls (message y for sequence; otherwise labelAt, labelDx, labelDy, or labelSegment), or adjust the other relationship route/via/channel.",
+              "[composition/label-route-clearance] standard label \"OTLP + /metrics\" on relationship id \"inv-otlp\" (\"inventory-service\" -> \"otel-collector\") is 0px from relationship id \"order-redis\" (\"order-service\" -> \"redis\") segment 2 [556, 507] -> [556, 676] with 14px hidden by the mask (minimum 2px) — use renderer-supported label controls (message y for sequence; otherwise labelAt, labelDx, labelDy, or labelSegment), or adjust the other relationship route/via/channel.",
+              "[composition/label-route-clearance] standard label \"logs\" on relationship id \"otel-loki\" (\"otel-collector\" -> \"loki\") is 0px from relationship id \"otel-tempo\" (\"otel-collector\" -> \"tempo\") segment 1 [907, 928] -> [1420, 928] with 30px hidden by the mask (minimum 2px) — use renderer-supported label controls (message y for sequence; otherwise labelAt, labelDx, labelDy, or labelSegment), or adjust the other relationship route/via/channel."
+            ]
+          },
+          {
+            "name": "relationship_crossings",
+            "ok": true,
+            "details": []
+          },
+          {
+            "name": "relationship_corridors",
+            "ok": true,
+            "details": []
+          },
+          {
+            "name": "container_border_runs",
+            "ok": true,
+            "details": []
+          },
+          {
+            "name": "route_rhythm",
+            "ok": true,
+            "details": []
+          },
+          {
+            "name": "legend_clearance",
+            "ok": true,
+            "details": []
+          }
+        ],
+        "composition": {
+          "schemaVersion": 1,
+          "profile": "standard",
+          "status": "pass",
+          "summary": {
+            "errors": 0,
+            "warnings": 14
+          },
+          "metrics": {
+            "properCrossings": 0,
+            "resolvedCrossovers": 19,
+            "ambiguousCorridors": 0,
+            "arrowheadCollisions": 0,
+            "containerBorderRuns": 0,
+            "labelRouteClearanceIssues": 13,
+            "labelCanvasOverflowIssues": 0,
+            "minLabelRouteClearance": 0,
+            "desktopReadabilityIssues": 1,
+            "viewportHeightIssues": 0,
+            "minProjectedNodeTextPx": 4.229980781550288,
+            "maxBends": 4,
+            "routesOverSuggestedBends": 13,
+            "maxStretch": 1.892,
+            "routesOverSuggestedStretch": 4,
+            "minSegmentPx": 21,
+            "minInteriorSegmentPx": 21,
+            "shortSegmentCount": 0,
+            "shortEndpointSegmentCount": 0,
+            "shortInteriorSegmentCount": 0,
+            "microSegmentCount": 0
+          },
+          "suggestedLimits": {
+            "bendsPerRelationship": 2,
+            "stretch": 1.35,
+            "segmentPx": 16,
+            "microSegmentPx": 8
+          },
+          "routeReview": {
+            "crossings": [
+              {
+                "left": {
+                  "id": "traefik-orders",
+                  "from": "traefik",
+                  "to": "order-service",
+                  "label": "/api/orders",
+                  "collectionIndex": 2,
+                  "artifactIndex": 3
+                },
+                "right": {
+                  "id": "traefik-inventory",
+                  "from": "traefik",
+                  "to": "inventory-service",
+                  "label": "/api/inventory",
+                  "collectionIndex": 3,
+                  "artifactIndex": 4
+                },
+                "point": [
+                  352,
+                  294
+                ],
+                "sharedNode": "traefik"
+              },
+              {
+                "left": {
+                  "id": "traefik-inventory",
+                  "from": "traefik",
+                  "to": "inventory-service",
+                  "label": "/api/inventory",
+                  "collectionIndex": 3,
+                  "artifactIndex": 4
+                },
+                "right": {
+                  "id": "order-kafka",
+                  "from": "order-service",
+                  "to": "kafka",
+                  "label": "outbox → order.*",
+                  "collectionIndex": 10,
+                  "artifactIndex": 11
+                },
+                "point": [
+                  316,
+                  444
+                ]
+              },
+              {
+                "left": {
+                  "id": "traefik-inventory",
+                  "from": "traefik",
+                  "to": "inventory-service",
+                  "label": "/api/inventory",
+                  "collectionIndex": 3,
+                  "artifactIndex": 4
+                },
+                "right": {
+                  "id": "kafka-order-cons",
+                  "from": "kafka",
+                  "to": "order-service",
+                  "label": "inventory.reserved (gap)",
+                  "collectionIndex": 13,
+                  "artifactIndex": 14
+                },
+                "point": [
+                  316,
+                  444
+                ]
+              },
+              {
+                "left": {
+                  "id": "traefik-ws",
+                  "from": "traefik",
+                  "to": "websocket-service",
+                  "label": "/ws",
+                  "collectionIndex": 4,
+                  "artifactIndex": 5
+                },
+                "right": {
+                  "id": "order-db-sql",
+                  "from": "order-service",
+                  "to": "order-db",
+                  "label": "SQL + outbox",
+                  "collectionIndex": 5,
+                  "artifactIndex": 6
+                },
+                "point": [
+                  577,
+                  383
+                ]
+              },
+              {
+                "left": {
+                  "id": "traefik-ws",
+                  "from": "traefik",
+                  "to": "websocket-service",
+                  "label": "/ws",
+                  "collectionIndex": 4,
+                  "artifactIndex": 5
+                },
+                "right": {
+                  "id": "inv-db-sql",
+                  "from": "inventory-service",
+                  "to": "inventory-db",
+                  "label": "SQL",
+                  "collectionIndex": 6,
+                  "artifactIndex": 7
+                },
+                "point": [
+                  577,
+                  526
+                ]
+              },
+              {
+                "left": {
+                  "id": "traefik-ws",
+                  "from": "traefik",
+                  "to": "websocket-service",
+                  "label": "/ws",
+                  "collectionIndex": 4,
+                  "artifactIndex": 5
+                },
+                "right": {
+                  "id": "ws-redis",
+                  "from": "websocket-service",
+                  "to": "redis",
+                  "label": "pub/sub subscribe",
+                  "collectionIndex": 7,
+                  "artifactIndex": 8
+                },
+                "point": [
+                  577,
+                  704
+                ],
+                "sharedNode": "websocket-service"
+              },
+              {
+                "left": {
+                  "id": "traefik-ws",
+                  "from": "traefik",
+                  "to": "websocket-service",
+                  "label": "/ws",
+                  "collectionIndex": 4,
+                  "artifactIndex": 5
+                },
+                "right": {
+                  "id": "order-redis",
+                  "from": "order-service",
+                  "to": "redis",
+                  "label": "cache (5min TTL)",
+                  "collectionIndex": 8,
+                  "artifactIndex": 9
+                },
+                "point": [
+                  577,
+                  676
+                ]
+              },
+              {
+                "left": {
+                  "id": "traefik-ws",
+                  "from": "traefik",
+                  "to": "websocket-service",
+                  "label": "/ws",
+                  "collectionIndex": 4,
+                  "artifactIndex": 5
+                },
+                "right": {
+                  "id": "inv-redis",
+                  "from": "inventory-service",
+                  "to": "redis",
+                  "label": "cache (30s TTL)",
+                  "collectionIndex": 9,
+                  "artifactIndex": 10
+                },
+                "point": [
+                  577,
+                  690
+                ]
+              },
+              {
+                "left": {
+                  "id": "traefik-ws",
+                  "from": "traefik",
+                  "to": "websocket-service",
+                  "label": "/ws",
+                  "collectionIndex": 4,
+                  "artifactIndex": 5
+                },
+                "right": {
+                  "id": "kafka-inv-cons",
+                  "from": "kafka",
+                  "to": "inventory-service",
+                  "label": "order.created",
+                  "collectionIndex": 11,
+                  "artifactIndex": 12
+                },
+                "point": [
+                  464,
+                  744
+                ]
+              },
+              {
+                "left": {
+                  "id": "traefik-ws",
+                  "from": "traefik",
+                  "to": "websocket-service",
+                  "label": "/ws",
+                  "collectionIndex": 4,
+                  "artifactIndex": 5
+                },
+                "right": {
+                  "id": "order-otlp",
+                  "from": "order-service",
+                  "to": "otel-collector",
+                  "label": "OTLP + /metrics",
+                  "collectionIndex": 14,
+                  "artifactIndex": 15
+                },
+                "point": [
+                  577,
+                  491.99999999999994
+                ]
+              },
+              {
+                "left": {
+                  "id": "traefik-ws",
+                  "from": "traefik",
+                  "to": "websocket-service",
+                  "label": "/ws",
+                  "collectionIndex": 4,
+                  "artifactIndex": 5
+                },
+                "right": {
+                  "id": "inv-otlp",
+                  "from": "inventory-service",
+                  "to": "otel-collector",
+                  "label": "OTLP + /metrics",
+                  "collectionIndex": 15,
+                  "artifactIndex": 16
+                },
+                "point": [
+                  577,
+                  649
+                ]
+              },
+              {
+                "left": {
+                  "id": "traefik-ws",
+                  "from": "traefik",
+                  "to": "websocket-service",
+                  "label": "/ws",
+                  "collectionIndex": 4,
+                  "artifactIndex": 5
+                },
+                "right": {
+                  "id": "ws-otlp",
+                  "from": "websocket-service",
+                  "to": "otel-collector",
+                  "label": "OTLP + /metrics",
+                  "collectionIndex": 16,
+                  "artifactIndex": 17
+                },
+                "point": [
+                  548.8000000000003,
+                  744
+                ],
+                "sharedNode": "websocket-service"
+              },
+              {
+                "left": {
+                  "id": "inv-db-sql",
+                  "from": "inventory-service",
+                  "to": "inventory-db",
+                  "label": "SQL",
+                  "collectionIndex": 6,
+                  "artifactIndex": 7
+                },
+                "right": {
+                  "id": "order-redis",
+                  "from": "order-service",
+                  "to": "redis",
+                  "label": "cache (5min TTL)",
+                  "collectionIndex": 8,
+                  "artifactIndex": 9
+                },
+                "point": [
+                  556,
+                  526
+                ]
+              },
+              {
+                "left": {
+                  "id": "ws-redis",
+                  "from": "websocket-service",
+                  "to": "redis",
+                  "label": "pub/sub subscribe",
+                  "collectionIndex": 7,
+                  "artifactIndex": 8
+                },
+                "right": {
+                  "id": "ws-otlp",
+                  "from": "websocket-service",
+                  "to": "otel-collector",
+                  "label": "OTLP + /metrics",
+                  "collectionIndex": 16,
+                  "artifactIndex": 17
+                },
+                "point": [
+                  510.0666666666667,
+                  697
+                ],
+                "sharedNode": "websocket-service"
+              },
+              {
+                "left": {
+                  "id": "order-redis",
+                  "from": "order-service",
+                  "to": "redis",
+                  "label": "cache (5min TTL)",
+                  "collectionIndex": 8,
+                  "artifactIndex": 9
+                },
+                "right": {
+                  "id": "inv-otlp",
+                  "from": "inventory-service",
+                  "to": "otel-collector",
+                  "label": "OTLP + /metrics",
+                  "collectionIndex": 15,
+                  "artifactIndex": 16
+                },
+                "point": [
+                  556,
+                  649
+                ]
+              },
+              {
+                "left": {
+                  "id": "inv-redis",
+                  "from": "inventory-service",
+                  "to": "redis",
+                  "label": "cache (30s TTL)",
+                  "collectionIndex": 9,
+                  "artifactIndex": 10
+                },
+                "right": {
+                  "id": "inv-otlp",
+                  "from": "inventory-service",
+                  "to": "otel-collector",
+                  "label": "OTLP + /metrics",
+                  "collectionIndex": 15,
+                  "artifactIndex": 16
+                },
+                "point": [
+                  510,
+                  649
+                ],
+                "sharedNode": "inventory-service"
+              },
+              {
+                "left": {
+                  "id": "otel-prom",
+                  "from": "otel-collector",
+                  "to": "prometheus",
+                  "label": ":8889 metrics",
+                  "collectionIndex": 18,
+                  "artifactIndex": 19
+                },
+                "right": {
+                  "id": "otel-loki",
+                  "from": "otel-collector",
+                  "to": "loki",
+                  "label": "logs",
+                  "collectionIndex": 19,
+                  "artifactIndex": 20
+                },
+                "point": [
+                  984,
+                  936
+                ],
+                "sharedNode": "otel-collector"
+              },
+              {
+                "left": {
+                  "id": "otel-prom",
+                  "from": "otel-collector",
+                  "to": "prometheus",
+                  "label": ":8889 metrics",
+                  "collectionIndex": 18,
+                  "artifactIndex": 19
+                },
+                "right": {
+                  "id": "otel-tempo",
+                  "from": "otel-collector",
+                  "to": "tempo",
+                  "label": "traces",
+                  "collectionIndex": 20,
+                  "artifactIndex": 21
+                },
+                "point": [
+                  984,
+                  928
+                ],
+                "sharedNode": "otel-collector"
+              },
+              {
+                "left": {
+                  "id": "prom-graf",
+                  "from": "prometheus",
+                  "to": "grafana",
+                  "label": "query /dashboards",
+                  "collectionIndex": 21,
+                  "artifactIndex": 22
+                },
+                "right": {
+                  "id": "tempo-graf",
+                  "from": "tempo",
+                  "to": "grafana",
+                  "label": "query",
+                  "collectionIndex": 23,
+                  "artifactIndex": 24
+                },
+                "point": [
+                  984,
+                  1091
+                ],
+                "sharedNode": "grafana"
+              }
+            ],
+            "detours": [
+              {
+                "relationship": {
+                  "id": "traefik-inventory",
+                  "from": "traefik",
+                  "to": "inventory-service",
+                  "label": "/api/inventory",
+                  "collectionIndex": 3,
+                  "artifactIndex": 4
+                },
+                "bends": 4,
+                "stretch": 1.394,
+                "directCorridorBlockers": [
+                  {
+                    "id": "order-service",
+                    "label": "Order Service",
+                    "box": [
+                      320,
+                      360,
+                      120,
+                      60
+                    ]
+                  }
+                ]
+              },
+              {
+                "relationship": {
+                  "id": "traefik-ws",
+                  "from": "traefik",
+                  "to": "websocket-service",
+                  "label": "/ws",
+                  "collectionIndex": 4,
+                  "artifactIndex": 5
+                },
+                "bends": 4,
+                "stretch": 1.892,
+                "directCorridorBlockers": [
+                  {
+                    "id": "order-service",
+                    "label": "Order Service",
+                    "box": [
+                      320,
+                      360,
+                      120,
+                      60
+                    ]
+                  },
+                  {
+                    "id": "inventory-service",
+                    "label": "Inventory Service",
+                    "box": [
+                      320,
+                      510,
+                      120,
+                      60
+                    ]
+                  }
+                ]
+              },
+              {
+                "relationship": {
+                  "id": "order-redis",
+                  "from": "order-service",
+                  "to": "redis",
+                  "label": "cache (5min TTL)",
+                  "collectionIndex": 8,
+                  "artifactIndex": 9
+                },
+                "bends": 3,
+                "stretch": 1
+              },
+              {
+                "relationship": {
+                  "id": "order-kafka",
+                  "from": "order-service",
+                  "to": "kafka",
+                  "label": "outbox → order.*",
+                  "collectionIndex": 10,
+                  "artifactIndex": 11
+                },
+                "bends": 3,
+                "stretch": 1.1,
+                "directCorridorBlockers": [
+                  {
+                    "id": "inventory-service",
+                    "label": "Inventory Service",
+                    "box": [
+                      320,
+                      510,
+                      120,
+                      60
+                    ]
+                  },
+                  {
+                    "id": "websocket-service",
+                    "label": "WebSocket Service",
+                    "box": [
+                      320,
+                      660,
+                      120,
+                      60
+                    ]
+                  }
+                ]
+              },
+              {
+                "relationship": {
+                  "id": "kafka-inv-cons",
+                  "from": "kafka",
+                  "to": "inventory-service",
+                  "label": "order.created",
+                  "collectionIndex": 11,
+                  "artifactIndex": 12
+                },
+                "bends": 4,
+                "stretch": 1.229,
+                "directCorridorBlockers": [
+                  {
+                    "id": "websocket-service",
+                    "label": "WebSocket Service",
+                    "box": [
+                      320,
+                      660,
+                      120,
+                      60
+                    ]
+                  }
+                ]
+              },
+              {
+                "relationship": {
+                  "id": "inv-kafka-reserved",
+                  "from": "inventory-service",
+                  "to": "kafka",
+                  "label": "reservation_failed",
+                  "collectionIndex": 12,
+                  "artifactIndex": 13
+                },
+                "bends": 3,
+                "stretch": 1.19,
+                "directCorridorBlockers": [
+                  {
+                    "id": "websocket-service",
+                    "label": "WebSocket Service",
+                    "box": [
+                      320,
+                      660,
+                      120,
+                      60
+                    ]
+                  }
+                ]
+              },
+              {
+                "relationship": {
+                  "id": "kafka-order-cons",
+                  "from": "kafka",
+                  "to": "order-service",
+                  "label": "inventory.reserved (gap)",
+                  "collectionIndex": 13,
+                  "artifactIndex": 14
+                },
+                "bends": 3,
+                "stretch": 1.172,
+                "directCorridorBlockers": [
+                  {
+                    "id": "inventory-service",
+                    "label": "Inventory Service",
+                    "box": [
+                      320,
+                      510,
+                      120,
+                      60
+                    ]
+                  },
+                  {
+                    "id": "websocket-service",
+                    "label": "WebSocket Service",
+                    "box": [
+                      320,
+                      660,
+                      120,
+                      60
+                    ]
+                  }
+                ]
+              },
+              {
+                "relationship": {
+                  "id": "order-otlp",
+                  "from": "order-service",
+                  "to": "otel-collector",
+                  "label": "OTLP + /metrics",
+                  "collectionIndex": 14,
+                  "artifactIndex": 15
+                },
+                "bends": 4,
+                "stretch": 1
+              },
+              {
+                "relationship": {
+                  "id": "inv-otlp",
+                  "from": "inventory-service",
+                  "to": "otel-collector",
+                  "label": "OTLP + /metrics",
+                  "collectionIndex": 15,
+                  "artifactIndex": 16
+                },
+                "bends": 3,
+                "stretch": 1
+              },
+              {
+                "relationship": {
+                  "id": "otel-prom",
+                  "from": "otel-collector",
+                  "to": "prometheus",
+                  "label": ":8889 metrics",
+                  "collectionIndex": 18,
+                  "artifactIndex": 19
+                },
+                "bends": 4,
+                "stretch": 1.356
+              },
+              {
+                "relationship": {
+                  "id": "prom-graf",
+                  "from": "prometheus",
+                  "to": "grafana",
+                  "label": "query /dashboards",
+                  "collectionIndex": 21,
+                  "artifactIndex": 22
+                },
+                "bends": 4,
+                "stretch": 1.356
+              },
+              {
+                "relationship": {
+                  "id": "loki-graf",
+                  "from": "loki",
+                  "to": "grafana",
+                  "label": "query",
+                  "collectionIndex": 22,
+                  "artifactIndex": 23
+                },
+                "bends": 4,
+                "stretch": 1.217
+              },
+              {
+                "relationship": {
+                  "id": "tempo-graf",
+                  "from": "tempo",
+                  "to": "grafana",
+                  "label": "query",
+                  "collectionIndex": 23,
+                  "artifactIndex": 24
+                },
+                "bends": 4,
+                "stretch": 1.159
+              }
+            ]
+          },
+          "leadingSpace": {
+            "measured": true,
+            "emptyTopPx": 60,
+            "emptyTopRatio": 0.048,
+            "occupiedTop": 60,
+            "viewBoxTop": 0,
+            "canvasHeight": 1258,
+            "typicalNodeHeight": 60,
+            "reviewSuggested": false
+          },
+          "desktopReadability": {
+            "budgetBasis": "legacy-930",
+            "readerContract": "declared-wide-v1",
+            "availableDiagramWidth": 930,
+            "actualBudgetPx": 930,
+            "limit": "legacy",
+            "requestedTargetPx": 7.5,
+            "requestedTargetMet": false,
+            "hardFloorPx": 6,
+            "hardFloorMet": false,
+            "minimumOwner": {
+              "kind": "node",
+              "id": "clients"
+            },
+            "minimumSourceTextPx": 7.1,
+            "minimumProjectedTextPx": 4.229980781550288,
+            "semanticTextCount": 57
+          },
+          "issues": [
+            {
+              "severity": "warning",
+              "code": "composition/label-route-clearance",
+              "label": "/api/inventory",
+              "labelRelationship": {
+                "id": "traefik-inventory",
+                "from": "traefik",
+                "to": "inventory-service",
+                "label": "/api/inventory",
+                "collectionIndex": 3,
+                "artifactIndex": 4
+              },
+              "otherRelationship": {
+                "id": "traefik-orders",
+                "from": "traefik",
+                "to": "order-service",
+                "label": "/api/orders",
+                "collectionIndex": 2,
+                "artifactIndex": 3
+              },
+              "segmentIndex": 0,
+              "labelRect": {
+                "x": 302.4,
+                "y": 274,
+                "width": 77.2,
+                "height": 14
+              },
+              "clearance": 0,
+              "intersectionLength": 14,
+              "threshold": 2,
+              "from": [
+                352,
+                270
+              ],
+              "to": [
+                352,
+                315
+              ]
+            },
+            {
+              "severity": "warning",
+              "code": "composition/label-route-clearance",
+              "label": "SQL",
+              "labelRelationship": {
+                "id": "inv-db-sql",
+                "from": "inventory-service",
+                "to": "inventory-db",
+                "label": "SQL",
+                "collectionIndex": 6,
+                "artifactIndex": 7
+              },
+              "otherRelationship": {
+                "id": "order-redis",
+                "from": "order-service",
+                "to": "redis",
+                "label": "cache (5min TTL)",
+                "collectionIndex": 8,
+                "artifactIndex": 9
+              },
+              "segmentIndex": 1,
+              "labelRect": {
+                "x": 495,
+                "y": 506,
+                "width": 30,
+                "height": 14
+              },
+              "clearance": 0,
+              "intersectionLength": 30,
+              "threshold": 2,
+              "from": [
+                387,
+                507
+              ],
+              "to": [
+                556,
+                507
+              ]
+            },
+            {
+              "severity": "warning",
+              "code": "composition/label-route-clearance",
+              "label": "pub/sub subscribe",
+              "labelRelationship": {
+                "id": "ws-redis",
+                "from": "websocket-service",
+                "to": "redis",
+                "label": "pub/sub subscribe",
+                "collectionIndex": 7,
+                "artifactIndex": 8
+              },
+              "otherRelationship": {
+                "id": "order-redis",
+                "from": "order-service",
+                "to": "redis",
+                "label": "cache (5min TTL)",
+                "collectionIndex": 8,
+                "artifactIndex": 9
+              },
+              "segmentIndex": 2,
+              "labelRect": {
+                "x": 464.2,
+                "y": 673.5,
+                "width": 91.6,
+                "height": 14
+              },
+              "clearance": 0.2,
+              "intersectionLength": 0,
+              "threshold": 2,
+              "from": [
+                556,
+                507
+              ],
+              "to": [
+                556,
+                676
+              ]
+            },
+            {
+              "severity": "warning",
+              "code": "composition/label-route-clearance",
+              "label": "pub/sub subscribe",
+              "labelRelationship": {
+                "id": "ws-redis",
+                "from": "websocket-service",
+                "to": "redis",
+                "label": "pub/sub subscribe",
+                "collectionIndex": 7,
+                "artifactIndex": 8
+              },
+              "otherRelationship": {
+                "id": "inv-redis",
+                "from": "inventory-service",
+                "to": "redis",
+                "label": "cache (30s TTL)",
+                "collectionIndex": 9,
+                "artifactIndex": 10
+              },
+              "segmentIndex": 1,
+              "labelRect": {
+                "x": 464.2,
+                "y": 673.5,
+                "width": 91.6,
+                "height": 14
+              },
+              "clearance": 0,
+              "intersectionLength": 14,
+              "threshold": 2,
+              "from": [
+                510,
+                540
+              ],
+              "to": [
+                510,
+                690
+              ]
+            },
+            {
+              "severity": "warning",
+              "code": "composition/label-route-clearance",
+              "label": "outbox → order.*",
+              "labelRelationship": {
+                "id": "order-kafka",
+                "from": "order-service",
+                "to": "kafka",
+                "label": "outbox → order.*",
+                "collectionIndex": 10,
+                "artifactIndex": 11
+              },
+              "otherRelationship": {
+                "id": "order-redis",
+                "from": "order-service",
+                "to": "redis",
+                "label": "cache (5min TTL)",
+                "collectionIndex": 8,
+                "artifactIndex": 9
+              },
+              "segmentIndex": 0,
+              "labelRect": {
+                "x": 376.6,
+                "y": 420,
+                "width": 86.8,
+                "height": 14
+              },
+              "clearance": 0,
+              "intersectionLength": 14,
+              "threshold": 2,
+              "from": [
+                387,
+                420
+              ],
+              "to": [
+                387,
+                507
+              ]
+            },
+            {
+              "severity": "warning",
+              "code": "composition/label-route-clearance",
+              "label": "reservation_failed",
+              "labelRelationship": {
+                "id": "inv-kafka-reserved",
+                "from": "inventory-service",
+                "to": "kafka",
+                "label": "reservation_failed",
+                "collectionIndex": 12,
+                "artifactIndex": 13
+              },
+              "otherRelationship": {
+                "id": "order-kafka",
+                "from": "order-service",
+                "to": "kafka",
+                "label": "outbox → order.*",
+                "collectionIndex": 10,
+                "artifactIndex": 11
+              },
+              "segmentIndex": 2,
+              "labelRect": {
+                "x": 285.8,
+                "y": 637,
+                "width": 96.4,
+                "height": 14
+              },
+              "clearance": 0,
+              "intersectionLength": 14,
+              "threshold": 2,
+              "from": [
+                296,
+                444
+              ],
+              "to": [
+                296,
+                840
+              ]
+            },
+            {
+              "severity": "warning",
+              "code": "composition/label-route-clearance",
+              "label": "reservation_failed",
+              "labelRelationship": {
+                "id": "inv-kafka-reserved",
+                "from": "inventory-service",
+                "to": "kafka",
+                "label": "reservation_failed",
+                "collectionIndex": 12,
+                "artifactIndex": 13
+              },
+              "otherRelationship": {
+                "id": "kafka-inv-cons",
+                "from": "kafka",
+                "to": "inventory-service",
+                "label": "order.created",
+                "collectionIndex": 11,
+                "artifactIndex": 12
+              },
+              "segmentIndex": 3,
+              "labelRect": {
+                "x": 285.8,
+                "y": 637,
+                "width": 96.4,
+                "height": 14
+              },
+              "clearance": 0,
+              "intersectionLength": 14,
+              "threshold": 2,
+              "from": [
+                296,
+                723
+              ],
+              "to": [
+                296,
+                540
+              ]
+            },
+            {
+              "severity": "warning",
+              "code": "composition/label-route-clearance",
+              "label": "reservation_failed",
+              "labelRelationship": {
+                "id": "inv-kafka-reserved",
+                "from": "inventory-service",
+                "to": "kafka",
+                "label": "reservation_failed",
+                "collectionIndex": 12,
+                "artifactIndex": 13
+              },
+              "otherRelationship": {
+                "id": "inv-otlp",
+                "from": "inventory-service",
+                "to": "otel-collector",
+                "label": "OTLP + /metrics",
+                "collectionIndex": 15,
+                "artifactIndex": 16
+              },
+              "segmentIndex": 0,
+              "labelRect": {
+                "x": 285.8,
+                "y": 637,
+                "width": 96.4,
+                "height": 14
+              },
+              "clearance": 0,
+              "intersectionLength": 12,
+              "threshold": 2,
+              "from": [
+                366,
+                570
+              ],
+              "to": [
+                366,
+                649
+              ]
+            },
+            {
+              "severity": "warning",
+              "code": "composition/label-route-clearance",
+              "label": "inventory.reserved (gap)",
+              "labelRelationship": {
+                "id": "kafka-order-cons",
+                "from": "kafka",
+                "to": "order-service",
+                "label": "inventory.reserved (gap)",
+                "collectionIndex": 13,
+                "artifactIndex": 14
+              },
+              "otherRelationship": {
+                "id": "order-kafka",
+                "from": "order-service",
+                "to": "kafka",
+                "label": "outbox → order.*",
+                "collectionIndex": 10,
+                "artifactIndex": 11
+              },
+              "segmentIndex": 2,
+              "labelRect": {
+                "x": 217.4,
+                "y": 618.5,
+                "width": 125.2,
+                "height": 14
+              },
+              "clearance": 0,
+              "intersectionLength": 14,
+              "threshold": 2,
+              "from": [
+                296,
+                444
+              ],
+              "to": [
+                296,
+                840
+              ]
+            },
+            {
+              "severity": "warning",
+              "code": "composition/label-route-clearance",
+              "label": "inventory.reserved (gap)",
+              "labelRelationship": {
+                "id": "kafka-order-cons",
+                "from": "kafka",
+                "to": "order-service",
+                "label": "inventory.reserved (gap)",
+                "collectionIndex": 13,
+                "artifactIndex": 14
+              },
+              "otherRelationship": {
+                "id": "kafka-inv-cons",
+                "from": "kafka",
+                "to": "inventory-service",
+                "label": "order.created",
+                "collectionIndex": 11,
+                "artifactIndex": 12
+              },
+              "segmentIndex": 3,
+              "labelRect": {
+                "x": 217.4,
+                "y": 618.5,
+                "width": 125.2,
+                "height": 14
+              },
+              "clearance": 0,
+              "intersectionLength": 14,
+              "threshold": 2,
+              "from": [
+                296,
+                723
+              ],
+              "to": [
+                296,
+                540
+              ]
+            },
+            {
+              "severity": "warning",
+              "code": "composition/label-route-clearance",
+              "label": "OTLP + /metrics",
+              "labelRelationship": {
+                "id": "inv-otlp",
+                "from": "inventory-service",
+                "to": "otel-collector",
+                "label": "OTLP + /metrics",
+                "collectionIndex": 15,
+                "artifactIndex": 16
+              },
+              "otherRelationship": {
+                "id": "traefik-ws",
+                "from": "traefik",
+                "to": "websocket-service",
+                "label": "/ws",
+                "collectionIndex": 4,
+                "artifactIndex": 5
+              },
+              "segmentIndex": 2,
+              "labelRect": {
+                "x": 550,
+                "y": 629,
+                "width": 82,
+                "height": 14
+              },
+              "clearance": 0,
+              "intersectionLength": 14,
+              "threshold": 2,
+              "from": [
+                577,
+                294
+              ],
+              "to": [
+                577,
+                744
+              ]
+            },
+            {
+              "severity": "warning",
+              "code": "composition/label-route-clearance",
+              "label": "OTLP + /metrics",
+              "labelRelationship": {
+                "id": "inv-otlp",
+                "from": "inventory-service",
+                "to": "otel-collector",
+                "label": "OTLP + /metrics",
+                "collectionIndex": 15,
+                "artifactIndex": 16
+              },
+              "otherRelationship": {
+                "id": "order-redis",
+                "from": "order-service",
+                "to": "redis",
+                "label": "cache (5min TTL)",
+                "collectionIndex": 8,
+                "artifactIndex": 9
+              },
+              "segmentIndex": 2,
+              "labelRect": {
+                "x": 550,
+                "y": 629,
+                "width": 82,
+                "height": 14
+              },
+              "clearance": 0,
+              "intersectionLength": 14,
+              "threshold": 2,
+              "from": [
+                556,
+                507
+              ],
+              "to": [
+                556,
+                676
+              ]
+            },
+            {
+              "severity": "warning",
+              "code": "composition/label-route-clearance",
+              "label": "logs",
+              "labelRelationship": {
+                "id": "otel-loki",
+                "from": "otel-collector",
+                "to": "loki",
+                "label": "logs",
+                "collectionIndex": 19,
+                "artifactIndex": 20
+              },
+              "otherRelationship": {
+                "id": "otel-tempo",
+                "from": "otel-collector",
+                "to": "tempo",
+                "label": "traces",
+                "collectionIndex": 20,
+                "artifactIndex": 21
+              },
+              "segmentIndex": 1,
+              "labelRect": {
+                "x": 1011.5,
+                "y": 916,
+                "width": 30,
+                "height": 14
+              },
+              "clearance": 0,
+              "intersectionLength": 30,
+              "threshold": 2,
+              "from": [
+                907,
+                928
+              ],
+              "to": [
+                1420,
+                928
+              ]
+            },
+            {
+              "severity": "warning",
+              "code": "composition/desktop-readability",
+              "nodeId": "clients",
+              "owner": {
+                "kind": "node",
+                "id": "clients"
+              },
+              "viewportWidth": 1440,
+              "viewportHeight": 900,
+              "availableDiagramWidth": 930,
+              "budgetBasis": "legacy-930",
+              "readerContract": "declared-wide-v1",
+              "requestedTargetPx": 7.5,
+              "requestedTargetMet": false,
+              "budgetLimit": "legacy",
+              "viewBoxWidth": 1561,
+              "scale": 0.5957719410634209,
+              "text": "Browser / Load Tester (k6)",
+              "detail": "context",
+              "sourceFontPx": 7.1,
+              "projectedFontPx": 4.229980781550288,
+              "minimumProjectedFontPx": 6
+            }
+          ]
+        },
+        "provenance": "current",
+        "deliveryReceiptId": "19933730-a2d7-438b-beaa-d5caf906bd1d"
+      }
+    },
+    "browser-check": {
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 1407,
+      "command": [
+        "/home/tranngocvu/.hermes/node/bin/node",
+        "/home/tranngocvu/.agents/skills/archify/bin/archify.mjs",
+        "browser-check",
+        "/home/tranngocvu/Projects/Realtime-Order-Inventory-System/docs/architecture/architecture-runtime.html",
+        "--json",
+        "--require-provenance"
+      ],
+      "execution": "in-process",
+      "receipt": {
+        "schemaVersion": 1,
+        "ok": true,
+        "command": "browser-check",
+        "evidenceKind": "automated-browser",
+        "status": "pass",
+        "visualReview": "not-requested",
+        "provenance": "current",
+        "deliveryReceiptId": "19933730-a2d7-438b-beaa-d5caf906bd1d",
+        "artifact": {
+          "path": "/home/tranngocvu/Projects/Realtime-Order-Inventory-System/docs/architecture/architecture-runtime.html",
+          "sha256": "0e3f90ec72f5e8eb811216d39a44560b176884d1c65b6e706c72b88646cc2543",
+          "bytes": 795099
+        },
+        "state": {
+          "detail": "read",
+          "motion": "still"
+        },
+        "chrome": {
+          "status": "available",
+          "executable": "/home/tranngocvu/.cache/ms-playwright/chromium-1234/chrome-linux64/chrome"
+        },
+        "diagnostics": [],
+        "containment": {
+          "status": "pass",
+          "policy": "fit-or-reader-declared-readable-vertical-scroll",
+          "viewports": [
+            {
+              "width": 1440,
+              "height": 900,
+              "theme": "light",
+              "innerWidth": 1440,
+              "innerHeight": 900,
+              "scrollWidth": 1440,
+              "scrollHeight": 1253,
+              "overflowX": false,
+              "overflowY": true,
+              "verticalScrollAccepted": true,
+              "overflowDisposition": "readable-vertical-scroll",
+              "readerLayout": "adaptive",
+              "readerOverflow": "authored",
+              "readerFit": "intrinsic-height",
+              "ok": true,
+              "readerWidth": 1376,
+              "diagramWidth": 1346,
+              "pageComposition": {
+                "bodyPaddingPx": 12,
+                "headerPx": 78,
+                "diagramChromePx": 78,
+                "svgPx": 1085,
+                "cardsPx": 0,
+                "viewBoxHeight": 1258
+              },
+              "viewBoxWidth": 1561,
+              "minimumProjectedNodeTextPx": 6.122101217168481,
+              "minimumProjectedNonEdgeTextPx": 6.122101217168481,
+              "minimumProjectedEdgeTextPx": 6.898142216527867,
+              "minimumProjectedNodeText": "Browser / Load Tester (k6)",
+              "minimumProjectedNodeTextDetail": "context",
+              "minimumProjectedNodeTextOwner": {
+                "kind": "node",
+                "id": "clients"
+              },
+              "minimumRequiredNodeTextPx": 6,
+              "readabilityOk": true,
+              "hasLegend": true,
+              "hasNavigationDock": true,
+              "legendDockIntersectionArea": 0,
+              "dockStageIntersectionArea": 0,
+              "dockStageGap": 10,
+              "requiredDockStageGap": 10,
+              "viewerChromeStageOk": true,
+              "viewerChromeReserve": 54,
+              "viewerChromeActive": true,
+              "viewerChromeOk": true,
+              "resolvedTheme": "light"
+            },
+            {
+              "width": 1600,
+              "height": 1000,
+              "theme": "light",
+              "innerWidth": 1600,
+              "innerHeight": 1000,
+              "scrollWidth": 1600,
+              "scrollHeight": 1448,
+              "overflowX": false,
+              "overflowY": true,
+              "verticalScrollAccepted": true,
+              "overflowDisposition": "readable-vertical-scroll",
+              "readerLayout": "adaptive",
+              "readerOverflow": "authored",
+              "readerFit": "intrinsic-height",
+              "ok": true,
+              "readerWidth": 1536,
+              "diagramWidth": 1506,
+              "pageComposition": {
+                "bodyPaddingPx": 64,
+                "headerPx": 86,
+                "diagramChromePx": 84,
+                "svgPx": 1214,
+                "cardsPx": 0,
+                "viewBoxHeight": 1258
+              },
+              "viewBoxWidth": 1561,
+              "minimumProjectedNodeTextPx": 6.849839846252403,
+              "minimumProjectedNonEdgeTextPx": 6.849839846252403,
+              "minimumProjectedEdgeTextPx": 7.718129404228059,
+              "minimumProjectedNodeText": "Browser / Load Tester (k6)",
+              "minimumProjectedNodeTextDetail": "context",
+              "minimumProjectedNodeTextOwner": {
+                "kind": "node",
+                "id": "clients"
+              },
+              "minimumRequiredNodeTextPx": 6,
+              "readabilityOk": true,
+              "hasLegend": true,
+              "hasNavigationDock": true,
+              "legendDockIntersectionArea": 0,
+              "dockStageIntersectionArea": 0,
+              "dockStageGap": 10,
+              "requiredDockStageGap": 10,
+              "viewerChromeStageOk": true,
+              "viewerChromeReserve": 54,
+              "viewerChromeActive": true,
+              "viewerChromeOk": true,
+              "resolvedTheme": "light"
+            },
+            {
+              "width": 1920,
+              "height": 1080,
+              "theme": "light",
+              "innerWidth": 1920,
+              "innerHeight": 1080,
+              "scrollWidth": 1920,
+              "scrollHeight": 1492,
+              "overflowX": false,
+              "overflowY": true,
+              "verticalScrollAccepted": true,
+              "overflowDisposition": "readable-vertical-scroll",
+              "readerLayout": "adaptive",
+              "readerOverflow": "authored",
+              "readerFit": "intrinsic-height",
+              "ok": true,
+              "readerWidth": 1591,
+              "diagramWidth": 1561,
+              "pageComposition": {
+                "bodyPaddingPx": 64,
+                "headerPx": 86,
+                "diagramChromePx": 84,
+                "svgPx": 1258,
+                "cardsPx": 0,
+                "viewBoxHeight": 1258
+              },
+              "viewBoxWidth": 1561,
+              "minimumProjectedNodeTextPx": 7.1,
+              "minimumProjectedNonEdgeTextPx": 7.1,
+              "minimumProjectedEdgeTextPx": 8,
+              "minimumProjectedNodeText": "Browser / Load Tester (k6)",
+              "minimumProjectedNodeTextDetail": "context",
+              "minimumProjectedNodeTextOwner": {
+                "kind": "node",
+                "id": "clients"
+              },
+              "minimumRequiredNodeTextPx": 6,
+              "readabilityOk": true,
+              "hasLegend": true,
+              "hasNavigationDock": true,
+              "legendDockIntersectionArea": 0,
+              "dockStageIntersectionArea": 0,
+              "dockStageGap": 10,
+              "requiredDockStageGap": 10,
+              "viewerChromeStageOk": true,
+              "viewerChromeReserve": 54,
+              "viewerChromeActive": true,
+              "viewerChromeOk": true,
+              "resolvedTheme": "light"
+            },
+            {
+              "width": 2048,
+              "height": 1320,
+              "theme": "light",
+              "innerWidth": 2048,
+              "innerHeight": 1320,
+              "scrollWidth": 2048,
+              "scrollHeight": 1510,
+              "overflowX": false,
+              "overflowY": true,
+              "verticalScrollAccepted": true,
+              "overflowDisposition": "readable-vertical-scroll",
+              "readerLayout": "adaptive",
+              "readerOverflow": "authored",
+              "readerFit": "intrinsic-height",
+              "ok": true,
+              "readerWidth": 1611,
+              "diagramWidth": 1561,
+              "pageComposition": {
+                "bodyPaddingPx": 64,
+                "headerPx": 94,
+                "diagramChromePx": 94,
+                "svgPx": 1258,
+                "cardsPx": 0,
+                "viewBoxHeight": 1258
+              },
+              "viewBoxWidth": 1561,
+              "minimumProjectedNodeTextPx": 7.1,
+              "minimumProjectedNonEdgeTextPx": 7.1,
+              "minimumProjectedEdgeTextPx": 8,
+              "minimumProjectedNodeText": "Browser / Load Tester (k6)",
+              "minimumProjectedNodeTextDetail": "context",
+              "minimumProjectedNodeTextOwner": {
+                "kind": "node",
+                "id": "clients"
+              },
+              "minimumRequiredNodeTextPx": 6,
+              "readabilityOk": true,
+              "hasLegend": true,
+              "hasNavigationDock": true,
+              "legendDockIntersectionArea": 0,
+              "dockStageIntersectionArea": 0,
+              "dockStageGap": 10,
+              "requiredDockStageGap": 10,
+              "viewerChromeStageOk": true,
+              "viewerChromeReserve": 44,
+              "viewerChromeActive": true,
+              "viewerChromeOk": true,
+              "resolvedTheme": "light"
+            }
+          ]
+        },
+        "themeStates": {
+          "status": "pass",
+          "viewports": [
+            {
+              "width": 1440,
+              "height": 900,
+              "requestedTheme": "light",
+              "resolvedTheme": "light",
+              "ok": true
+            },
+            {
+              "width": 1600,
+              "height": 1000,
+              "requestedTheme": "light",
+              "resolvedTheme": "light",
+              "ok": true
+            },
+            {
+              "width": 1920,
+              "height": 1080,
+              "requestedTheme": "light",
+              "resolvedTheme": "light",
+              "ok": true
+            },
+            {
+              "width": 2048,
+              "height": 1320,
+              "requestedTheme": "light",
+              "resolvedTheme": "light",
+              "ok": true
+            },
+            {
+              "width": 1440,
+              "height": 900,
+              "requestedTheme": "dark",
+              "resolvedTheme": "dark",
+              "ok": true
+            },
+            {
+              "width": 2048,
+              "height": 1320,
+              "requestedTheme": "dark",
+              "resolvedTheme": "dark",
+              "ok": true
+            }
+          ]
+        },
+        "readability": {
+          "status": "pass",
+          "minimumProjectedNodeTextPx": 6,
+          "viewports": [
+            {
+              "width": 1440,
+              "height": 900,
+              "theme": "light",
+              "innerWidth": 1440,
+              "innerHeight": 900,
+              "scrollWidth": 1440,
+              "scrollHeight": 1253,
+              "overflowX": false,
+              "overflowY": true,
+              "verticalScrollAccepted": true,
+              "overflowDisposition": "readable-vertical-scroll",
+              "readerLayout": "adaptive",
+              "readerOverflow": "authored",
+              "readerFit": "intrinsic-height",
+              "ok": true,
+              "readerWidth": 1376,
+              "diagramWidth": 1346,
+              "pageComposition": {
+                "bodyPaddingPx": 12,
+                "headerPx": 78,
+                "diagramChromePx": 78,
+                "svgPx": 1085,
+                "cardsPx": 0,
+                "viewBoxHeight": 1258
+              },
+              "viewBoxWidth": 1561,
+              "minimumProjectedNodeTextPx": 6.122101217168481,
+              "minimumProjectedNonEdgeTextPx": 6.122101217168481,
+              "minimumProjectedEdgeTextPx": 6.898142216527867,
+              "minimumProjectedNodeText": "Browser / Load Tester (k6)",
+              "minimumProjectedNodeTextDetail": "context",
+              "minimumProjectedNodeTextOwner": {
+                "kind": "node",
+                "id": "clients"
+              },
+              "minimumRequiredNodeTextPx": 6,
+              "readabilityOk": true,
+              "hasLegend": true,
+              "hasNavigationDock": true,
+              "legendDockIntersectionArea": 0,
+              "dockStageIntersectionArea": 0,
+              "dockStageGap": 10,
+              "requiredDockStageGap": 10,
+              "viewerChromeStageOk": true,
+              "viewerChromeReserve": 54,
+              "viewerChromeActive": true,
+              "viewerChromeOk": true,
+              "resolvedTheme": "light"
+            },
+            {
+              "width": 1600,
+              "height": 1000,
+              "theme": "light",
+              "innerWidth": 1600,
+              "innerHeight": 1000,
+              "scrollWidth": 1600,
+              "scrollHeight": 1448,
+              "overflowX": false,
+              "overflowY": true,
+              "verticalScrollAccepted": true,
+              "overflowDisposition": "readable-vertical-scroll",
+              "readerLayout": "adaptive",
+              "readerOverflow": "authored",
+              "readerFit": "intrinsic-height",
+              "ok": true,
+              "readerWidth": 1536,
+              "diagramWidth": 1506,
+              "pageComposition": {
+                "bodyPaddingPx": 64,
+                "headerPx": 86,
+                "diagramChromePx": 84,
+                "svgPx": 1214,
+                "cardsPx": 0,
+                "viewBoxHeight": 1258
+              },
+              "viewBoxWidth": 1561,
+              "minimumProjectedNodeTextPx": 6.849839846252403,
+              "minimumProjectedNonEdgeTextPx": 6.849839846252403,
+              "minimumProjectedEdgeTextPx": 7.718129404228059,
+              "minimumProjectedNodeText": "Browser / Load Tester (k6)",
+              "minimumProjectedNodeTextDetail": "context",
+              "minimumProjectedNodeTextOwner": {
+                "kind": "node",
+                "id": "clients"
+              },
+              "minimumRequiredNodeTextPx": 6,
+              "readabilityOk": true,
+              "hasLegend": true,
+              "hasNavigationDock": true,
+              "legendDockIntersectionArea": 0,
+              "dockStageIntersectionArea": 0,
+              "dockStageGap": 10,
+              "requiredDockStageGap": 10,
+              "viewerChromeStageOk": true,
+              "viewerChromeReserve": 54,
+              "viewerChromeActive": true,
+              "viewerChromeOk": true,
+              "resolvedTheme": "light"
+            },
+            {
+              "width": 1920,
+              "height": 1080,
+              "theme": "light",
+              "innerWidth": 1920,
+              "innerHeight": 1080,
+              "scrollWidth": 1920,
+              "scrollHeight": 1492,
+              "overflowX": false,
+              "overflowY": true,
+              "verticalScrollAccepted": true,
+              "overflowDisposition": "readable-vertical-scroll",
+              "readerLayout": "adaptive",
+              "readerOverflow": "authored",
+              "readerFit": "intrinsic-height",
+              "ok": true,
+              "readerWidth": 1591,
+              "diagramWidth": 1561,
+              "pageComposition": {
+                "bodyPaddingPx": 64,
+                "headerPx": 86,
+                "diagramChromePx": 84,
+                "svgPx": 1258,
+                "cardsPx": 0,
+                "viewBoxHeight": 1258
+              },
+              "viewBoxWidth": 1561,
+              "minimumProjectedNodeTextPx": 7.1,
+              "minimumProjectedNonEdgeTextPx": 7.1,
+              "minimumProjectedEdgeTextPx": 8,
+              "minimumProjectedNodeText": "Browser / Load Tester (k6)",
+              "minimumProjectedNodeTextDetail": "context",
+              "minimumProjectedNodeTextOwner": {
+                "kind": "node",
+                "id": "clients"
+              },
+              "minimumRequiredNodeTextPx": 6,
+              "readabilityOk": true,
+              "hasLegend": true,
+              "hasNavigationDock": true,
+              "legendDockIntersectionArea": 0,
+              "dockStageIntersectionArea": 0,
+              "dockStageGap": 10,
+              "requiredDockStageGap": 10,
+              "viewerChromeStageOk": true,
+              "viewerChromeReserve": 54,
+              "viewerChromeActive": true,
+              "viewerChromeOk": true,
+              "resolvedTheme": "light"
+            },
+            {
+              "width": 2048,
+              "height": 1320,
+              "theme": "light",
+              "innerWidth": 2048,
+              "innerHeight": 1320,
+              "scrollWidth": 2048,
+              "scrollHeight": 1510,
+              "overflowX": false,
+              "overflowY": true,
+              "verticalScrollAccepted": true,
+              "overflowDisposition": "readable-vertical-scroll",
+              "readerLayout": "adaptive",
+              "readerOverflow": "authored",
+              "readerFit": "intrinsic-height",
+              "ok": true,
+              "readerWidth": 1611,
+              "diagramWidth": 1561,
+              "pageComposition": {
+                "bodyPaddingPx": 64,
+                "headerPx": 94,
+                "diagramChromePx": 94,
+                "svgPx": 1258,
+                "cardsPx": 0,
+                "viewBoxHeight": 1258
+              },
+              "viewBoxWidth": 1561,
+              "minimumProjectedNodeTextPx": 7.1,
+              "minimumProjectedNonEdgeTextPx": 7.1,
+              "minimumProjectedEdgeTextPx": 8,
+              "minimumProjectedNodeText": "Browser / Load Tester (k6)",
+              "minimumProjectedNodeTextDetail": "context",
+              "minimumProjectedNodeTextOwner": {
+                "kind": "node",
+                "id": "clients"
+              },
+              "minimumRequiredNodeTextPx": 6,
+              "readabilityOk": true,
+              "hasLegend": true,
+              "hasNavigationDock": true,
+              "legendDockIntersectionArea": 0,
+              "dockStageIntersectionArea": 0,
+              "dockStageGap": 10,
+              "requiredDockStageGap": 10,
+              "viewerChromeStageOk": true,
+              "viewerChromeReserve": 44,
+              "viewerChromeActive": true,
+              "viewerChromeOk": true,
+              "resolvedTheme": "light"
+            }
+          ]
+        },
+        "viewerChrome": {
+          "status": "pass",
+          "viewports": [
+            {
+              "width": 1440,
+              "height": 900,
+              "theme": "light",
+              "innerWidth": 1440,
+              "innerHeight": 900,
+              "scrollWidth": 1440,
+              "scrollHeight": 1253,
+              "overflowX": false,
+              "overflowY": true,
+              "verticalScrollAccepted": true,
+              "overflowDisposition": "readable-vertical-scroll",
+              "readerLayout": "adaptive",
+              "readerOverflow": "authored",
+              "readerFit": "intrinsic-height",
+              "ok": true,
+              "readerWidth": 1376,
+              "diagramWidth": 1346,
+              "pageComposition": {
+                "bodyPaddingPx": 12,
+                "headerPx": 78,
+                "diagramChromePx": 78,
+                "svgPx": 1085,
+                "cardsPx": 0,
+                "viewBoxHeight": 1258
+              },
+              "viewBoxWidth": 1561,
+              "minimumProjectedNodeTextPx": 6.122101217168481,
+              "minimumProjectedNonEdgeTextPx": 6.122101217168481,
+              "minimumProjectedEdgeTextPx": 6.898142216527867,
+              "minimumProjectedNodeText": "Browser / Load Tester (k6)",
+              "minimumProjectedNodeTextDetail": "context",
+              "minimumProjectedNodeTextOwner": {
+                "kind": "node",
+                "id": "clients"
+              },
+              "minimumRequiredNodeTextPx": 6,
+              "readabilityOk": true,
+              "hasLegend": true,
+              "hasNavigationDock": true,
+              "legendDockIntersectionArea": 0,
+              "dockStageIntersectionArea": 0,
+              "dockStageGap": 10,
+              "requiredDockStageGap": 10,
+              "viewerChromeStageOk": true,
+              "viewerChromeReserve": 54,
+              "viewerChromeActive": true,
+              "viewerChromeOk": true,
+              "resolvedTheme": "light"
+            },
+            {
+              "width": 1600,
+              "height": 1000,
+              "theme": "light",
+              "innerWidth": 1600,
+              "innerHeight": 1000,
+              "scrollWidth": 1600,
+              "scrollHeight": 1448,
+              "overflowX": false,
+              "overflowY": true,
+              "verticalScrollAccepted": true,
+              "overflowDisposition": "readable-vertical-scroll",
+              "readerLayout": "adaptive",
+              "readerOverflow": "authored",
+              "readerFit": "intrinsic-height",
+              "ok": true,
+              "readerWidth": 1536,
+              "diagramWidth": 1506,
+              "pageComposition": {
+                "bodyPaddingPx": 64,
+                "headerPx": 86,
+                "diagramChromePx": 84,
+                "svgPx": 1214,
+                "cardsPx": 0,
+                "viewBoxHeight": 1258
+              },
+              "viewBoxWidth": 1561,
+              "minimumProjectedNodeTextPx": 6.849839846252403,
+              "minimumProjectedNonEdgeTextPx": 6.849839846252403,
+              "minimumProjectedEdgeTextPx": 7.718129404228059,
+              "minimumProjectedNodeText": "Browser / Load Tester (k6)",
+              "minimumProjectedNodeTextDetail": "context",
+              "minimumProjectedNodeTextOwner": {
+                "kind": "node",
+                "id": "clients"
+              },
+              "minimumRequiredNodeTextPx": 6,
+              "readabilityOk": true,
+              "hasLegend": true,
+              "hasNavigationDock": true,
+              "legendDockIntersectionArea": 0,
+              "dockStageIntersectionArea": 0,
+              "dockStageGap": 10,
+              "requiredDockStageGap": 10,
+              "viewerChromeStageOk": true,
+              "viewerChromeReserve": 54,
+              "viewerChromeActive": true,
+              "viewerChromeOk": true,
+              "resolvedTheme": "light"
+            },
+            {
+              "width": 1920,
+              "height": 1080,
+              "theme": "light",
+              "innerWidth": 1920,
+              "innerHeight": 1080,
+              "scrollWidth": 1920,
+              "scrollHeight": 1492,
+              "overflowX": false,
+              "overflowY": true,
+              "verticalScrollAccepted": true,
+              "overflowDisposition": "readable-vertical-scroll",
+              "readerLayout": "adaptive",
+              "readerOverflow": "authored",
+              "readerFit": "intrinsic-height",
+              "ok": true,
+              "readerWidth": 1591,
+              "diagramWidth": 1561,
+              "pageComposition": {
+                "bodyPaddingPx": 64,
+                "headerPx": 86,
+                "diagramChromePx": 84,
+                "svgPx": 1258,
+                "cardsPx": 0,
+                "viewBoxHeight": 1258
+              },
+              "viewBoxWidth": 1561,
+              "minimumProjectedNodeTextPx": 7.1,
+              "minimumProjectedNonEdgeTextPx": 7.1,
+              "minimumProjectedEdgeTextPx": 8,
+              "minimumProjectedNodeText": "Browser / Load Tester (k6)",
+              "minimumProjectedNodeTextDetail": "context",
+              "minimumProjectedNodeTextOwner": {
+                "kind": "node",
+                "id": "clients"
+              },
+              "minimumRequiredNodeTextPx": 6,
+              "readabilityOk": true,
+              "hasLegend": true,
+              "hasNavigationDock": true,
+              "legendDockIntersectionArea": 0,
+              "dockStageIntersectionArea": 0,
+              "dockStageGap": 10,
+              "requiredDockStageGap": 10,
+              "viewerChromeStageOk": true,
+              "viewerChromeReserve": 54,
+              "viewerChromeActive": true,
+              "viewerChromeOk": true,
+              "resolvedTheme": "light"
+            },
+            {
+              "width": 2048,
+              "height": 1320,
+              "theme": "light",
+              "innerWidth": 2048,
+              "innerHeight": 1320,
+              "scrollWidth": 2048,
+              "scrollHeight": 1510,
+              "overflowX": false,
+              "overflowY": true,
+              "verticalScrollAccepted": true,
+              "overflowDisposition": "readable-vertical-scroll",
+              "readerLayout": "adaptive",
+              "readerOverflow": "authored",
+              "readerFit": "intrinsic-height",
+              "ok": true,
+              "readerWidth": 1611,
+              "diagramWidth": 1561,
+              "pageComposition": {
+                "bodyPaddingPx": 64,
+                "headerPx": 94,
+                "diagramChromePx": 94,
+                "svgPx": 1258,
+                "cardsPx": 0,
+                "viewBoxHeight": 1258
+              },
+              "viewBoxWidth": 1561,
+              "minimumProjectedNodeTextPx": 7.1,
+              "minimumProjectedNonEdgeTextPx": 7.1,
+              "minimumProjectedEdgeTextPx": 8,
+              "minimumProjectedNodeText": "Browser / Load Tester (k6)",
+              "minimumProjectedNodeTextDetail": "context",
+              "minimumProjectedNodeTextOwner": {
+                "kind": "node",
+                "id": "clients"
+              },
+              "minimumRequiredNodeTextPx": 6,
+              "readabilityOk": true,
+              "hasLegend": true,
+              "hasNavigationDock": true,
+              "legendDockIntersectionArea": 0,
+              "dockStageIntersectionArea": 0,
+              "dockStageGap": 10,
+              "requiredDockStageGap": 10,
+              "viewerChromeStageOk": true,
+              "viewerChromeReserve": 44,
+              "viewerChromeActive": true,
+              "viewerChromeOk": true,
+              "resolvedTheme": "light"
+            }
+          ]
+        },
+        "captures": {
+          "status": "not-requested",
+          "screenshots": [],
+          "contactSheet": null
+        },
+        "sidecars": {
+          "receipt": "architecture-runtime.browser-check.json",
+          "files": []
+        }
+      }
+    }
+  },
+  "diagnostics": [],
+  "evidence": {
+    "receipt": "/home/tranngocvu/Projects/Realtime-Order-Inventory-System/docs/architecture/architecture-runtime.finalize.json",
+    "summaryReceipt": "/home/tranngocvu/Projects/Realtime-Order-Inventory-System/docs/architecture/architecture-runtime.finalize-summary.json",
+    "browserCheckReceipt": "/home/tranngocvu/Projects/Realtime-Order-Inventory-System/docs/architecture/architecture-runtime.browser-check.json"
+  },
+  "visualReview": "not-requested",
+  "finishedAt": "2026-09-29T17:38:11.125Z",
+  "durationMs": 2457,
+  "update": {
+    "status": "current",
+    "installedVersion": "3.0.1",
+    "availableVersion": "3.0.1",
+    "releaseNotes": null,
+    "checkedAt": "2026-09-29T17:37:57.783Z",
+    "source": "cache",
+    "noticeRequired": false,
+    "noticeText": null
+  }
+}

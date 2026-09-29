@@ -1,0 +1,109 @@
+{
+  "schemaVersion": 1,
+  "ok": false,
+  "command": "finalize",
+  "status": "fail",
+  "type": "sequence",
+  "quality": "standard",
+  "startedAt": "2026-09-29T17:56:01.714Z",
+  "specification": {
+    "path": "/home/tranngocvu/Projects/Realtime-Order-Inventory-System/.archify/sequence-request-flow-20250930/candidate.json",
+    "sha256": "ddc36fed633f168cd023d4b2442a7aa4fe40dfa61451805a23f5a75c6352f6dd",
+    "bytes": 2794
+  },
+  "artifact": {
+    "path": "/home/tranngocvu/Projects/Realtime-Order-Inventory-System/docs/architecture/sequence-request-flow.html",
+    "sha256": "a4f10016e4b3362c289d87fc64cfb05a8966f0437c5b5f48a7879f8418efaebb",
+    "bytes": 757566
+  },
+  "stages": {
+    "validate": {
+      "status": "fail",
+      "exitCode": 1,
+      "durationMs": null,
+      "command": [
+        "/home/tranngocvu/.hermes/node/bin/node",
+        "/home/tranngocvu/.agents/skills/archify/bin/archify.mjs",
+        "deliver",
+        "sequence",
+        "/home/tranngocvu/Projects/Realtime-Order-Inventory-System/.archify/sequence-request-flow-20250930/candidate.json",
+        "/home/tranngocvu/Projects/Realtime-Order-Inventory-System/docs/architecture/sequence-request-flow.html",
+        "--quality",
+        "standard",
+        "--repo-root",
+        "/home/tranngocvu/Projects/Realtime-Order-Inventory-System",
+        "--json"
+      ],
+      "receipt": {
+        "schemaVersion": 1,
+        "ok": false,
+        "command": "deliver",
+        "receiptId": "ae142acd-7c3e-4085-b2a7-a74cfee944f1",
+        "stage": "render",
+        "type": "sequence",
+        "input": "/home/tranngocvu/Projects/Realtime-Order-Inventory-System/.archify/sequence-request-flow-20250930/candidate.json",
+        "output": "/home/tranngocvu/Projects/Realtime-Order-Inventory-System/docs/architecture/sequence-request-flow.html",
+        "error": "Sequence layout validation failed:\n- Participants exceed viewBox width — set meta.viewBox[0] to at least 1009 or remove a participant.",
+        "diagnostics": [
+          {
+            "code": "layout/constraint",
+            "severity": "error",
+            "message": "Participants exceed viewBox width — set meta.viewBox[0] to at least 1009 or remove a participant.",
+            "subject": {
+              "diagramType": "sequence"
+            },
+            "evidence": {},
+            "supportedFixes": []
+          }
+        ],
+        "provenance": "failed",
+        "update": {
+          "status": "unavailable",
+          "installedVersion": null,
+          "availableVersion": null,
+          "releaseNotes": null,
+          "checkedAt": null,
+          "source": null,
+          "noticeRequired": false,
+          "noticeText": null,
+          "reason": "disabled"
+        }
+      },
+      "execution": "embedded-in-deliver"
+    },
+    "deliver": {
+      "status": "not-run",
+      "execution": "blocked-by-validate"
+    }
+  },
+  "diagnostics": [
+    {
+      "code": "layout/constraint",
+      "severity": "error",
+      "message": "Participants exceed viewBox width — set meta.viewBox[0] to at least 1009 or remove a participant.",
+      "subject": {
+        "diagramType": "sequence"
+      },
+      "evidence": {},
+      "supportedFixes": []
+    }
+  ],
+  "evidence": {
+    "receipt": "/home/tranngocvu/Projects/Realtime-Order-Inventory-System/docs/architecture/sequence-request-flow.finalize.json",
+    "summaryReceipt": "/home/tranngocvu/Projects/Realtime-Order-Inventory-System/docs/architecture/sequence-request-flow.finalize-summary.json"
+  },
+  "visualReview": "not-requested",
+  "failedStage": "validate",
+  "finishedAt": "2026-09-29T17:56:02.009Z",
+  "durationMs": 295,
+  "update": {
+    "status": "current",
+    "installedVersion": "3.0.1",
+    "availableVersion": "3.0.1",
+    "releaseNotes": null,
+    "checkedAt": "2026-09-29T17:37:57.783Z",
+    "source": "cache",
+    "noticeRequired": false,
+    "noticeText": null
+  }
+}

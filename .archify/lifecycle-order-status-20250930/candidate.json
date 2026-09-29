@@ -1,0 +1,123 @@
+{
+  "schema_version": 2,
+  "diagram_type": "lifecycle",
+  "meta": {
+    "title": "Lifecycle \u2014 Order Status (verified from outbox topics)",
+    "output": "docs/architecture/lifecycle-order-status.html",
+    "locale": "en",
+    "quality_profile": "standard",
+    "repository": {
+      "url": "https://github.com/racenak/Realtime-Order-Inventory-System.git",
+      "revision": "ddddab94f547b911a292cba09d93ead590e6b6ee",
+      "link_mode": "local-only"
+    }
+  },
+  "lanes": [
+    {
+      "id": "main",
+      "label": "Main Order Path"
+    },
+    {
+      "id": "exception",
+      "label": "Exception / Retry"
+    }
+  ],
+  "states": [
+    {
+      "id": "created",
+      "label": "order.created",
+      "lane": "main",
+      "col": 0,
+      "type": "start",
+      "sources": [
+        {
+          "path": "internal/order/adapter/kafka/outbox_publisher.go",
+          "line": 159,
+          "label": "topic mapping order.created"
+        }
+      ]
+    },
+    {
+      "id": "paid",
+      "label": "order.paid",
+      "lane": "main",
+      "col": 1,
+      "type": "active"
+    },
+    {
+      "id": "confirmed",
+      "label": "order.confirmed",
+      "lane": "main",
+      "col": 2,
+      "type": "active"
+    },
+    {
+      "id": "cancelled",
+      "label": "order.cancelled",
+      "lane": "exception",
+      "col": 2,
+      "type": "failure"
+    },
+    {
+      "id": "shipped",
+      "label": "order.shipped",
+      "lane": "main",
+      "col": 3,
+      "type": "active"
+    },
+    {
+      "id": "delivered",
+      "label": "order.delivered",
+      "lane": "main",
+      "col": 4,
+      "type": "active"
+    },
+    {
+      "id": "status-changed",
+      "label": "order.status.changed",
+      "lane": "exception",
+      "col": 3,
+      "type": "neutral"
+    }
+  ],
+  "transitions": [
+    {
+      "id": "t1",
+      "from": "created",
+      "to": "paid",
+      "label": "payment"
+    },
+    {
+      "id": "t2",
+      "from": "paid",
+      "to": "confirmed",
+      "label": "confirm"
+    },
+    {
+      "id": "t3",
+      "from": "confirmed",
+      "to": "shipped",
+      "label": "ship"
+    },
+    {
+      "id": "t4",
+      "from": "shipped",
+      "to": "delivered",
+      "label": "deliver"
+    },
+    {
+      "id": "t-cancel",
+      "from": "created",
+      "to": "cancelled",
+      "label": "cancel",
+      "variant": "dashed"
+    },
+    {
+      "id": "t-status",
+      "from": "delivered",
+      "to": "status-changed",
+      "label": "update",
+      "variant": "dashed"
+    }
+  ]
+}

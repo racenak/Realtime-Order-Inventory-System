@@ -1,0 +1,125 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "Data Flow \u2014 Order to Observability",
+    "output": "docs/architecture/dataflow-order-pipeline.html",
+    "locale": "en",
+    "quality_profile": "standard",
+    "repository": {
+      "url": "https://github.com/racenak/Realtime-Order-Inventory-System.git",
+      "revision": "ddddab94f547b911a292cba09d93ead590e6b6ee",
+      "link_mode": "local-only"
+    }
+  },
+  "stages": [
+    {
+      "label": "Request"
+    },
+    {
+      "label": "Order Domain"
+    },
+    {
+      "label": "Inventory & Messaging"
+    },
+    {
+      "label": "Observability"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "req-payload",
+      "label": "Order payload",
+      "stage": 0,
+      "type": "external",
+      "row": 0
+    },
+    {
+      "id": "auth-headers",
+      "label": "JWT headers",
+      "stage": 0,
+      "type": "security",
+      "row": 0
+    },
+    {
+      "id": "db-rows",
+      "label": "Order + Outbox rows",
+      "stage": 1,
+      "type": "database",
+      "row": 0,
+      "sources": [
+        {
+          "path": "cmd/order-service/main.go",
+          "line": 89,
+          "label": "outbox"
+        }
+      ]
+    },
+    {
+      "id": "kafka-msg",
+      "label": "order.* events",
+      "stage": 2,
+      "type": "messagebus",
+      "row": 0
+    },
+    {
+      "id": "inv-rows",
+      "label": "Reservation rows",
+      "stage": 2,
+      "type": "database",
+      "row": 0
+    },
+    {
+      "id": "redis-channels",
+      "label": "order.events / inv.events",
+      "stage": 2,
+      "type": "database",
+      "row": 0
+    },
+    {
+      "id": "metrics",
+      "label": "Prometheus metrics",
+      "stage": 3,
+      "type": "cloud",
+      "row": 0
+    }
+  ],
+  "flows": [
+    {
+      "id": "f1",
+      "from": "req-payload",
+      "to": "auth-headers",
+      "label": "HTTP POST"
+    },
+    {
+      "id": "f2",
+      "from": "auth-headers",
+      "to": "db-rows",
+      "label": "SQL + outbox"
+    },
+    {
+      "id": "f3",
+      "from": "db-rows",
+      "to": "kafka-msg",
+      "label": "outbox publish"
+    },
+    {
+      "id": "f4",
+      "from": "kafka-msg",
+      "to": "inv-rows",
+      "label": "consume order.created"
+    },
+    {
+      "id": "f5",
+      "from": "inv-rows",
+      "to": "redis-channels",
+      "label": "pub/sub subscribe"
+    },
+    {
+      "id": "f6",
+      "from": "redis-channels",
+      "to": "metrics",
+      "label": "OTLP traces/metrics/logs"
+    }
+  ]
+}

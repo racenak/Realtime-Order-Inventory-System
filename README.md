@@ -10,7 +10,19 @@ A distributed microservices system for order processing and inventory management
 - **CQRS** - Separate read/write models
 - **Real-time** - WebSocket for live updates
 
-## Tech Stack
+### Verified Runtime Architecture
+
+<div align="center">
+<img src="docs/architecture/architecture-runtime.svg" alt="Verified Runtime Architecture (standard quality, source-linked at ddddab94)" style="max-width:100%;height:auto;"/>
+</div>
+<p align="center"><small>Source: repo <code>ddddab94</code> (local-only links due to dirty worktree). Gaps: Kafka <code>inventory.reserved</code> missing producer; Redis pub/sub zero <code>.Publish()</code>; DLQ <code>dead_letter</code> at <code>pkg/kafka/consumer.go:196</code>.</small></p>
+
+**Diagram artifacts (verified from repo sources)**
+- [Architecture (runtime overview)](docs/architecture/architecture-runtime.html) — delivered, embedded SVG
+- [Sequence (request flow)](docs/architecture/sequence-request-flow.html) — delivered
+- [Workflow (order creation)](.archify/workflow-order-flow-20250930/candidate.json) — validated candidate
+- [Data Flow (pipeline)](.archify/dataflow-order-pipeline-20250930/candidate.json) — validated candidate
+- [Lifecycle (status)](.archify/lifecycle-order-status-20250930/candidate.json) — validated candidate
 
 - **Language:** Go 1.22
 - **Database:** PostgreSQL 16

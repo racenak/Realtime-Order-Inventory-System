@@ -2,27 +2,39 @@
 
 A distributed microservices system for order processing and inventory management with real-time synchronization.
 
-## Architecture
+## Architecture (verified from source at `ddddab94`)
 
-- **Clean Architecture** - Domain, UseCase, Adapter layers
-- **Microservices** - Order Service, Inventory Service
-- **Event-Driven** - Kafka for async communication
-- **CQRS** - Separate read/write models
-- **Real-time** - WebSocket for live updates
+The system is a distributed Go 1.22 service mesh behind a Traefik gateway (`:8088`).
 
-### Verified Runtime Architecture
+**Request flow (verified)**: Client → Traefik → `jwt-auth` ForwardAuth (`auth-service:8083/verify`) → protected-chain (`jwt-auth` + `rate-limit` + `security-headers`) → `order-service` (`:8080`) or `inventory-service` (`:8081`) or `websocket-service` (`:8082`).
 
-**Diagram artifacts (verified from repo sources)**
-- [Architecture (runtime overview)](https://racenak.github.io/Realtime-Order-Inventory-System/docs/architecture/architecture-runtime.html)
-- [Sequence (request flow)](https://racenak.github.io/Realtime-Order-Inventory-System/docs/architecture/sequence-request-flow.html)
-- [Workflow (order creation)](https://racenak.github.io/Realtime-Order-Inventory-System/docs/architecture/workflow-order-flow.html)
-- [Lifecycle (status)](https://racenak.github.io/Realtime-Order-Inventory-System/docs/architecture/lifecycle-order-status.html)
+**Services** (entry points in `cmd/*/main.go`):
+- `order-service`: order domain + outbox publisher (`internal/order/adapter/kafka/outbox_publisher.go:59`) → Kafka topics `order.created`..`delivered`; consumes `inventory.reserved` (`cmd/order-service/main.go:101`)
+- `inventory-service`: reserves stock; consumes `order.created` (`cmd/inventory-service/main.go:116`); writes `inventory.reservation_failed` (`internal/inventory/adapter/kafka/order_event_handler.go:181`)
+- `websocket-service`: Redis pub/sub subscriber only (`internal/websocket/subscriber.go:35` — channels `order.events`, `inventory.events`); **verified gap: no `.Publish()` match**
+- `auth-service`: JWT verification (`/verify`) + `/metrics`
 
-- **Language:** Go 1.22
-- **Database:** PostgreSQL 16
-- **Cache:** Redis 7
-- **Message Broker:** Apache Kafka
-- **API Gateway:** Traefik
+**State & messaging** (verified from `docker-compose.yml`, `traefik-dynamic.yml`):
+- PostgreSQL: `order-db` (`:5432`), `inventory-db` (`:5433`)
+- Redis: 7-alpine (`:6379`) — 5min TTL (order), 30s TTL (inventory)
+- Kafka: `apache/kafka:4.3.1`; topics `order.*`, `inventory.reserved`, `inventory.reservation_failed`, `dead_letter` (`pkg/kafka/consumer.go:196` DLQ)
+
+**Observability** (verified from `config/otel/otel-collector.yml`, `config/prometheus/prometheus.yml`):
+- OTLP receivers `:4317`/`:4318`; `prometheus/app-services` scrapes `order-service:8080`, `inventory-service:8081`, `websocket-service:8082`, `auth-service:8083`, `traefik:8080`
+- Pipelines: traces → Tempo (`:4318`); metrics → Prometheus (`:8889`); logs → Loki (`:3100`)
+- Grafana (`:3000`) queries Prometheus (`:9090`), Loki (`:3100`), Tempo (`:3200`)
+
+**Verified gaps** (documented in architecture cards + sequence notes):
+- Kafka `inventory.reserved` is consumed (`cmd/order-service/main.go:101`) but has **no in-repo producer**
+- Redis `order.events` / `inventory.events` are subscribed (`subscriber.go:35`) but have **zero `.Publish()` calls** in repo
+- `inventory.reservation_failed` is produced (`internal/inventory/adapter/kafka/order_event_handler.go:181`) and consumed correctly
+
+**Visual diagrams (all verified against source)**
+- [Architecture — runtime overview](docs/architecture/architecture-runtime.html) | [SVG](docs/architecture/architecture-runtime.svg)
+- [Sequence — request flow](docs/architecture/sequence-request-flow.html)
+- [Workflow — order creation](docs/architecture/workflow-order-flow.html)
+- [Lifecycle — order status](docs/architecture/lifecycle-order-status.html)
+- [Data Flow — pipeline](.archify/dataflow-order-pipeline-20250930/candidate.json) — validated; needs `fromSide`/`toSide` fix on stage-flow `f1`/`f4` for HTML render
 - **Orchestration:** Kubernetes
 
 ## Project Structure
@@ -163,14 +175,6 @@ make db-reset
 
 MIT
 
-## Knowledge Graph (graphify)
+## Evidence & Source Verification
 
-Graph rebuilt at `5a5688e` (includes new `docs/architecture/` artifacts + `.archify/` candidates + updated README).
-
-- **Graph**: [`graphify-out/graph.html`](graphify-out/graph.html) | [`graph.json`](graphify-out/graph.json) | [`GRAPH_REPORT.md`](graphify-out/GRAPH_REPORT.md)
-- **Scale**: 1147 nodes · 2940 edges · 78 communities · 94% EXTRACTED / 5% INFERRED (avg conf 0.9) · 0 import cycles · 155 inferred edges
-- **Core abstractions (god nodes)**: `Order` (35 edges), `setupOrderUsecase()` / `setupInventoryUsecase()`, `main()`, `OutboxEvent`, `Inventory`, `Hub`, `NewCreateOrderUseCase()`, `NewOrderRepository()` — confirmed by `cmd/order-service/main.go`, `internal/order/usecase/`, `internal/inventory/adapter/`
-- **Verified architecture connections** (from graph + source): `traefik-dynamic.yml` ↔ `auth-service:8083/verify`; `order-service` ↔ `order-db` (SQL + outbox); `kafka` topics (`order.*`, `inventory.reservation_failed`, `dead_letter`) ↔ consumer groups (`inventory-service-orders`, `order-service-inventory`); `redis` (cache/pubsub) ↔ `websocket-service` subscriber (`internal/websocket/subscriber.go:35` — subscribe-only, zero `.Publish()`); `otel-collector` ↔ `prometheus` (`:8889`) / `loki` / `tempo` ↔ `grafana`
-- **Surprising graph connections** (verified by source inspection): `jwt-auth ForwardAuth Middleware (K8s CRD)` semantically similar to `jwt-auth ForwardAuth Middleware (file provider)` (`traefik-dynamic.yml` ↔ `deployments/traefik/ingress-routes.yml`); `inventory-service Container (:8081)` ↔ `Inventory Service` (`docker-compose.yml` ↔ `README.md`); `order-service Container (:8080)` ↔ `Order Service`
-- **Key communities**: System Architecture & ADRs; Kubernetes Observability Storage; Traefik Routing & Middleware; Auth Deployment & Monitoring; Event-Driven Design Docs; Cache Abstraction / Read-Through / Write-Through; Outbox Publisher / DLQ; WebSocket / Redis PubSub; OpenTelemetry Tracing; Grafana Dashboards; Transaction Boundary Patterns; E2E / Integration / Unit Tests
-- **Data-quality note**: `graphify-out/` was rebuilt at `ddddab94` with `python3` interpreter fixed (prior failure at `sql/sqlite` extraction), SQL nodes restored (99 SQL nodes), old labels recovered (67 + 11 SQL labels), interpreter sidecar corrected to `/usr/bin/python3`
+All architecture claims above are tied to inspected source at commit `ddddab94` (`local-only` links; dirty worktree excludes uncommitted `AGENTS.md` / `graphify-out/`). Key proofs: `traefik-dynamic.yml` (routing, ForwardAuth, chains); `cmd/*-service/main.go` (service wiring, OTLP, Kafka consumer groups, Redis clients); `internal/order/adapter/kafka/*.go` (outbox topics, DLQ, consumer); `internal/websocket/subscriber.go:35` (Redis pub/sub subscribe — gap noted); `config/otel/otel-collector.yml` + `prometheus/prometheus.yml` + `grafana/provisioning/datasources/datasources.yml` (observability pipeline); `docker-compose.yml` (service topology, Kafka init topics, `k6` profile). The interactive knowledge graph (`graphify-out/graph.html`) and `GRAPH_REPORT.md` document 1147 nodes / 2940 edges / 78 communities; core abstractions (`Order`, `OutboxEvent`, `Inventory`, `Hub`) are confirmed by code structure rather than inference.

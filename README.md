@@ -20,9 +20,9 @@ A distributed microservices system for order processing and inventory management
 **Diagram artifacts (verified from repo sources)**
 - [Architecture (runtime overview)](https://racenak.github.io/https://github.com/racenak/Realtime-Order-Inventory-System/docs/architecture/architecture-runtime.html) — delivered, embedded SVG
 - [Sequence (request flow)](https://racenak.github.io/https://github.com/racenak/Realtime-Order-Inventory-System/docs/architecture/sequence-request-flow.html) — delivered
-- [Workflow (order creation)](.archify/workflow-order-flow-20250930/candidate.json) — validated candidate
-- [Data Flow (pipeline)](.archify/dataflow-order-pipeline-20250930/candidate.json) — validated candidate
-- [Lifecycle (status)](.archify/lifecycle-order-status-20250930/candidate.json) — validated candidate
+- [Workflow (order creation)](docs/architecture/workflow-order-flow.html) — delivered
+- [Data Flow (pipeline)](.archify/dataflow-order-pipeline-20250930/candidate.json) — validated candidate (blocked by endpoint-side-direction flows f1/f4; fixable)
+- [Lifecycle (status)](docs/architecture/lifecycle-order-status.html) — delivered
 
 - **Language:** Go 1.22
 - **Database:** PostgreSQL 16

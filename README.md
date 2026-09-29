@@ -18,8 +18,8 @@ A distributed microservices system for order processing and inventory management
 <p align="center"><small>Source: repo <code>ddddab94</code> (local-only links due to dirty worktree). Gaps: Kafka <code>inventory.reserved</code> missing producer; Redis pub/sub zero <code>.Publish()</code>; DLQ <code>dead_letter</code> at <code>pkg/kafka/consumer.go:196</code>.</small></p>
 
 **Diagram artifacts (verified from repo sources)**
-- [Architecture (runtime overview)](docs/architecture/architecture-runtime.html) — delivered, embedded SVG
-- [Sequence (request flow)](docs/architecture/sequence-request-flow.html) — delivered
+- [Architecture (runtime overview)](https://racenak.github.io/https://github.com/racenak/Realtime-Order-Inventory-System/docs/architecture/architecture-runtime.html) — delivered, embedded SVG
+- [Sequence (request flow)](https://racenak.github.io/https://github.com/racenak/Realtime-Order-Inventory-System/docs/architecture/sequence-request-flow.html) — delivered
 - [Workflow (order creation)](.archify/workflow-order-flow-20250930/candidate.json) — validated candidate
 - [Data Flow (pipeline)](.archify/dataflow-order-pipeline-20250930/candidate.json) — validated candidate
 - [Lifecycle (status)](.archify/lifecycle-order-status-20250930/candidate.json) — validated candidate

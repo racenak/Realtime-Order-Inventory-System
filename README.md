@@ -162,3 +162,15 @@ make db-reset
 ## License
 
 MIT
+
+## Knowledge Graph (graphify)
+
+Graph rebuilt at `5a5688e` (includes new `docs/architecture/` artifacts + `.archify/` candidates + updated README).
+
+- **Graph**: [`graphify-out/graph.html`](graphify-out/graph.html) | [`graph.json`](graphify-out/graph.json) | [`GRAPH_REPORT.md`](graphify-out/GRAPH_REPORT.md)
+- **Scale**: 1147 nodes · 2940 edges · 78 communities · 94% EXTRACTED / 5% INFERRED (avg conf 0.9) · 0 import cycles · 155 inferred edges
+- **Core abstractions (god nodes)**: `Order` (35 edges), `setupOrderUsecase()` / `setupInventoryUsecase()`, `main()`, `OutboxEvent`, `Inventory`, `Hub`, `NewCreateOrderUseCase()`, `NewOrderRepository()` — confirmed by `cmd/order-service/main.go`, `internal/order/usecase/`, `internal/inventory/adapter/`
+- **Verified architecture connections** (from graph + source): `traefik-dynamic.yml` ↔ `auth-service:8083/verify`; `order-service` ↔ `order-db` (SQL + outbox); `kafka` topics (`order.*`, `inventory.reservation_failed`, `dead_letter`) ↔ consumer groups (`inventory-service-orders`, `order-service-inventory`); `redis` (cache/pubsub) ↔ `websocket-service` subscriber (`internal/websocket/subscriber.go:35` — subscribe-only, zero `.Publish()`); `otel-collector` ↔ `prometheus` (`:8889`) / `loki` / `tempo` ↔ `grafana`
+- **Surprising graph connections** (verified by source inspection): `jwt-auth ForwardAuth Middleware (K8s CRD)` semantically similar to `jwt-auth ForwardAuth Middleware (file provider)` (`traefik-dynamic.yml` ↔ `deployments/traefik/ingress-routes.yml`); `inventory-service Container (:8081)` ↔ `Inventory Service` (`docker-compose.yml` ↔ `README.md`); `order-service Container (:8080)` ↔ `Order Service`
+- **Key communities**: System Architecture & ADRs; Kubernetes Observability Storage; Traefik Routing & Middleware; Auth Deployment & Monitoring; Event-Driven Design Docs; Cache Abstraction / Read-Through / Write-Through; Outbox Publisher / DLQ; WebSocket / Redis PubSub; OpenTelemetry Tracing; Grafana Dashboards; Transaction Boundary Patterns; E2E / Integration / Unit Tests
+- **Data-quality note**: `graphify-out/` was rebuilt at `ddddab94` with `python3` interpreter fixed (prior failure at `sql/sqlite` extraction), SQL nodes restored (99 SQL nodes), old labels recovered (67 + 11 SQL labels), interpreter sidecar corrected to `/usr/bin/python3`
